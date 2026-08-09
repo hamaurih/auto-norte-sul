@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { tdb } from "@/integrations/supabase/tenant-db";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 
 async function requireCatalogTenant(supabase: any, userId: string, tenantId: string) {
   const { data, error } = await supabase

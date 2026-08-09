@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { activeTenantSlug, supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
+import { activeTenantSlug } from "@/integrations/supabase/tenant";
 import { tdb } from "@/integrations/supabase/tenant-db";
 
 export type AccessOrganization = {

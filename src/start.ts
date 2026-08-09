@@ -2,6 +2,7 @@ import { createStart, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
+import { TENANT_HEADER, activeTenantSlug } from "@/integrations/supabase/tenant";
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
@@ -18,7 +19,11 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
   }
 });
 
+const attachTenantHeader = createMiddleware({ type: "function" }).client(
+  async ({ next }) => next({ headers: { [TENANT_HEADER]: activeTenantSlug() } }),
+);
+
 export const startInstance = createStart(() => ({
-  functionMiddleware: [attachSupabaseAuth],
+  functionMiddleware: [attachSupabaseAuth, attachTenantHeader],
   requestMiddleware: [errorMiddleware],
 }));
