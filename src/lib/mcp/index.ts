@@ -1,6 +1,6 @@
 import { defineMcp, auth } from "@lovable.dev/mcp-js";
 
-const SUPABASE_URL = "https://cpwabehobsucqthixjgk.supabase.co";
+const SUPABASE_URL = process.env.SUPABASE_URL ?? "https://pleuoxzocgoajmymipqi.supabase.co";
 import searchProductsTool from "./tools/search-products";
 import getProductTool from "./tools/get-product";
 import checkStockTool from "./tools/check-stock";
