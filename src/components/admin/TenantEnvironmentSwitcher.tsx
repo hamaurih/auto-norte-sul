@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   activeTenantSlug,
   setActiveTenantSlug,
-} from "@/integrations/supabase/client";
+} from "@/integrations/supabase/tenant";
 import { environmentLabel, useAccessContext } from "@/lib/access";
 
 const fallbackEnvironments = [
