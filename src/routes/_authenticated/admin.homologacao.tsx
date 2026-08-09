@@ -13,7 +13,7 @@ import {
 } from "@/lib/access";
 import { createInvitation, listInvitations, revokeInvitation } from "@/lib/access.functions";
 import { useCompanyProfile } from "@/lib/company";
-import { setActiveTenantSlug } from "@/integrations/supabase/client";
+import { setActiveTenantSlug } from "@/integrations/supabase/tenant";
 
 export const Route = createFileRoute("/_authenticated/admin/homologacao")({
   head: () => ({ meta: [{ title: "Homologação de acesso · Admin" }] }),

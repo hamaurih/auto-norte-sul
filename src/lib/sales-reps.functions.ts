@@ -3,7 +3,7 @@
  * Admin/gerente can create sales reps; invitation goes out via Supabase Auth.
  */
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 import { tdb } from "@/integrations/supabase/tenant-db";
 
 export const inviteSalesRep = createServerFn({ method: "POST" })

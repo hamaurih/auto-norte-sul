@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { tdb } from "@/integrations/supabase/tenant-db";
-import { activeTenantSlug, supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
+import { activeTenantSlug } from "@/integrations/supabase/tenant";
 
 export type CompanyProfile = {
   tenant_id: string;
