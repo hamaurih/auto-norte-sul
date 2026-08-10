@@ -4,6 +4,8 @@ import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
+import { authErrorMessage } from "@/lib/auth-errors";
+
 
 const search = z.object({ next: z.string().optional() });
 
@@ -49,6 +51,10 @@ function AuthPage() {
     setLoading(true);
     try {
       if (mode === "signup") {
+        if (password.length < 8) {
+          toast.error("A senha deve ter no mínimo 8 caracteres.");
+          return;
+        }
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -58,9 +64,14 @@ function AuthPage() {
           },
         });
         if (error) throw error;
-        toast.success("Conta criada! Você já pode navegar.");
-        if (data.user) await redirectAfterAuth(data.user.id);
-        else navigate({ to: "/" });
+        if (data.session?.user) {
+          // Confirmação de e-mail desativada no backend: já existe sessão válida.
+          toast.success("Conta criada! Você já está conectado(a).");
+          await redirectAfterAuth(data.session.user.id);
+        } else {
+          toast.success("Conta criada! Verifique seu e-mail para confirmar o acesso.");
+          setMode("login");
+        }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -69,11 +80,12 @@ function AuthPage() {
         else navigate({ to: "/" });
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro na autenticação");
+      toast.error(authErrorMessage(err, "Erro na autenticação."));
     } finally {
       setLoading(false);
     }
   }
+
 
 
   async function google() {
@@ -85,7 +97,7 @@ function AuthPage() {
       if (result.redirected) return;
       navigate({ to: (next as never) ?? "/" });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro no login Google");
+      toast.error(authErrorMessage(err, "Erro no login com Google."));
     }
   }
 
@@ -147,9 +159,17 @@ function AuthPage() {
               <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase">Senha</span>
-              <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
+              <span className="mb-1 flex items-center justify-between text-xs font-semibold uppercase">
+                Senha
+                {mode === "login" && (
+                  <Link to="/esqueci-senha" className="normal-case text-primary hover:underline">
+                    Esqueci minha senha
+                  </Link>
+                )}
+              </span>
+              <input type="password" required minLength={mode === "signup" ? 8 : 6} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
             </label>
+
             <button disabled={loading} className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-bold uppercase text-primary-foreground shadow-[var(--shadow-brand)] hover:brightness-110 disabled:opacity-60">
               {loading ? "Aguarde…" : mode === "login" ? "Entrar" : "Criar conta"}
             </button>
