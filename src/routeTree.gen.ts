@@ -37,6 +37,7 @@ import { Route as AuthenticatedAdminVendedoresRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminSaneamentoRouteImport } from './routes/_authenticated/admin.saneamento'
 import { Route as AuthenticatedAdminPromocoesRouteImport } from './routes/_authenticated/admin.promocoes'
 import { Route as AuthenticatedAdminPedidosRouteImport } from './routes/_authenticated/admin.pedidos'
+import { Route as AuthenticatedAdminPdvRouteImport } from './routes/_authenticated/admin.pdv'
 import { Route as AuthenticatedAdminOrcamentosRouteImport } from './routes/_authenticated/admin.orcamentos'
 import { Route as AuthenticatedAdminMarcasRouteImport } from './routes/_authenticated/admin.marcas'
 import { Route as AuthenticatedAdminIaAesBusinessRouteImport } from './routes/_authenticated/admin.ia-aes-business'
@@ -212,6 +213,11 @@ const AuthenticatedAdminPedidosRoute =
     path: '/pedidos',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminPdvRoute = AuthenticatedAdminPdvRouteImport.update({
+  id: '/pdv',
+  path: '/pdv',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
 const AuthenticatedAdminOrcamentosRoute =
   AuthenticatedAdminOrcamentosRouteImport.update({
     id: '/orcamentos',
@@ -396,6 +402,7 @@ export interface FileRoutesByFullPath {
   '/admin/ia-aes-business': typeof AuthenticatedAdminIaAesBusinessRoute
   '/admin/marcas': typeof AuthenticatedAdminMarcasRoute
   '/admin/orcamentos': typeof AuthenticatedAdminOrcamentosRoute
+  '/admin/pdv': typeof AuthenticatedAdminPdvRoute
   '/admin/pedidos': typeof AuthenticatedAdminPedidosRoute
   '/admin/promocoes': typeof AuthenticatedAdminPromocoesRoute
   '/admin/saneamento': typeof AuthenticatedAdminSaneamentoRouteWithChildren
@@ -447,6 +454,7 @@ export interface FileRoutesByTo {
   '/admin/ia-aes-business': typeof AuthenticatedAdminIaAesBusinessRoute
   '/admin/marcas': typeof AuthenticatedAdminMarcasRoute
   '/admin/orcamentos': typeof AuthenticatedAdminOrcamentosRoute
+  '/admin/pdv': typeof AuthenticatedAdminPdvRoute
   '/admin/pedidos': typeof AuthenticatedAdminPedidosRoute
   '/admin/promocoes': typeof AuthenticatedAdminPromocoesRoute
   '/admin/saneamento': typeof AuthenticatedAdminSaneamentoRouteWithChildren
@@ -503,6 +511,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/ia-aes-business': typeof AuthenticatedAdminIaAesBusinessRoute
   '/_authenticated/admin/marcas': typeof AuthenticatedAdminMarcasRoute
   '/_authenticated/admin/orcamentos': typeof AuthenticatedAdminOrcamentosRoute
+  '/_authenticated/admin/pdv': typeof AuthenticatedAdminPdvRoute
   '/_authenticated/admin/pedidos': typeof AuthenticatedAdminPedidosRoute
   '/_authenticated/admin/promocoes': typeof AuthenticatedAdminPromocoesRoute
   '/_authenticated/admin/saneamento': typeof AuthenticatedAdminSaneamentoRouteWithChildren
@@ -559,6 +568,7 @@ export interface FileRouteTypes {
     | '/admin/ia-aes-business'
     | '/admin/marcas'
     | '/admin/orcamentos'
+    | '/admin/pdv'
     | '/admin/pedidos'
     | '/admin/promocoes'
     | '/admin/saneamento'
@@ -610,6 +620,7 @@ export interface FileRouteTypes {
     | '/admin/ia-aes-business'
     | '/admin/marcas'
     | '/admin/orcamentos'
+    | '/admin/pdv'
     | '/admin/pedidos'
     | '/admin/promocoes'
     | '/admin/saneamento'
@@ -665,6 +676,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/ia-aes-business'
     | '/_authenticated/admin/marcas'
     | '/_authenticated/admin/orcamentos'
+    | '/_authenticated/admin/pdv'
     | '/_authenticated/admin/pedidos'
     | '/_authenticated/admin/promocoes'
     | '/_authenticated/admin/saneamento'
@@ -901,6 +913,13 @@ declare module '@tanstack/react-router' {
       path: '/pedidos'
       fullPath: '/admin/pedidos'
       preLoaderRoute: typeof AuthenticatedAdminPedidosRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/pdv': {
+      id: '/_authenticated/admin/pdv'
+      path: '/pdv'
+      fullPath: '/admin/pdv'
+      preLoaderRoute: typeof AuthenticatedAdminPdvRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/orcamentos': {
@@ -1148,6 +1167,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminIaAesBusinessRoute: typeof AuthenticatedAdminIaAesBusinessRoute
   AuthenticatedAdminMarcasRoute: typeof AuthenticatedAdminMarcasRoute
   AuthenticatedAdminOrcamentosRoute: typeof AuthenticatedAdminOrcamentosRoute
+  AuthenticatedAdminPdvRoute: typeof AuthenticatedAdminPdvRoute
   AuthenticatedAdminPedidosRoute: typeof AuthenticatedAdminPedidosRoute
   AuthenticatedAdminPromocoesRoute: typeof AuthenticatedAdminPromocoesRoute
   AuthenticatedAdminSaneamentoRoute: typeof AuthenticatedAdminSaneamentoRouteWithChildren
@@ -1175,6 +1195,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminIaAesBusinessRoute: AuthenticatedAdminIaAesBusinessRoute,
   AuthenticatedAdminMarcasRoute: AuthenticatedAdminMarcasRoute,
   AuthenticatedAdminOrcamentosRoute: AuthenticatedAdminOrcamentosRoute,
+  AuthenticatedAdminPdvRoute: AuthenticatedAdminPdvRoute,
   AuthenticatedAdminPedidosRoute: AuthenticatedAdminPedidosRoute,
   AuthenticatedAdminPromocoesRoute: AuthenticatedAdminPromocoesRoute,
   AuthenticatedAdminSaneamentoRoute:

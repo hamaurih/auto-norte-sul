@@ -23,6 +23,7 @@ import {
   Warehouse,
   FileText,
   ClipboardCheck,
+  ScanLine,
 } from "lucide-react";
 import {
   Sidebar,
@@ -65,6 +66,7 @@ type Item = {
 
 const items: Item[] = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, group: "operacao" },
+  { to: "/admin/pdv", label: "PDV", icon: ScanLine, group: "operacao" },
   { to: "/admin/orcamentos", label: "Orçamentos", icon: FileText, group: "operacao" },
   { to: "/admin/pedidos", label: "Pedidos", icon: ShoppingBag, group: "operacao" },
   { to: "/admin/cadastros-b2b", label: "Cadastros B2B", icon: Briefcase, group: "operacao" },
