@@ -153,3 +153,29 @@
   color: var(--color-brand);
   letter-spacing: -0.02em;
 }
+
+/* Comprovante térmico do PDV: oculto na tela, visível apenas na impressão. */
+.pdv-receipt { display: none; }
+.pdv-receipt hr { border: 0; border-top: 1px dashed #000; margin: 4px 0; }
+.pdv-receipt-center { text-align: center; }
+.pdv-receipt-row { display: flex; justify-content: space-between; gap: 8px; }
+.pdv-receipt-item { margin-bottom: 4px; }
+
+@media print {
+  body * { visibility: hidden; }
+  .pdv-receipt, .pdv-receipt * { visibility: visible; }
+  .pdv-receipt {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 80mm;
+    padding: 4mm;
+    background: #fff;
+    color: #000;
+    font-family: ui-monospace, "Courier New", monospace;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+  @page { margin: 0; }
+}
