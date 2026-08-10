@@ -23,6 +23,7 @@ import {
   Warehouse,
   FileText,
   ClipboardCheck,
+  ScanLine,
 } from "lucide-react";
 import {
   Sidebar,
