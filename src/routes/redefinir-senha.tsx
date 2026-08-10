@@ -36,22 +36,76 @@ function ResetPasswordPage() {
       if (event === "PASSWORD_RECOVERY" || (session && event === "SIGNED_IN")) setStatus("ready");
     });
 
-    const hash = typeof window !== "undefined" ? window.location.hash : "";
-    const hasRecoveryHash = /type=recovery/.test(hash) || /access_token=/.test(hash);
-    const hasErrorHash = /error=/.test(hash);
+    async function bootstrap() {
+      const hash = typeof window !== "undefined" ? window.location.hash.replace(/^#/, "") : "";
+      const query = typeof window !== "undefined" ? window.location.search.replace(/^\?/, "") : "";
+      const hashParams = new URLSearchParams(hash);
+      const queryParams = new URLSearchParams(query);
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      if (data.session) setStatus("ready");
-      else if (hasRecoveryHash && !hasErrorHash) setStatus("checking");
-      else setStatus("invalid");
-    });
+      // Erro devolvido pelo Supabase (link expirado, já usado, etc.)
+      if (hashParams.get("error") || queryParams.get("error")) {
+        if (active) setStatus("invalid");
+        return;
+      }
+
+      try {
+        // Fluxo PKCE: ?code=...
+        const code = queryParams.get("code");
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+          if (active) {
+            setStatus("ready");
+            window.history.replaceState({}, "", window.location.pathname);
+          }
+          return;
+        }
+
+        // Fluxo token_hash: ?token_hash=...&type=recovery
+        const tokenHash = queryParams.get("token_hash");
+        if (tokenHash) {
+          const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "recovery" });
+          if (error) throw error;
+          if (active) {
+            setStatus("ready");
+            window.history.replaceState({}, "", window.location.pathname);
+          }
+          return;
+        }
+
+        // Fluxo implícito: #access_token=...&refresh_token=...&type=recovery
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (error) throw error;
+          if (active) {
+            setStatus("ready");
+            window.history.replaceState({}, "", window.location.pathname);
+          }
+          return;
+        }
+
+        // Sem parâmetros: só é válido se já houver sessão de recuperação ativa.
+        const { data } = await supabase.auth.getSession();
+        if (!active) return;
+        setStatus(data.session ? "ready" : "invalid");
+      } catch {
+        if (active) setStatus("invalid");
+      }
+    }
+
+    void bootstrap();
 
     return () => {
       active = false;
       sub.subscription.unsubscribe();
     };
   }, []);
+
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
