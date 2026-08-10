@@ -1,6 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 import { tdb } from "@/integrations/supabase/tenant-db";
+import {
+  CANCEL_ROLES,
+  HEX_PREFIX_RE,
+  UUID_RE,
+  nameMaps,
+  num,
+  saleCode,
+  tenantRole,
+} from "./pos-history.server";
+
 
 /**
  * Operação do PDV: histórico de vendas, detalhe, cancelamento e relatório de
@@ -55,46 +65,8 @@ export type PosSaleDetail = PosSaleListRow & {
   }>;
 };
 
-const SALE_CODE_LENGTH = 8;
-const CANCEL_ROLES = ["owner", "admin", "manager"];
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const HEX_PREFIX_RE = /^[0-9a-f]{4,8}$/i;
 
-const saleCode = (id: string) => id.slice(0, SALE_CODE_LENGTH).toUpperCase();
 
-function num(value: unknown): number {
-  const parsed = Number(value ?? 0);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-async function nameMaps(
-  sb: ReturnType<typeof tdb>,
-  tenantId: string,
-  operatorIds: string[],
-  customerIds: string[],
-) {
-  const operators = new Map<string, string>();
-  const customers = new Map<string, { name: string; document: string | null }>();
-
-  if (operatorIds.length) {
-    const { data } = await sb.from("profiles").select("id, full_name").in("id", operatorIds);
-    for (const row of data ?? []) operators.set(row.id as string, (row.full_name as string) ?? "");
-  }
-  if (customerIds.length) {
-    const { data } = await sb
-      .from("customers")
-      .select("id, name, document")
-      .eq("tenant_id", tenantId)
-      .in("id", customerIds);
-    for (const row of data ?? []) {
-      customers.set(row.id as string, {
-        name: (row.name as string) ?? "",
-        document: (row.document as string) ?? null,
-      });
-    }
-  }
-  return { operators, customers };
-}
 
 export const listPosSales = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -293,22 +265,8 @@ export const getPosSaleDetail = createServerFn({ method: "GET" })
     return detail;
   });
 
-/** Papel efetivo do usuário no tenant ativo, resolvido no servidor. */
-async function tenantRole(sb: ReturnType<typeof tdb>, tenantId: string, userId: string) {
-  const { data } = await sb
-    .from("tenant_memberships")
-    .select("role")
-    .eq("tenant_id", tenantId)
-    .eq("user_id", userId)
-    .eq("active", true)
-    .maybeSingle();
-  if (data?.role) return String(data.role);
-  const { data: legacy } = await sb.from("user_roles").select("role").eq("user_id", userId);
-  const roles = (legacy ?? []).map((r: any) => String(r.role));
-  if (roles.includes("admin")) return "admin";
-  if (roles.includes("gerente")) return "manager";
-  return null;
-}
+
+
 
 export const getPosPermissions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
