@@ -1,10 +1,11 @@
 import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Barcode, Minus, PackageSearch, Plus, ScanLine, ShoppingCart, Trash2 } from "lucide-react";
+import { Barcode, ImageOff, Minus, PackageSearch, Plus, ScanLine, ShoppingCart, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { listPdvCatalog } from "@/lib/pos.functions";
+import { findPdvProductsByCode, listPdvCatalog, type PdvCatalogProduct } from "@/lib/pos.functions";
 import { PdvCheckoutPanel } from "@/components/pdv/PdvCheckoutPanel";
+import { PdvProductConfirm, effectivePdvPrice } from "@/components/pdv/PdvProductConfirm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,34 +21,41 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 
-type Product = {
-  id: string;
-  sku: string;
-  internal_code: string | null;
-  name: string;
-  price_b2c: number;
-  sale_price_b2c: number | null;
-  stock: number;
-};
-
+type Product = PdvCatalogProduct;
 type Warehouse = { id: string; branch_id: string; name: string; code: string };
 type CartItem = Product & { quantity: number; unitPrice: number };
 
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
-function effectivePrice(product: Product) {
-  return product.sale_price_b2c && product.sale_price_b2c > 0
-    ? product.sale_price_b2c
-    : product.price_b2c;
+function ProductThumb({ product }: { product: Product }) {
+  return (
+    <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted/40">
+      {product.image_url ? (
+        <img
+          src={product.image_url}
+          alt={`Foto do produto ${product.name}`}
+          className="h-full w-full object-contain"
+          loading="lazy"
+        />
+      ) : (
+        <ImageOff className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+      )}
+    </div>
+  );
 }
 
 export function PdvNewSale() {
   const searchRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const catalogFn = useServerFn(listPdvCatalog);
+  const findByCodeFn = useServerFn(findPdvProductsByCode);
   const [search, setSearch] = useState("");
   const [warehouseId, setWarehouseId] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [confirming, setConfirming] = useState<Product | null>(null);
+  const [ambiguous, setAmbiguous] = useState<Product[]>([]);
+  const [status, setStatus] = useState("");
+  const [lookingUp, setLookingUp] = useState(false);
 
   const productsQuery = useQuery({
     queryKey: ["pdv-products", warehouseId, search],
@@ -76,19 +84,68 @@ export function PdvNewSale() {
   const subtotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  function addProduct(product: Product) {
+  function resetToScanner() {
+    setConfirming(null);
+    setAmbiguous([]);
+    setSearch("");
+    requestAnimationFrame(() => searchRef.current?.focus());
+  }
+
+  function inCartQuantity(productId: string) {
+    return cart.find((item) => item.id === productId)?.quantity ?? 0;
+  }
+
+  function openConfirm(product: Product) {
+    setAmbiguous([]);
+    setConfirming(product);
+    setStatus(`Conferindo ${product.name}. Enter confirma, Escape cancela.`);
+  }
+
+  async function handleCodeSubmit() {
+    const code = search.trim();
+    if (!warehouseId || !code) return;
+    setLookingUp(true);
+    try {
+      const matches = (await findByCodeFn({ data: { warehouseId, code } })) as Product[];
+      if (matches.length === 0) {
+        setStatus(`Nenhum produto com o código ${code}. Confira o cadastro ou busque pelo nome.`);
+        return;
+      }
+      if (matches.length > 1) {
+        setConfirming(null);
+        setAmbiguous(matches);
+        setStatus(`${matches.length} produtos com o código ${code}. Selecione o correto.`);
+        return;
+      }
+      openConfirm(matches[0]);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Falha ao consultar o código.");
+    } finally {
+      setLookingUp(false);
+    }
+  }
+
+  function addProduct(product: Product, quantity: number) {
     setCart((current) => {
       const existing = current.find((item) => item.id === product.id);
       if (!existing) {
-        return [...current, { ...product, quantity: 1, unitPrice: effectivePrice(product) }];
+        return [
+          ...current,
+          {
+            ...product,
+            quantity: Math.min(product.stock, quantity),
+            unitPrice: effectivePdvPrice(product),
+          },
+        ];
       }
-      if (existing.quantity >= product.stock) return current;
       return current.map((item) =>
-        item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item,
+        item.id === product.id
+          ? { ...item, quantity: Math.min(product.stock, item.quantity + quantity) }
+          : item,
       );
     });
-    setSearch("");
-    requestAnimationFrame(() => searchRef.current?.focus());
+    setStatus(`${quantity}x ${product.name} adicionado à venda.`);
+    resetToScanner();
   }
 
   function changeQuantity(productId: string, delta: number) {
@@ -137,14 +194,69 @@ export function PdvNewSale() {
                 autoFocus
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void handleCodeSubmit();
+                  }
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    resetToScanner();
+                  }
+                }}
                 placeholder="Leia o código ou busque por nome, SKU e código interno"
                 className="h-12 pl-11 text-base"
-                aria-label="Buscar produto"
+                aria-label="Buscar produto por código de barras, SKU, código interno ou nome"
+                aria-describedby="pdv-scanner-status"
               />
             </div>
+            <p id="pdv-scanner-status" aria-live="polite" className="min-h-5 text-sm text-muted-foreground">
+              {lookingUp ? "Consultando código…" : status}
+            </p>
           </CardHeader>
           <CardContent>
-            {productsQuery.isPending && Boolean(warehouseId) ? (
+            {confirming ? (
+              <PdvProductConfirm
+                product={confirming}
+                inCartQuantity={inCartQuantity(confirming.id)}
+                onConfirm={(quantity) => addProduct(confirming, quantity)}
+                onCancel={() => {
+                  setStatus("Conferência cancelada.");
+                  resetToScanner();
+                }}
+              />
+            ) : ambiguous.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-sm font-semibold">
+                  Código com mais de um produto — selecione qual conferir:
+                </p>
+                <div className="grid gap-2 md:grid-cols-2">
+                  {ambiguous.map((product) => (
+                    <button
+                      key={product.id}
+                      type="button"
+                      onClick={() => openConfirm(product)}
+                      className="flex min-h-20 items-center gap-3 rounded-lg border bg-card p-3 text-left transition hover:border-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <ProductThumb product={product} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold">{product.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          SKU {product.sku}
+                          {product.internal_code ? ` · ${product.internal_code}` : ""}
+                        </p>
+                        <Badge variant="outline" className="mt-1">
+                          {product.stock} disponíveis
+                        </Badge>
+                      </div>
+                      <span className="font-display text-lg font-bold text-primary">
+                        {money.format(effectivePdvPrice(product))}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : productsQuery.isPending && Boolean(warehouseId) && normalizedSearch ? (
               <div className="space-y-2">
                 {Array.from({ length: 5 }).map((_, index) => (
                   <Skeleton key={index} className="h-16 w-full" />
@@ -159,8 +271,8 @@ export function PdvNewSale() {
                 <ScanLine className="h-12 w-12 text-muted-foreground/50" />
                 <p className="mt-3 font-semibold">Pronto para leitura</p>
                 <p className="max-w-sm text-sm text-muted-foreground">
-                  O leitor de código de barras funciona como teclado. Também é possível pesquisar
-                  pelo nome.
+                  O leitor de código de barras funciona como teclado. Ao ler o código, o produto
+                  aparece aqui para conferência antes de entrar na venda.
                 </p>
               </div>
             ) : results.length === 0 ? (
@@ -176,9 +288,10 @@ export function PdvNewSale() {
                   <button
                     key={product.id}
                     type="button"
-                    onClick={() => addProduct(product)}
+                    onClick={() => openConfirm(product)}
                     className="flex min-h-20 items-center gap-3 rounded-lg border bg-card p-3 text-left transition hover:border-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
+                    <ProductThumb product={product} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold">{product.name}</p>
                       <p className="text-xs text-muted-foreground">
@@ -190,7 +303,7 @@ export function PdvNewSale() {
                       </Badge>
                     </div>
                     <span className="font-display text-xl font-bold text-primary">
-                      {money.format(effectivePrice(product))}
+                      {money.format(effectivePdvPrice(product))}
                     </span>
                   </button>
                 ))}
@@ -284,11 +397,11 @@ export function PdvNewSale() {
               total={subtotal}
               onCompleted={() => {
                 setCart([]);
-                setSearch("");
+                setStatus("Venda finalizada. Pronto para a próxima leitura.");
+                resetToScanner();
                 queryClient.invalidateQueries({ queryKey: ["pdv-products"] });
                 queryClient.invalidateQueries({ queryKey: ["pdv-sales"] });
                 queryClient.invalidateQueries({ queryKey: ["pdv-cash-report"] });
-                requestAnimationFrame(() => searchRef.current?.focus());
               }}
             />
           </CardContent>
