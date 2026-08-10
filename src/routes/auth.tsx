@@ -49,6 +49,10 @@ function AuthPage() {
     setLoading(true);
     try {
       if (mode === "signup") {
+        if (password.length < 8) {
+          toast.error("A senha deve ter no mínimo 8 caracteres.");
+          return;
+        }
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -58,9 +62,14 @@ function AuthPage() {
           },
         });
         if (error) throw error;
-        toast.success("Conta criada! Você já pode navegar.");
-        if (data.user) await redirectAfterAuth(data.user.id);
-        else navigate({ to: "/" });
+        if (data.session?.user) {
+          // Confirmação de e-mail desativada no backend: já existe sessão válida.
+          toast.success("Conta criada! Você já está conectado(a).");
+          await redirectAfterAuth(data.session.user.id);
+        } else {
+          toast.success("Conta criada! Verifique seu e-mail para confirmar o acesso.");
+          setMode("login");
+        }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -69,11 +78,12 @@ function AuthPage() {
         else navigate({ to: "/" });
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro na autenticação");
+      toast.error(authErrorMessage(err, "Erro na autenticação."));
     } finally {
       setLoading(false);
     }
   }
+
 
 
   async function google() {

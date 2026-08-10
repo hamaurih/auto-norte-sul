@@ -14,5 +14,6 @@ const MAP: Array<[RegExp, string]> = [
 export function authErrorMessage(err: unknown, fallback = "Não foi possível concluir a operação."): string {
   const raw = err instanceof Error ? err.message : typeof err === "string" ? err : "";
   for (const [re, msg] of MAP) if (re.test(raw)) return msg;
-  return raw && !/^[A-Z_]+$/.test(raw) && /[a-zà-ú] [a-zà-ú]/i.test(raw) === false ? fallback : fallback;
+  return fallback;
 }
+
