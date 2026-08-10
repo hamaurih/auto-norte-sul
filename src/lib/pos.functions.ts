@@ -38,7 +38,7 @@ export type PdvCatalogProduct = {
   id: string;
   sku: string;
   internal_code: string | null;
-  barcode: string | null;
+  manufacturer_code: string | null;
   name: string;
   brand: string | null;
   image_url: string | null;
@@ -46,6 +46,33 @@ export type PdvCatalogProduct = {
   sale_price_b2c: number | null;
   stock: number;
 };
+
+const PDV_PRODUCT_SELECT =
+  "id, sku, internal_code, manufacturer_code, name, price_b2c, sale_price_b2c, active, brand:brands(name), images:product_images(url, is_primary, sort_order)";
+
+function primaryImage(images: any[] | null | undefined) {
+  const sorted = [...(images ?? [])].sort(
+    (a: any, b: any) =>
+      Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)) ||
+      Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0),
+  );
+  return sorted[0]?.url ?? null;
+}
+
+function mapPdvProduct(p: any, stock: number): PdvCatalogProduct {
+  return {
+    id: p.id,
+    sku: p.sku,
+    internal_code: p.internal_code ?? null,
+    manufacturer_code: p.manufacturer_code ?? null,
+    name: p.name,
+    brand: p.brand?.name ?? null,
+    image_url: primaryImage(p.images),
+    price_b2c: Number(p.price_b2c ?? 0),
+    sale_price_b2c: p.sale_price_b2c == null ? null : Number(p.sale_price_b2c),
+    stock: Math.max(0, stock),
+  };
+}
 
 export const listPdvCatalog = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -55,37 +82,30 @@ export const listPdvCatalog = createServerFn({ method: "GET" })
     const { data: membership } = await sb.from("tenant_memberships").select("id")
       .eq("tenant_id", context.tenantId).eq("user_id", context.userId).eq("active", true).maybeSingle();
     if (!membership) throw new Error("Usuário sem acesso ativo a esta empresa");
-    const select =
-      "product_id, on_hand, reserved, product:products(id, sku, internal_code, name, price_b2c, sale_price_b2c, active, brand:brands(name), images:product_images(url, is_primary, sort_order))";
+    const select = `product_id, on_hand, reserved, product:products(${PDV_PRODUCT_SELECT})`;
     const { data: stock, error } = await sb.from("product_stock")
       .select(select)
       .eq("tenant_id", context.tenantId).eq("warehouse_id", data.warehouseId).gt("on_hand", 0).limit(300);
     if (error) throw new Error(error.message);
     const term = (data.search ?? "").trim().toLocaleLowerCase("pt-BR");
-    return (stock ?? []).map((row: any) => {
-      const p = row.product ?? {};
-      const images = [...(p.images ?? [])].sort(
-        (a: any, b: any) =>
-          Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)) ||
-          Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0),
-      );
-      return {
-        id: p.id, sku: p.sku, internal_code: p.internal_code ?? null,
-        barcode: p.barcode ?? null, name: p.name, brand: p.brand?.name ?? null,
-        image_url: images[0]?.url ?? null,
-        price_b2c: Number(p.price_b2c ?? 0),
-        sale_price_b2c: p.sale_price_b2c == null ? null : Number(p.sale_price_b2c),
-        active: p.active,
-        stock: Math.max(0, Number(row.on_hand ?? 0) - Number(row.reserved ?? 0)),
-      };
-    }).filter((p: any) => p.active && p.stock > 0 && (!term ||
-      [p.name, p.sku, p.internal_code ?? "", p.barcode ?? ""]
-        .some((v: string) => v.toLocaleLowerCase("pt-BR").includes(term))
-    )).slice(0, 20) as PdvCatalogProduct[];
+    return (stock ?? [])
+      .map((row: any) => {
+        const p = row.product ?? {};
+        const available = Number(row.on_hand ?? 0) - Number(row.reserved ?? 0);
+        return { ...mapPdvProduct(p, available), active: p.active } as PdvCatalogProduct & { active: boolean };
+      })
+      .filter((p) => p.active && p.stock > 0 && (!term ||
+        [p.name, p.sku, p.internal_code ?? "", p.manufacturer_code ?? ""]
+          .some((v: string) => v.toLocaleLowerCase("pt-BR").includes(term))
+      ))
+      .slice(0, 20)
+      .map(({ active: _active, ...p }) => p) as PdvCatalogProduct[];
   });
 
 /**
- * Busca por código exato (código de barras, SKU ou código interno).
+ * Busca por código exato (SKU, código interno ou código do fabricante).
+ * Usa consultas `eq` separadas — nada é interpolado em filtros PostgREST `.or`,
+ * então o valor digitado pelo operador nunca quebra a sintaxe da consulta.
  * Retorna todas as correspondências — o cliente nunca escolhe silenciosamente.
  */
 export const findPdvProductsByCode = createServerFn({ method: "GET" })
@@ -100,14 +120,23 @@ export const findPdvProductsByCode = createServerFn({ method: "GET" })
     const code = data.code.trim();
     if (!code) return [] as PdvCatalogProduct[];
 
-    const { data: products, error } = await sb.from("products")
-      .select("id, sku, internal_code, name, price_b2c, sale_price_b2c, active, brand:brands(name), images:product_images(url, is_primary, sort_order)")
-      .eq("tenant_id", context.tenantId)
-      .eq("active", true)
-      .or(`sku.ilike.${code},internal_code.ilike.${code}`)
-      .limit(20);
-    if (error) throw new Error(error.message);
-    const rows = products ?? [];
+    const columns = ["sku", "internal_code", "manufacturer_code"] as const;
+    const queries = await Promise.all(
+      columns.map((column) =>
+        sb.from("products")
+          .select(PDV_PRODUCT_SELECT)
+          .eq("tenant_id", context.tenantId)
+          .eq("active", true)
+          .eq(column, code)
+          .limit(20),
+      ),
+    );
+    const failed = queries.find((q) => q.error);
+    if (failed?.error) throw new Error(failed.error.message);
+
+    const byId = new Map<string, any>();
+    for (const q of queries) for (const row of (q.data ?? []) as any[]) byId.set(row.id, row);
+    const rows = [...byId.values()];
     if (rows.length === 0) return [] as PdvCatalogProduct[];
 
     const { data: stock, error: stockError } = await sb.from("product_stock")
@@ -119,26 +148,13 @@ export const findPdvProductsByCode = createServerFn({ method: "GET" })
     const stockMap = new Map(
       (stock ?? []).map((s: any) => [
         s.product_id,
-        Math.max(0, Number(s.on_hand ?? 0) - Number(s.reserved ?? 0)),
+        Number(s.on_hand ?? 0) - Number(s.reserved ?? 0),
       ]),
     );
 
-    return rows.map((p: any) => {
-      const images = [...(p.images ?? [])].sort(
-        (a: any, b: any) =>
-          Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)) ||
-          Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0),
-      );
-      return {
-        id: p.id, sku: p.sku, internal_code: p.internal_code ?? null,
-        barcode: p.barcode ?? null, name: p.name, brand: p.brand?.name ?? null,
-        image_url: images[0]?.url ?? null,
-        price_b2c: Number(p.price_b2c ?? 0),
-        sale_price_b2c: p.sale_price_b2c == null ? null : Number(p.sale_price_b2c),
-        stock: stockMap.get(p.id) ?? 0,
-      };
-    }) as PdvCatalogProduct[];
+    return rows.map((p: any) => mapPdvProduct(p, stockMap.get(p.id) ?? 0)) as PdvCatalogProduct[];
   });
+
 
 
 export const finalizePosSale = createServerFn({ method: "POST" })

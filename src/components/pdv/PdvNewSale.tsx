@@ -108,7 +108,7 @@ export function PdvNewSale() {
     try {
       const matches = (await findByCodeFn({ data: { warehouseId, code } })) as Product[];
       if (matches.length === 0) {
-        setStatus(`Nenhum produto com o código ${code}. Confira o cadastro ou busque pelo nome.`);
+        setStatus(`Nenhum produto com o código ${code}. Tente SKU, código interno, código do fabricante ou busque pelo nome.`);
         return;
       }
       if (matches.length > 1) {
@@ -119,7 +119,7 @@ export function PdvNewSale() {
       }
       openConfirm(matches[0]);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Falha ao consultar o código.");
+      setStatus(error instanceof Error ? `Falha na consulta: ${error.message}` : "Falha ao consultar o código.");
     } finally {
       setLookingUp(false);
     }
@@ -204,9 +204,9 @@ export function PdvNewSale() {
                     resetToScanner();
                   }
                 }}
-                placeholder="Leia o código ou busque por nome, SKU e código interno"
+                placeholder="Localizar por SKU, código interno, código do fabricante ou nome"
                 className="h-12 pl-11 text-base"
-                aria-label="Buscar produto por código de barras, SKU, código interno ou nome"
+                aria-label="Localizar produto por SKU, código interno, código do fabricante ou nome"
                 aria-describedby="pdv-scanner-status"
               />
             </div>
@@ -243,7 +243,8 @@ export function PdvNewSale() {
                         <p className="truncate font-semibold">{product.name}</p>
                         <p className="text-xs text-muted-foreground">
                           SKU {product.sku}
-                          {product.internal_code ? ` · ${product.internal_code}` : ""}
+                          {product.internal_code ? ` · Int. ${product.internal_code}` : ""}
+                          {product.manufacturer_code ? ` · Fab. ${product.manufacturer_code}` : ""}
                         </p>
                         <Badge variant="outline" className="mt-1">
                           {product.stock} disponíveis
@@ -263,16 +264,26 @@ export function PdvNewSale() {
                 ))}
               </div>
             ) : productsQuery.isError ? (
-              <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-5 text-sm">
-                Não foi possível carregar os produtos. Verifique sua conexão e tente novamente.
+              <div className="space-y-3 rounded-lg border border-destructive/40 bg-destructive/5 p-5 text-sm">
+                <p className="font-semibold text-destructive">
+                  Não foi possível consultar os produtos.
+                </p>
+                <p className="text-muted-foreground">
+                  {productsQuery.error instanceof Error
+                    ? productsQuery.error.message
+                    : "Erro desconhecido na consulta."}
+                </p>
+                <Button type="button" variant="outline" onClick={() => void productsQuery.refetch()}>
+                  Tentar novamente
+                </Button>
               </div>
             ) : !normalizedSearch ? (
               <div className="flex min-h-72 flex-col items-center justify-center rounded-lg border border-dashed text-center">
                 <ScanLine className="h-12 w-12 text-muted-foreground/50" />
                 <p className="mt-3 font-semibold">Pronto para leitura</p>
                 <p className="max-w-sm text-sm text-muted-foreground">
-                  O leitor de código de barras funciona como teclado. Ao ler o código, o produto
-                  aparece aqui para conferência antes de entrar na venda.
+                  Digite ou leia o SKU, código interno ou código do fabricante e pressione Enter: o
+                  produto aparece aqui para conferência antes de entrar na venda.
                 </p>
               </div>
             ) : results.length === 0 ? (
@@ -296,7 +307,8 @@ export function PdvNewSale() {
                       <p className="truncate font-semibold">{product.name}</p>
                       <p className="text-xs text-muted-foreground">
                         SKU {product.sku}
-                        {product.internal_code ? ` · ${product.internal_code}` : ""}
+                        {product.internal_code ? ` · Int. ${product.internal_code}` : ""}
+                        {product.manufacturer_code ? ` · Fab. ${product.manufacturer_code}` : ""}
                       </p>
                       <Badge variant="outline" className="mt-1">
                         {product.stock} disponíveis

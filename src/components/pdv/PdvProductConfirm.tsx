@@ -89,9 +89,10 @@ export function PdvProductConfirm({
             <dd className="font-medium">{product.sku}</dd>
             <dt className="text-muted-foreground">Código interno</dt>
             <dd className="font-medium">{product.internal_code ?? "—"}</dd>
-            <dt className="text-muted-foreground">Código de barras</dt>
-            <dd className="font-medium">{product.barcode ?? "—"}</dd>
+            <dt className="text-muted-foreground">Código do fabricante</dt>
+            <dd className="font-medium">{product.manufacturer_code ?? "—"}</dd>
           </dl>
+
 
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <span className="font-display text-3xl font-black text-primary">
