@@ -192,7 +192,7 @@ export const listPosSales = createServerFn({ method: "GET" })
         operator_name: row.operator_id ? operators.get(row.operator_id) || null : null,
         customer_id: row.customer_id ?? null,
         customer_name: row.customer_id ? customers.get(row.customer_id)?.name || null : null,
-        payment_methods: [...new Set((row.payments ?? []).map((p: any) => p.method as string))],
+        payment_methods: [...new Set(((row.payments ?? []) as any[]).map((p) => String(p.method)))],
       })),
     };
   });
@@ -270,7 +270,7 @@ export const getPosSaleDetail = createServerFn({ method: "GET" })
       warehouse_name: warehouseName,
       cash_session_id: row.cash_session_id ?? null,
       cancel_reason: cancelReason,
-      payment_methods: [...new Set((row.payments ?? []).map((p: any) => p.method as string))],
+      payment_methods: [...new Set(((row.payments ?? []) as any[]).map((p) => String(p.method)))],
       items: (row.items ?? []).map((item: any) => ({
         id: item.id,
         product_id: item.product_id ?? null,
