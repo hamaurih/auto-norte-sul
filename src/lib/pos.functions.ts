@@ -34,6 +34,19 @@ export const openCashSession = createServerFn({ method: "POST" })
     return row;
   });
 
+export type PdvCatalogProduct = {
+  id: string;
+  sku: string;
+  internal_code: string | null;
+  barcode: string | null;
+  name: string;
+  brand: string | null;
+  image_url: string | null;
+  price_b2c: number;
+  sale_price_b2c: number | null;
+  stock: number;
+};
+
 export const listPdvCatalog = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { warehouseId: string; search?: string }) => input)
@@ -42,17 +55,91 @@ export const listPdvCatalog = createServerFn({ method: "GET" })
     const { data: membership } = await sb.from("tenant_memberships").select("id")
       .eq("tenant_id", context.tenantId).eq("user_id", context.userId).eq("active", true).maybeSingle();
     if (!membership) throw new Error("Usuário sem acesso ativo a esta empresa");
+    const select =
+      "product_id, on_hand, reserved, product:products(id, sku, internal_code, name, price_b2c, sale_price_b2c, active, brand:brands(name), images:product_images(url, is_primary, sort_order))";
     const { data: stock, error } = await sb.from("product_stock")
-      .select("product_id, on_hand, reserved, product:products(id, sku, internal_code, name, price_b2c, sale_price_b2c, active)")
+      .select(select)
       .eq("tenant_id", context.tenantId).eq("warehouse_id", data.warehouseId).gt("on_hand", 0).limit(300);
     if (error) throw new Error(error.message);
     const term = (data.search ?? "").trim().toLocaleLowerCase("pt-BR");
-    return (stock ?? []).map((row: any) => ({
-      ...row.product, stock: Math.max(0, Number(row.on_hand ?? 0) - Number(row.reserved ?? 0)),
-    })).filter((p: any) => p.active && p.stock > 0 && (!term ||
-      [p.name, p.sku, p.internal_code ?? ""].some((v: string) => v.toLocaleLowerCase("pt-BR").includes(term))
-    )).slice(0, 20);
+    return (stock ?? []).map((row: any) => {
+      const p = row.product ?? {};
+      const images = [...(p.images ?? [])].sort(
+        (a: any, b: any) =>
+          Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)) ||
+          Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0),
+      );
+      return {
+        id: p.id, sku: p.sku, internal_code: p.internal_code ?? null,
+        barcode: p.barcode ?? null, name: p.name, brand: p.brand?.name ?? null,
+        image_url: images[0]?.url ?? null,
+        price_b2c: Number(p.price_b2c ?? 0),
+        sale_price_b2c: p.sale_price_b2c == null ? null : Number(p.sale_price_b2c),
+        active: p.active,
+        stock: Math.max(0, Number(row.on_hand ?? 0) - Number(row.reserved ?? 0)),
+      };
+    }).filter((p: any) => p.active && p.stock > 0 && (!term ||
+      [p.name, p.sku, p.internal_code ?? "", p.barcode ?? ""]
+        .some((v: string) => v.toLocaleLowerCase("pt-BR").includes(term))
+    )).slice(0, 20) as PdvCatalogProduct[];
   });
+
+/**
+ * Busca por código exato (código de barras, SKU ou código interno).
+ * Retorna todas as correspondências — o cliente nunca escolhe silenciosamente.
+ */
+export const findPdvProductsByCode = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { warehouseId: string; code: string }) => input)
+  .handler(async ({ data, context }) => {
+    const sb = tdb(context.supabase);
+    const { data: membership } = await sb.from("tenant_memberships").select("id")
+      .eq("tenant_id", context.tenantId).eq("user_id", context.userId).eq("active", true).maybeSingle();
+    if (!membership) throw new Error("Usuário sem acesso ativo a esta empresa");
+
+    const code = data.code.trim();
+    if (!code) return [] as PdvCatalogProduct[];
+
+    const { data: products, error } = await sb.from("products")
+      .select("id, sku, internal_code, name, price_b2c, sale_price_b2c, active, brand:brands(name), images:product_images(url, is_primary, sort_order)")
+      .eq("tenant_id", context.tenantId)
+      .eq("active", true)
+      .or(`sku.ilike.${code},internal_code.ilike.${code}`)
+      .limit(20);
+    if (error) throw new Error(error.message);
+    const rows = products ?? [];
+    if (rows.length === 0) return [] as PdvCatalogProduct[];
+
+    const { data: stock, error: stockError } = await sb.from("product_stock")
+      .select("product_id, on_hand, reserved")
+      .eq("tenant_id", context.tenantId)
+      .eq("warehouse_id", data.warehouseId)
+      .in("product_id", rows.map((p: any) => p.id));
+    if (stockError) throw new Error(stockError.message);
+    const stockMap = new Map(
+      (stock ?? []).map((s: any) => [
+        s.product_id,
+        Math.max(0, Number(s.on_hand ?? 0) - Number(s.reserved ?? 0)),
+      ]),
+    );
+
+    return rows.map((p: any) => {
+      const images = [...(p.images ?? [])].sort(
+        (a: any, b: any) =>
+          Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)) ||
+          Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0),
+      );
+      return {
+        id: p.id, sku: p.sku, internal_code: p.internal_code ?? null,
+        barcode: p.barcode ?? null, name: p.name, brand: p.brand?.name ?? null,
+        image_url: images[0]?.url ?? null,
+        price_b2c: Number(p.price_b2c ?? 0),
+        sale_price_b2c: p.sale_price_b2c == null ? null : Number(p.sale_price_b2c),
+        stock: stockMap.get(p.id) ?? 0,
+      };
+    }) as PdvCatalogProduct[];
+  });
+
 
 export const finalizePosSale = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
