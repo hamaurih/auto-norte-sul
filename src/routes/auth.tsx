@@ -4,6 +4,8 @@ import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
+import { authErrorMessage } from "@/lib/auth-errors";
+
 
 const search = z.object({ next: z.string().optional() });
 
