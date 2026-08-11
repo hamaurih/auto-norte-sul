@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { CheckCircle2, Briefcase, PackageX } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Briefcase, PackageX } from "lucide-react";
 import type { AdminOverview } from "@/lib/admin-overview";
 
 export function AdminAttention({ data, loading }: { data?: AdminOverview; loading: boolean }) {
@@ -14,11 +14,24 @@ export function AdminAttention({ data, loading }: { data?: AdminOverview; loadin
 
   const pending = data?.b2bPending ?? 0;
   const low = data?.lowStock ?? [];
-  const nothing = pending === 0 && low.length === 0;
+  // Um indicador indisponível nunca pode virar estado positivo falso.
+  const unavailable =
+    data?.b2bPending === null ||
+    data?.criticalStock === null ||
+    data?.stockSource === "unavailable";
+  const nothing = !unavailable && pending === 0 && low.length === 0;
 
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       <h2 className="font-display text-lg font-bold uppercase">Atenção necessária</h2>
+
+      {unavailable && (
+        <p role="status" className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+          <AlertTriangle className="h-4 w-4 text-hot" aria-hidden="true" />
+          Parte dos alertas está indisponível com as permissões atuais — não é possível confirmar
+          ausência de pendências.
+        </p>
+      )}
 
       {nothing ? (
         <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
@@ -26,6 +39,7 @@ export function AdminAttention({ data, loading }: { data?: AdminOverview; loadin
           Nenhuma pendência aberta no momento.
         </p>
       ) : (
+
         <div className="mt-3 grid gap-3 lg:grid-cols-2">
           {pending > 0 && (
             <Link
