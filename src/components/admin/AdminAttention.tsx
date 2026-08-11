@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { CheckCircle2, Briefcase, PackageX } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Briefcase, PackageX } from "lucide-react";
 import type { AdminOverview } from "@/lib/admin-overview";
 
 export function AdminAttention({ data, loading }: { data?: AdminOverview; loading: boolean }) {
