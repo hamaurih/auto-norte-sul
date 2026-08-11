@@ -1,63 +1,156 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+  Briefcase,
+  Package,
+  PackageX,
+  PlusCircle,
+  ScanLine,
+  ShoppingBag,
+  Store,
+  Users,
+  Warehouse,
+} from "lucide-react";
+import { AdminAttention } from "@/components/admin/AdminAttention";
+import { AdminModuleCard } from "@/components/admin/AdminModuleCard";
+import { AdminStatCard } from "@/components/admin/AdminStatCard";
+import { adminQuickActions, visibleModules } from "@/lib/admin-modules";
+import { useAdminOverview } from "@/lib/admin-overview";
+import { activeTenant, environmentLabel, useAccessContext } from "@/lib/access";
+import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
-  head: () => ({ meta: [{ title: "Admin · Norte Sul" }] }),
-  component: Dashboard,
+  head: () => ({
+    meta: [
+      { title: "Central Administrativa · Norte Sul" },
+      {
+        name: "description",
+        content: "Centro de controle da Norte Sul: vendas, catálogo, estoque, site e integrações.",
+      },
+    ],
+  }),
+  component: AdminHome,
 });
 
-function Dashboard() {
-  const { data } = useQuery({
-    queryKey: ["admin-stats"],
-    queryFn: async () => {
-      const [{ count: orders }, { count: products }, { count: customers }, { count: pending }] = await Promise.all([
-        supabase.from("orders").select("*", { count: "exact", head: true }),
-        supabase.from("products").select("*", { count: "exact", head: true }),
-        supabase.from("profiles").select("*", { count: "exact", head: true }),
-        supabase.from("b2b_registrations").select("*", { count: "exact", head: true }).eq("status", "pendente"),
-      ]);
-      const { data: lowStock } = await supabase.from("products").select("sku, name, stock").lt("stock", 5).order("stock").limit(5);
-      return { orders, products, customers, pending, lowStock: lowStock ?? [] };
-    },
-  });
+function AdminHome() {
+  const { isAdmin } = useSession();
+  const { data: access } = useAccessContext();
+  const { data, isLoading, isError, error, refetch } = useAdminOverview();
 
-  const cards = [
-    { label: "Pedidos", value: data?.orders ?? 0 },
-    { label: "Produtos", value: data?.products ?? 0 },
-    { label: "Clientes", value: data?.customers ?? 0 },
-    { label: "B2B pendentes", value: data?.pending ?? 0, hot: true },
-  ];
+  const tenant = activeTenant(access);
+  const modules = visibleModules(isAdmin);
 
   return (
-    <div>
-      <h1 className="mb-4 font-display text-2xl font-bold uppercase">Dashboard</h1>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {cards.map((c) => (
-          <div key={c.label} className={`rounded-lg border p-4 ${c.hot ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
-            <div className="text-xs uppercase text-muted-foreground">{c.label}</div>
-            <div className="mt-1 font-display text-3xl font-bold">{c.value}</div>
-          </div>
-        ))}
-      </div>
+    <div className="mx-auto max-w-7xl space-y-6">
+      <header className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+        <div className="min-w-0">
+          <h1 className="font-display text-3xl font-bold uppercase leading-none">Central Administrativa</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Centro de controle da Norte Sul: escolha uma área para operar vendas, catálogo, estoque e integrações.
+          </p>
+          {tenant && (
+            <p className="mt-2 inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-semibold">
+              <span className="truncate">{tenant.name}</span>
+              <span className="text-muted-foreground">
+                {environmentLabel[tenant.environment] ?? tenant.environment}
+              </span>
+            </p>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            to="/admin/pdv"
+            className="inline-flex min-h-11 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ScanLine className="h-4 w-4" aria-hidden="true" /> Abrir PDV
+          </Link>
+          <Link
+            to="/admin/produtos/novo"
+            className="inline-flex min-h-11 items-center gap-2 rounded-md border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <PlusCircle className="h-4 w-4" aria-hidden="true" /> Novo produto
+          </Link>
+          <Link
+            to="/"
+            className="inline-flex min-h-11 items-center gap-2 rounded-md border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Store className="h-4 w-4" aria-hidden="true" /> Ver loja
+          </Link>
+        </div>
+      </header>
 
-      <div className="mt-6 rounded-lg border border-border bg-card p-4">
-        <h3 className="mb-2 font-display text-lg font-bold uppercase">Estoque crítico</h3>
-        {(data?.lowStock ?? []).length === 0 ? (
-          <p className="text-sm text-muted-foreground">Tudo em estoque.</p>
-        ) : (
-          <ul className="text-sm">
-            {data?.lowStock.map((p) => (
-              <li key={p.sku} className="flex justify-between border-b border-border py-1 last:border-0">
-                <span>
-                  {p.name} <span className="text-xs text-muted-foreground">({p.sku})</span>
-                </span>
-                <span className={`font-bold ${p.stock === 0 ? "text-destructive" : "text-hot"}`}>{p.stock} unid.</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {isError && (
+        <div role="alert" className="rounded-lg border border-destructive bg-destructive/5 p-4 text-sm">
+          Não foi possível carregar os indicadores: {(error as Error)?.message ?? "erro desconhecido"}.
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            className="ml-2 font-semibold uppercase text-primary hover:underline"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
+      {!isError && data?.partial && (
+        <p role="status" className="text-xs text-muted-foreground">
+          Alguns indicadores não estão disponíveis com as permissões atuais.
+        </p>
+      )}
+
+      <section aria-label="Indicadores operacionais" className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+        <AdminStatCard label="Pedidos" value={data?.orders ?? null} to="/admin/pedidos" icon={ShoppingBag} loading={isLoading} />
+        <AdminStatCard label="Produtos" value={data?.products ?? null} to="/admin/produtos" icon={Package} loading={isLoading} />
+        <AdminStatCard label="Clientes" value={data?.customers ?? null} to="/admin/clientes" icon={Users} loading={isLoading} />
+        <AdminStatCard
+          label="B2B pendentes"
+          value={data?.b2bPending ?? null}
+          to="/admin/cadastros-b2b"
+          icon={Briefcase}
+          loading={isLoading}
+          hot
+        />
+        <AdminStatCard
+          label="Estoque crítico"
+          value={data?.criticalStock ?? null}
+          to="/admin/estoque"
+          icon={Warehouse}
+          loading={isLoading}
+          hint="abaixo de 5 unidades"
+        />
+        <AdminStatCard
+          label="Sem estoque"
+          value={data?.outOfStock ?? null}
+          to="/admin/estoque"
+          icon={PackageX}
+          loading={isLoading}
+        />
+      </section>
+
+      <AdminAttention data={data} loading={isLoading} />
+
+      <section aria-label="Módulos administrativos">
+        <h2 className="mb-3 font-display text-xl font-bold uppercase">Módulos</h2>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {modules.map((module) => (
+            <AdminModuleCard key={module.key} module={module} />
+          ))}
+        </div>
+      </section>
+
+      <section aria-label="Ações rápidas">
+        <h2 className="mb-3 font-display text-xl font-bold uppercase">Ações rápidas</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+          {adminQuickActions.map((action) => (
+            <Link
+              key={action.label}
+              to={action.to}
+              className="flex min-h-20 flex-col items-start justify-between gap-2 rounded-lg border border-border bg-card p-3 text-sm font-semibold transition-colors hover:border-primary/40 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <action.icon className="h-5 w-5 text-primary" aria-hidden="true" />
+              <span className="min-w-0">{action.label}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
