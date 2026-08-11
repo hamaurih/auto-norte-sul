@@ -26,9 +26,11 @@ async function count(table: string, apply?: (q: any) => any): Promise<number | n
 }
 
 /**
- * Stock reads prefer the tenant-aware `product_stock`/`warehouses` model. The
- * legacy `products.stock` column is only a fallback when no per-warehouse rows
- * are readable, and the UI states which source answered.
+ * Stock reads use the tenant-aware `product_stock`/`warehouses` model as the
+ * canonical source. A successful query with zero critical rows is a valid
+ * answer (0 crítico), never a reason to fall back. The legacy `products.stock`
+ * column is used only when the modern query actually fails/is unavailable, and
+ * the UI states which source answered.
  */
 async function loadStock(): Promise<
   Pick<AdminOverview, "criticalStock" | "outOfStock" | "lowStock" | "stockSource">
@@ -40,7 +42,7 @@ async function loadStock(): Promise<
     .order("on_hand", { ascending: true })
     .limit(8);
 
-  if (!modern.error && Array.isArray(modern.data) && modern.data.length > 0) {
+  if (!modern.error && Array.isArray(modern.data)) {
     const zero: any = await supabase
       .from("product_stock" as never)
       .select("*", { count: "exact", head: true })
@@ -57,6 +59,7 @@ async function loadStock(): Promise<
       })),
     };
   }
+
 
   const legacy = await supabase
     .from("products")
