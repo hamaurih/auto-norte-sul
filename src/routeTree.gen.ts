@@ -56,6 +56,7 @@ import { Route as AuthenticatedAdminBlingRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminBannersRouteImport } from './routes/_authenticated/admin.banners'
 import { Route as AuthenticatedAdminAuditoriaRouteImport } from './routes/_authenticated/admin.auditoria'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as AuthenticatedAdminRecebimentosIndexRouteImport } from './routes/_authenticated/admin.recebimentos.index'
 import { Route as AuthenticatedAdminProdutosIndexRouteImport } from './routes/_authenticated/admin.produtos.index'
 import { Route as AuthenticatedAdminPedidosCompraIndexRouteImport } from './routes/_authenticated/admin.pedidos-compra.index'
 import { Route as AuthenticatedAdminEcossistemaIndexRouteImport } from './routes/_authenticated/admin.ecossistema.index'
@@ -330,6 +331,12 @@ const Char91DotmcpChar93InvokeToolToolRoute =
     path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedAdminRecebimentosIndexRoute =
+  AuthenticatedAdminRecebimentosIndexRouteImport.update({
+    id: '/recebimentos/',
+    path: '/recebimentos/',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminProdutosIndexRoute =
   AuthenticatedAdminProdutosIndexRouteImport.update({
     id: '/produtos/',
@@ -461,6 +468,7 @@ export interface FileRoutesByFullPath {
   '/admin/ecossistema/': typeof AuthenticatedAdminEcossistemaIndexRoute
   '/admin/pedidos-compra/': typeof AuthenticatedAdminPedidosCompraIndexRoute
   '/admin/produtos/': typeof AuthenticatedAdminProdutosIndexRoute
+  '/admin/recebimentos/': typeof AuthenticatedAdminRecebimentosIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -518,6 +526,7 @@ export interface FileRoutesByTo {
   '/admin/ecossistema': typeof AuthenticatedAdminEcossistemaIndexRoute
   '/admin/pedidos-compra': typeof AuthenticatedAdminPedidosCompraIndexRoute
   '/admin/produtos': typeof AuthenticatedAdminProdutosIndexRoute
+  '/admin/recebimentos': typeof AuthenticatedAdminRecebimentosIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -580,6 +589,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/ecossistema/': typeof AuthenticatedAdminEcossistemaIndexRoute
   '/_authenticated/admin/pedidos-compra/': typeof AuthenticatedAdminPedidosCompraIndexRoute
   '/_authenticated/admin/produtos/': typeof AuthenticatedAdminProdutosIndexRoute
+  '/_authenticated/admin/recebimentos/': typeof AuthenticatedAdminRecebimentosIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -642,6 +652,7 @@ export interface FileRouteTypes {
     | '/admin/ecossistema/'
     | '/admin/pedidos-compra/'
     | '/admin/produtos/'
+    | '/admin/recebimentos/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -699,6 +710,7 @@ export interface FileRouteTypes {
     | '/admin/ecossistema'
     | '/admin/pedidos-compra'
     | '/admin/produtos'
+    | '/admin/recebimentos'
   id:
     | '__root__'
     | '/'
@@ -760,6 +772,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/ecossistema/'
     | '/_authenticated/admin/pedidos-compra/'
     | '/_authenticated/admin/produtos/'
+    | '/_authenticated/admin/recebimentos/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1113,6 +1126,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin/recebimentos/': {
+      id: '/_authenticated/admin/recebimentos/'
+      path: '/recebimentos'
+      fullPath: '/admin/recebimentos/'
+      preLoaderRoute: typeof AuthenticatedAdminRecebimentosIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/produtos/': {
       id: '/_authenticated/admin/produtos/'
       path: '/produtos'
@@ -1281,6 +1301,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminProdutosNovoRoute: typeof AuthenticatedAdminProdutosNovoRoute
   AuthenticatedAdminPedidosCompraIndexRoute: typeof AuthenticatedAdminPedidosCompraIndexRoute
   AuthenticatedAdminProdutosIndexRoute: typeof AuthenticatedAdminProdutosIndexRoute
+  AuthenticatedAdminRecebimentosIndexRoute: typeof AuthenticatedAdminRecebimentosIndexRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
@@ -1319,6 +1340,8 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminPedidosCompraIndexRoute:
     AuthenticatedAdminPedidosCompraIndexRoute,
   AuthenticatedAdminProdutosIndexRoute: AuthenticatedAdminProdutosIndexRoute,
+  AuthenticatedAdminRecebimentosIndexRoute:
+    AuthenticatedAdminRecebimentosIndexRoute,
 }
 
 const AuthenticatedAdminRouteWithChildren =
