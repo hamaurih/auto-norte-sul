@@ -4,6 +4,7 @@ import {
   Briefcase,
   ClipboardCheck,
   FileText,
+  FileUp,
   FolderTree,
   Image as ImageIcon,
   Network,
