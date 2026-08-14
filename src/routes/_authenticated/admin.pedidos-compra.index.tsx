@@ -9,6 +9,7 @@ import { SupplyStatusBadge } from "@/components/admin/SupplyStatusBadge";
 import { listPurchaseOrders } from "@/lib/supplies.functions";
 import { brl } from "@/lib/format";
 import { formatDate } from "@/lib/supplies-ui";
+import { SupplyGuard } from "@/components/admin/SupplyGuard";
 
 export const Route = createFileRoute("/_authenticated/admin/pedidos-compra/")({
   head: () => ({
@@ -17,7 +18,7 @@ export const Route = createFileRoute("/_authenticated/admin/pedidos-compra/")({
       { name: "description", content: "Pedidos de compra do módulo de suprimentos." },
     ],
   }),
-  component: PedidosCompraPage,
+  component: GuardedPedidosCompraPage,
 });
 
 const filters = [
@@ -110,5 +111,13 @@ function PedidosCompraPage() {
         ))}
       </div>
     </div>
+  );
+}
+
+function GuardedPedidosCompraPage() {
+  return (
+    <SupplyGuard>
+      <PedidosCompraPage />
+    </SupplyGuard>
   );
 }

@@ -10,6 +10,7 @@ import { SupplyStatusBadge } from "@/components/admin/SupplyStatusBadge";
 import { createGoodsReceipt, getPurchaseOrder, setPurchaseOrderStatus } from "@/lib/supplies.functions";
 import { brl } from "@/lib/format";
 import { formatDate, num, qty } from "@/lib/supplies-ui";
+import { SupplyGuard } from "@/components/admin/SupplyGuard";
 
 export const Route = createFileRoute("/_authenticated/admin/pedidos-compra/$id")({
   head: () => ({
@@ -18,7 +19,7 @@ export const Route = createFileRoute("/_authenticated/admin/pedidos-compra/$id")
       { name: "description", content: "Detalhe do pedido de compra, aprovação e recebimento." },
     ],
   }),
-  component: PedidoCompraDetailPage,
+  component: GuardedPedidoCompraDetailPage,
 });
 
 type ReceiveRow = { accepted: string; rejected: string; cost: string };
@@ -277,5 +278,13 @@ function PedidoCompraDetailPage() {
         </ul>
       </section>
     </div>
+  );
+}
+
+function GuardedPedidoCompraDetailPage() {
+  return (
+    <SupplyGuard>
+      <PedidoCompraDetailPage />
+    </SupplyGuard>
   );
 }
