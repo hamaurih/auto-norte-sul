@@ -24,6 +24,9 @@ import {
   FileText,
   ClipboardCheck,
   ScanLine,
+  Truck,
+  ShoppingCart,
+  PackageCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -60,7 +63,7 @@ type Item = {
   to: string;
   label: string;
   icon: typeof LayoutDashboard;
-  group: "operacao" | "catalogo" | "estoque" | "marketing" | "integracoes" | "sistema";
+  group: "operacao" | "catalogo" | "estoque" | "suprimentos" | "marketing" | "integracoes" | "sistema";
   adminOnly?: boolean;
 };
 
@@ -79,6 +82,11 @@ const items: Item[] = [
 
   { to: "/admin/filiais", label: "Filiais e Depósitos", icon: Building2, group: "estoque" },
   { to: "/admin/estoque", label: "Estoque", icon: Warehouse, group: "estoque" },
+
+  { to: "/admin/suprimentos", label: "Suprimentos", icon: Truck, group: "suprimentos" },
+  { to: "/admin/fornecedores", label: "Fornecedores", icon: Truck, group: "suprimentos" },
+  { to: "/admin/pedidos-compra", label: "Pedidos de compra", icon: ShoppingCart, group: "suprimentos" },
+  { to: "/admin/recebimentos", label: "Recebimentos", icon: PackageCheck, group: "suprimentos" },
 
   { to: "/admin/promocoes", label: "Promoções", icon: Percent, group: "marketing" },
   { to: "/admin/cupons", label: "Cupons", icon: Ticket, group: "marketing" },
@@ -99,6 +107,7 @@ const groupLabels: Record<Item["group"], string> = {
   operacao: "Comercial",
   catalogo: "Catálogo",
   estoque: "Estoque",
+  suprimentos: "Suprimentos",
   marketing: "Marketing",
   integracoes: "Integrações",
   sistema: "Sistema",
@@ -113,7 +122,7 @@ function AdminSidebar() {
   if (!isStaff) return null;
 
   const visible = items.filter((i) => !i.adminOnly || isAdmin);
-  const groups = ["operacao", "catalogo", "estoque", "marketing", "integracoes", "sistema"] as const;
+  const groups = ["operacao", "catalogo", "estoque", "suprimentos", "marketing", "integracoes", "sistema"] as const;
 
   const isActive = (to: string) => (to === "/admin" ? pathname === "/admin" : pathname.startsWith(to));
 

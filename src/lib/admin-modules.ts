@@ -10,6 +10,9 @@ import {
   Package,
   Percent,
   RefreshCcw,
+  PackageCheck,
+  ShoppingCart,
+  Truck,
   ScanLine,
   Settings,
   ShieldAlert,
@@ -87,6 +90,20 @@ export const adminModules: AdminModule[] = [
     ],
   },
   {
+    key: "suprimentos",
+    title: "Suprimentos e Compras",
+    description: "Fornecedores, pedidos de compra e recebimento de mercadorias.",
+    icon: Truck,
+    accent: "bg-primary/10 text-primary",
+    shortcuts: [
+      { to: "/admin/suprimentos", label: "Visão geral", description: "Indicadores de compras", icon: Truck },
+      { to: "/admin/fornecedores", label: "Fornecedores", description: "Cadastro e condições", icon: Truck },
+      { to: "/admin/pedidos-compra", label: "Pedidos de compra", description: "Emissão e aprovação", icon: ShoppingCart },
+      { to: "/admin/pedidos-compra/novo", label: "Novo pedido de compra", description: "Comprar do fornecedor", icon: PlusCircle },
+      { to: "/admin/recebimentos", label: "Recebimentos", description: "Entrada de mercadoria", icon: PackageCheck },
+    ],
+  },
+  {
     key: "site",
     title: "Gestão do Site",
     description: "Vitrine, campanhas e descontos da loja.",
@@ -134,6 +151,7 @@ export const adminQuickActions: AdminShortcut[] = [
   { to: "/admin/produtos/novo", label: "Novo produto", icon: PlusCircle },
   { to: "/admin/orcamentos", label: "Novo orçamento", icon: FileText },
   { to: "/admin/estoque", label: "Gerenciar estoque", icon: Warehouse },
+  { to: "/admin/pedidos-compra/novo", label: "Novo pedido de compra", icon: ShoppingCart },
   { to: "/admin/promocoes", label: "Criar promoção", icon: Percent },
   { to: "/admin/banners", label: "Gerenciar banners", icon: ImageIcon },
 ];
