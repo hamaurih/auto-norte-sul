@@ -793,3 +793,66 @@ export const getSupplyAlerts = createServerFn({ method: "GET" })
       draftReceipts: draftReceipts.data ?? [],
     };
   });
+
+
+// ===================== Reposição inteligente =====================
+
+export type ReplenishmentRisk = "ruptura" | "comprar" | "excesso" | "saudavel";
+
+export const listReplenishmentSuggestions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input?: { lookbackDays?: number; risk?: ReplenishmentRisk | "all" }) => input ?? {})
+  .handler(async ({ data, context }) => {
+    const sb = tdb(context.supabase);
+    await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_READ_ROLES);
+    const lookbackDays = Math.max(1, Math.min(Number(data.lookbackDays ?? 90), 365));
+    const { data: rows, error } = await sb.rpc("get_replenishment_suggestions", {
+      p_tenant_id: context.tenantId,
+      p_lookback_days: lookbackDays,
+    });
+    if (error) throw new Error(error.message);
+    const list = rows ?? [];
+    return data.risk && data.risk !== "all"
+      ? list.filter((row: any) => row.risk_status === data.risk)
+      : list;
+  });
+
+export const upsertReplenishmentSetting = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (input: {
+      productId: string;
+      preferredSupplierId?: string | null;
+      maxStock?: number | null;
+      safetyStock?: number;
+      leadTimeDays?: number | null;
+      reviewPeriodDays?: number;
+      enabled?: boolean;
+    }) => input,
+  )
+  .handler(async ({ data, context }) => {
+    const sb = tdb(context.supabase);
+    await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_WRITE_ROLES);
+    if (!data.productId) throw new Error("Produto obrigatório");
+
+    const cleanOptional = (value: number | null | undefined) =>
+      value == null || Number.isNaN(Number(value)) ? null : Math.max(0, Number(value));
+
+    const row = {
+      tenant_id: context.tenantId,
+      product_id: data.productId,
+      preferred_supplier_id: data.preferredSupplierId || null,
+      max_stock: cleanOptional(data.maxStock),
+      safety_stock: Math.max(0, Number(data.safetyStock ?? 0)),
+      lead_time_days: cleanOptional(data.leadTimeDays),
+      review_period_days: Math.max(1, Math.min(Math.trunc(Number(data.reviewPeriodDays ?? 14)), 365)),
+      enabled: data.enabled ?? true,
+      updated_by: context.userId,
+    };
+
+    const { error } = await sb
+      .from("inventory_replenishment_settings")
+      .upsert({ ...row, created_by: context.userId }, { onConflict: "tenant_id,product_id" });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
