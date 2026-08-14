@@ -36,6 +36,16 @@ export type SupplierInput = {
   active?: boolean;
 };
 
+export type ReceiptRpcResult = {
+  ok?: boolean;
+  status?: string;
+  receipt_id?: string;
+  already_confirmed?: boolean;
+  already_reversed?: boolean;
+  accepted_total?: number;
+  purchase_order_status?: string;
+};
+
 export type PurchaseOrderStatus =
   | "draft"
   | "approved"
@@ -615,7 +625,7 @@ export const confirmGoodsReceipt = createServerFn({ method: "POST" })
     await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_WRITE_ROLES);
     const { data: result, error } = await sb.rpc("confirm_goods_receipt", { p_receipt_id: data.id });
     if (error) throw new Error(error.message);
-    return result as Record<string, unknown>;
+    return (result ?? {}) as ReceiptRpcResult;
   });
 
 export const reverseGoodsReceipt = createServerFn({ method: "POST" })
@@ -630,7 +640,7 @@ export const reverseGoodsReceipt = createServerFn({ method: "POST" })
       p_reason: data.reason.trim(),
     });
     if (error) throw new Error(error.message);
-    return result as Record<string, unknown>;
+    return (result ?? {}) as ReceiptRpcResult;
   });
 
 // ===================== Visão geral do módulo =====================
