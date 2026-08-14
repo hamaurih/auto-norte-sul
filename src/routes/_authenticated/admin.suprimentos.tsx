@@ -309,6 +309,15 @@ function SuprimentosPage() {
             </div>
           )}
         </div>
+        <Link
+          to="/admin/reposicao"
+          className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40"
+        >
+          <h2 className="font-display text-lg font-bold">Reposição inteligente</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Risco de ruptura, cobertura, excesso e quantidade sugerida para compra.
+          </p>
+        </Link>
       </section>
     </div>
   );
