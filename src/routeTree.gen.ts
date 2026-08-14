@@ -63,6 +63,7 @@ import { Route as AuthenticatedAdminEcossistemaIndexRouteImport } from './routes
 import { Route as ApiPublicBlingCallbackRouteImport } from './routes/api/public/bling.callback'
 import { Route as AuthenticatedAdminVendedoresNovoRouteImport } from './routes/_authenticated/admin.vendedores.novo'
 import { Route as AuthenticatedAdminSaneamentoAliasesRouteImport } from './routes/_authenticated/admin.saneamento.aliases'
+import { Route as AuthenticatedAdminRecebimentosIdRouteImport } from './routes/_authenticated/admin.recebimentos.$id'
 import { Route as AuthenticatedAdminProdutosNovoRouteImport } from './routes/_authenticated/admin.produtos.novo'
 import { Route as AuthenticatedAdminProdutosIdRouteImport } from './routes/_authenticated/admin.produtos.$id'
 import { Route as AuthenticatedAdminPedidosCompraNovoRouteImport } from './routes/_authenticated/admin.pedidos-compra.novo'
@@ -372,6 +373,12 @@ const AuthenticatedAdminSaneamentoAliasesRoute =
     path: '/aliases',
     getParentRoute: () => AuthenticatedAdminSaneamentoRoute,
   } as any)
+const AuthenticatedAdminRecebimentosIdRoute =
+  AuthenticatedAdminRecebimentosIdRouteImport.update({
+    id: '/recebimentos/$id',
+    path: '/recebimentos/$id',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminProdutosNovoRoute =
   AuthenticatedAdminProdutosNovoRouteImport.update({
     id: '/produtos/novo',
@@ -462,6 +469,7 @@ export interface FileRoutesByFullPath {
   '/admin/pedidos-compra/novo': typeof AuthenticatedAdminPedidosCompraNovoRoute
   '/admin/produtos/$id': typeof AuthenticatedAdminProdutosIdRoute
   '/admin/produtos/novo': typeof AuthenticatedAdminProdutosNovoRoute
+  '/admin/recebimentos/$id': typeof AuthenticatedAdminRecebimentosIdRoute
   '/admin/saneamento/aliases': typeof AuthenticatedAdminSaneamentoAliasesRoute
   '/admin/vendedores/novo': typeof AuthenticatedAdminVendedoresNovoRoute
   '/api/public/bling/callback': typeof ApiPublicBlingCallbackRoute
@@ -520,6 +528,7 @@ export interface FileRoutesByTo {
   '/admin/pedidos-compra/novo': typeof AuthenticatedAdminPedidosCompraNovoRoute
   '/admin/produtos/$id': typeof AuthenticatedAdminProdutosIdRoute
   '/admin/produtos/novo': typeof AuthenticatedAdminProdutosNovoRoute
+  '/admin/recebimentos/$id': typeof AuthenticatedAdminRecebimentosIdRoute
   '/admin/saneamento/aliases': typeof AuthenticatedAdminSaneamentoAliasesRoute
   '/admin/vendedores/novo': typeof AuthenticatedAdminVendedoresNovoRoute
   '/api/public/bling/callback': typeof ApiPublicBlingCallbackRoute
@@ -583,6 +592,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/pedidos-compra/novo': typeof AuthenticatedAdminPedidosCompraNovoRoute
   '/_authenticated/admin/produtos/$id': typeof AuthenticatedAdminProdutosIdRoute
   '/_authenticated/admin/produtos/novo': typeof AuthenticatedAdminProdutosNovoRoute
+  '/_authenticated/admin/recebimentos/$id': typeof AuthenticatedAdminRecebimentosIdRoute
   '/_authenticated/admin/saneamento/aliases': typeof AuthenticatedAdminSaneamentoAliasesRoute
   '/_authenticated/admin/vendedores/novo': typeof AuthenticatedAdminVendedoresNovoRoute
   '/api/public/bling/callback': typeof ApiPublicBlingCallbackRoute
@@ -646,6 +656,7 @@ export interface FileRouteTypes {
     | '/admin/pedidos-compra/novo'
     | '/admin/produtos/$id'
     | '/admin/produtos/novo'
+    | '/admin/recebimentos/$id'
     | '/admin/saneamento/aliases'
     | '/admin/vendedores/novo'
     | '/api/public/bling/callback'
@@ -704,6 +715,7 @@ export interface FileRouteTypes {
     | '/admin/pedidos-compra/novo'
     | '/admin/produtos/$id'
     | '/admin/produtos/novo'
+    | '/admin/recebimentos/$id'
     | '/admin/saneamento/aliases'
     | '/admin/vendedores/novo'
     | '/api/public/bling/callback'
@@ -766,6 +778,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/pedidos-compra/novo'
     | '/_authenticated/admin/produtos/$id'
     | '/_authenticated/admin/produtos/novo'
+    | '/_authenticated/admin/recebimentos/$id'
     | '/_authenticated/admin/saneamento/aliases'
     | '/_authenticated/admin/vendedores/novo'
     | '/api/public/bling/callback'
@@ -1175,6 +1188,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminSaneamentoAliasesRouteImport
       parentRoute: typeof AuthenticatedAdminSaneamentoRoute
     }
+    '/_authenticated/admin/recebimentos/$id': {
+      id: '/_authenticated/admin/recebimentos/$id'
+      path: '/recebimentos/$id'
+      fullPath: '/admin/recebimentos/$id'
+      preLoaderRoute: typeof AuthenticatedAdminRecebimentosIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/produtos/novo': {
       id: '/_authenticated/admin/produtos/novo'
       path: '/produtos/novo'
@@ -1299,6 +1319,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminPedidosCompraNovoRoute: typeof AuthenticatedAdminPedidosCompraNovoRoute
   AuthenticatedAdminProdutosIdRoute: typeof AuthenticatedAdminProdutosIdRoute
   AuthenticatedAdminProdutosNovoRoute: typeof AuthenticatedAdminProdutosNovoRoute
+  AuthenticatedAdminRecebimentosIdRoute: typeof AuthenticatedAdminRecebimentosIdRoute
   AuthenticatedAdminPedidosCompraIndexRoute: typeof AuthenticatedAdminPedidosCompraIndexRoute
   AuthenticatedAdminProdutosIndexRoute: typeof AuthenticatedAdminProdutosIndexRoute
   AuthenticatedAdminRecebimentosIndexRoute: typeof AuthenticatedAdminRecebimentosIndexRoute
@@ -1337,6 +1358,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
     AuthenticatedAdminPedidosCompraNovoRoute,
   AuthenticatedAdminProdutosIdRoute: AuthenticatedAdminProdutosIdRoute,
   AuthenticatedAdminProdutosNovoRoute: AuthenticatedAdminProdutosNovoRoute,
+  AuthenticatedAdminRecebimentosIdRoute: AuthenticatedAdminRecebimentosIdRoute,
   AuthenticatedAdminPedidosCompraIndexRoute:
     AuthenticatedAdminPedidosCompraIndexRoute,
   AuthenticatedAdminProdutosIndexRoute: AuthenticatedAdminProdutosIndexRoute,
