@@ -44,6 +44,7 @@ import { Route as AuthenticatedAdminOrcamentosRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminMarcasRouteImport } from './routes/_authenticated/admin.marcas'
 import { Route as AuthenticatedAdminIaAesBusinessRouteImport } from './routes/_authenticated/admin.ia-aes-business'
 import { Route as AuthenticatedAdminHomologacaoRouteImport } from './routes/_authenticated/admin.homologacao'
+import { Route as AuthenticatedAdminHistoricoCustosRouteImport } from './routes/_authenticated/admin.historico-custos'
 import { Route as AuthenticatedAdminFornecedoresRouteImport } from './routes/_authenticated/admin.fornecedores'
 import { Route as AuthenticatedAdminFiliaisRouteImport } from './routes/_authenticated/admin.filiais'
 import { Route as AuthenticatedAdminEstoqueRouteImport } from './routes/_authenticated/admin.estoque'
@@ -263,6 +264,12 @@ const AuthenticatedAdminHomologacaoRoute =
     path: '/homologacao',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminHistoricoCustosRoute =
+  AuthenticatedAdminHistoricoCustosRouteImport.update({
+    id: '/historico-custos',
+    path: '/historico-custos',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminFornecedoresRoute =
   AuthenticatedAdminFornecedoresRouteImport.update({
     id: '/fornecedores',
@@ -462,6 +469,7 @@ export interface FileRoutesByFullPath {
   '/admin/estoque': typeof AuthenticatedAdminEstoqueRoute
   '/admin/filiais': typeof AuthenticatedAdminFiliaisRoute
   '/admin/fornecedores': typeof AuthenticatedAdminFornecedoresRoute
+  '/admin/historico-custos': typeof AuthenticatedAdminHistoricoCustosRoute
   '/admin/homologacao': typeof AuthenticatedAdminHomologacaoRoute
   '/admin/ia-aes-business': typeof AuthenticatedAdminIaAesBusinessRoute
   '/admin/marcas': typeof AuthenticatedAdminMarcasRoute
@@ -523,6 +531,7 @@ export interface FileRoutesByTo {
   '/admin/estoque': typeof AuthenticatedAdminEstoqueRoute
   '/admin/filiais': typeof AuthenticatedAdminFiliaisRoute
   '/admin/fornecedores': typeof AuthenticatedAdminFornecedoresRoute
+  '/admin/historico-custos': typeof AuthenticatedAdminHistoricoCustosRoute
   '/admin/homologacao': typeof AuthenticatedAdminHomologacaoRoute
   '/admin/ia-aes-business': typeof AuthenticatedAdminIaAesBusinessRoute
   '/admin/marcas': typeof AuthenticatedAdminMarcasRoute
@@ -589,6 +598,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/estoque': typeof AuthenticatedAdminEstoqueRoute
   '/_authenticated/admin/filiais': typeof AuthenticatedAdminFiliaisRoute
   '/_authenticated/admin/fornecedores': typeof AuthenticatedAdminFornecedoresRoute
+  '/_authenticated/admin/historico-custos': typeof AuthenticatedAdminHistoricoCustosRoute
   '/_authenticated/admin/homologacao': typeof AuthenticatedAdminHomologacaoRoute
   '/_authenticated/admin/ia-aes-business': typeof AuthenticatedAdminIaAesBusinessRoute
   '/_authenticated/admin/marcas': typeof AuthenticatedAdminMarcasRoute
@@ -655,6 +665,7 @@ export interface FileRouteTypes {
     | '/admin/estoque'
     | '/admin/filiais'
     | '/admin/fornecedores'
+    | '/admin/historico-custos'
     | '/admin/homologacao'
     | '/admin/ia-aes-business'
     | '/admin/marcas'
@@ -716,6 +727,7 @@ export interface FileRouteTypes {
     | '/admin/estoque'
     | '/admin/filiais'
     | '/admin/fornecedores'
+    | '/admin/historico-custos'
     | '/admin/homologacao'
     | '/admin/ia-aes-business'
     | '/admin/marcas'
@@ -781,6 +793,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/estoque'
     | '/_authenticated/admin/filiais'
     | '/_authenticated/admin/fornecedores'
+    | '/_authenticated/admin/historico-custos'
     | '/_authenticated/admin/homologacao'
     | '/_authenticated/admin/ia-aes-business'
     | '/_authenticated/admin/marcas'
@@ -1081,6 +1094,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminHomologacaoRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/historico-custos': {
+      id: '/_authenticated/admin/historico-custos'
+      path: '/historico-custos'
+      fullPath: '/admin/historico-custos'
+      preLoaderRoute: typeof AuthenticatedAdminHistoricoCustosRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/fornecedores': {
       id: '/_authenticated/admin/fornecedores'
       path: '/fornecedores'
@@ -1344,6 +1364,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminEstoqueRoute: typeof AuthenticatedAdminEstoqueRoute
   AuthenticatedAdminFiliaisRoute: typeof AuthenticatedAdminFiliaisRoute
   AuthenticatedAdminFornecedoresRoute: typeof AuthenticatedAdminFornecedoresRoute
+  AuthenticatedAdminHistoricoCustosRoute: typeof AuthenticatedAdminHistoricoCustosRoute
   AuthenticatedAdminHomologacaoRoute: typeof AuthenticatedAdminHomologacaoRoute
   AuthenticatedAdminIaAesBusinessRoute: typeof AuthenticatedAdminIaAesBusinessRoute
   AuthenticatedAdminMarcasRoute: typeof AuthenticatedAdminMarcasRoute
@@ -1381,6 +1402,8 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminEstoqueRoute: AuthenticatedAdminEstoqueRoute,
   AuthenticatedAdminFiliaisRoute: AuthenticatedAdminFiliaisRoute,
   AuthenticatedAdminFornecedoresRoute: AuthenticatedAdminFornecedoresRoute,
+  AuthenticatedAdminHistoricoCustosRoute:
+    AuthenticatedAdminHistoricoCustosRoute,
   AuthenticatedAdminHomologacaoRoute: AuthenticatedAdminHomologacaoRoute,
   AuthenticatedAdminIaAesBusinessRoute: AuthenticatedAdminIaAesBusinessRoute,
   AuthenticatedAdminMarcasRoute: AuthenticatedAdminMarcasRoute,
