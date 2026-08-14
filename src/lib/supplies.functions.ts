@@ -650,7 +650,9 @@ export const getSuppliesOverview = createServerFn({ method: "GET" })
     const sb = tdb(context.supabase);
     await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_READ_ROLES);
 
-    const [suppliers, openOrders, draftReceipts, openValue] = await Promise.all([
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    const [suppliers, openOrders, awaiting, draftReceipts, openValue, purchased, recent] = await Promise.all([
       sb
         .from("suppliers")
         .select("id", { count: "exact", head: true })
@@ -662,6 +664,11 @@ export const getSuppliesOverview = createServerFn({ method: "GET" })
         .eq("tenant_id", context.tenantId)
         .in("status", ["draft", "approved", "sent", "partially_received"]),
       sb
+        .from("purchase_orders")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", context.tenantId)
+        .in("status", ["approved", "sent", "partially_received"]),
+      sb
         .from("goods_receipts")
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", context.tenantId)
@@ -671,17 +678,32 @@ export const getSuppliesOverview = createServerFn({ method: "GET" })
         .select("total_amount")
         .eq("tenant_id", context.tenantId)
         .in("status", ["approved", "sent", "partially_received"]),
+      sb
+        .from("purchase_orders")
+        .select("total_amount")
+        .eq("tenant_id", context.tenantId)
+        .in("status", ["partially_received", "received"])
+        .gte("created_at", since),
+      sb
+        .from("goods_receipts")
+        .select(
+          "id, number, status, received_at, confirmed_at, invoice_number, supplier:suppliers(legal_name), purchase_order:purchase_orders(number)",
+        )
+        .eq("tenant_id", context.tenantId)
+        .order("number", { ascending: false })
+        .limit(5),
     ]);
 
-    const total = (openValue.data ?? []).reduce(
-      (sum: number, row: any) => sum + Number(row.total_amount ?? 0),
-      0,
-    );
+    const sum = (rows: any[] | null) =>
+      round2((rows ?? []).reduce((acc: number, row: any) => acc + Number(row.total_amount ?? 0), 0));
 
     return {
       activeSuppliers: suppliers.error ? null : suppliers.count ?? 0,
       openOrders: openOrders.error ? null : openOrders.count ?? 0,
+      awaitingReceipt: awaiting.error ? null : awaiting.count ?? 0,
       pendingReceipts: draftReceipts.error ? null : draftReceipts.count ?? 0,
-      openOrdersValue: openValue.error ? null : round2(total),
+      openOrdersValue: openValue.error ? null : sum(openValue.data as any[]),
+      purchasedValue30d: purchased.error ? null : sum(purchased.data as any[]),
+      recentReceipts: recent.error ? [] : (recent.data ?? []),
     };
   });
