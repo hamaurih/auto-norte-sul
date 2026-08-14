@@ -56,7 +56,17 @@ export const productUpsert = createServerFn({ method: "POST" })
     const supabase = tdb(rawSupabase);
     const membership = await requireCatalogTenant(supabase, userId, context.tenantId);
     const { images, id, ...row } = data;
-    const payload = { ...row, tenant_id: membership.tenant_id, updated_at: new Date().toISOString() };
+    const name = normalizeName(row.name);
+    if (!name) throw new Error("Nome do produto é obrigatório");
+    const payload = {
+      ...row,
+      name,
+      sku: normalizeCode(row.sku) ?? row.sku,
+      internal_code: normalizeCode(row.internal_code),
+      manufacturer_code: normalizeCode(row.manufacturer_code),
+      tenant_id: membership.tenant_id,
+      updated_at: new Date().toISOString(),
+    };
     let productId = id;
     if (id) {
       const { error } = await supabase.from("products").update(payload).eq("id", id).eq("tenant_id", membership.tenant_id);
