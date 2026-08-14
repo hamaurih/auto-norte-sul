@@ -25,6 +25,7 @@ import {
   Warehouse,
   PlusCircle,
   type LucideIcon,
+  ClipboardList,
 } from "lucide-react";
 
 export type AdminShortcut = {
@@ -102,6 +103,7 @@ export const adminModules: AdminModule[] = [
       { to: "/admin/pedidos-compra", label: "Pedidos de compra", description: "Emissão e aprovação", icon: ShoppingCart },
       { to: "/admin/pedidos-compra/novo", label: "Novo pedido de compra", description: "Comprar do fornecedor", icon: PlusCircle },
       { to: "/admin/recebimentos", label: "Recebimentos", description: "Entrada de mercadoria", icon: PackageCheck },
+      { to: "/admin/historico-custos", label: "Histórico de custo", description: "Custo médio e último custo", icon: ClipboardList },
     ],
   },
   {

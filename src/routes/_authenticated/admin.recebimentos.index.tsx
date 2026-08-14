@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { SupplyStatusBadge } from "@/components/admin/SupplyStatusBadge";
 import { listGoodsReceipts } from "@/lib/supplies.functions";
 import { formatDate } from "@/lib/supplies-ui";
+import { SupplyGuard } from "@/components/admin/SupplyGuard";
 
 export const Route = createFileRoute("/_authenticated/admin/recebimentos/")({
   head: () => ({
@@ -14,7 +15,7 @@ export const Route = createFileRoute("/_authenticated/admin/recebimentos/")({
       { name: "description", content: "Recebimento de mercadorias com atualização de estoque e custo." },
     ],
   }),
-  component: RecebimentosPage,
+  component: GuardedRecebimentosPage,
 });
 
 const filters = [
@@ -107,5 +108,13 @@ function RecebimentosPage() {
         ))}
       </div>
     </div>
+  );
+}
+
+function GuardedRecebimentosPage() {
+  return (
+    <SupplyGuard>
+      <RecebimentosPage />
+    </SupplyGuard>
   );
 }

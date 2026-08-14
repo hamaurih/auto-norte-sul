@@ -10,6 +10,7 @@ import { SupplyStatusBadge } from "@/components/admin/SupplyStatusBadge";
 import { createGoodsReceipt, getPurchaseOrder, setPurchaseOrderStatus } from "@/lib/supplies.functions";
 import { brl } from "@/lib/format";
 import { formatDate, num, qty } from "@/lib/supplies-ui";
+import { SupplyGuard } from "@/components/admin/SupplyGuard";
 
 export const Route = createFileRoute("/_authenticated/admin/pedidos-compra/$id")({
   head: () => ({
@@ -18,7 +19,7 @@ export const Route = createFileRoute("/_authenticated/admin/pedidos-compra/$id")
       { name: "description", content: "Detalhe do pedido de compra, aprovação e recebimento." },
     ],
   }),
-  component: PedidoCompraDetailPage,
+  component: GuardedPedidoCompraDetailPage,
 });
 
 type ReceiveRow = { accepted: string; rejected: string; cost: string };
@@ -122,7 +123,16 @@ function PedidoCompraDetailPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           {order.status === "draft" && (
-            <Button onClick={() => changeStatus.mutate({ status: "approved" })}>Aprovar</Button>
+            <Button variant="outline" asChild>
+              <Link to="/admin/pedidos-compra/editar/$id" params={{ id }}>
+                Editar
+              </Link>
+            </Button>
+          )}
+          {order.status === "draft" && (
+            <Button disabled={changeStatus.isPending} onClick={() => changeStatus.mutate({ status: "approved" })}>
+              Aprovar
+            </Button>
           )}
           {order.status === "approved" && (
             <Button onClick={() => changeStatus.mutate({ status: "sent" })}>Marcar como enviado</Button>
@@ -277,5 +287,13 @@ function PedidoCompraDetailPage() {
         </ul>
       </section>
     </div>
+  );
+}
+
+function GuardedPedidoCompraDetailPage() {
+  return (
+    <SupplyGuard>
+      <PedidoCompraDetailPage />
+    </SupplyGuard>
   );
 }

@@ -7,6 +7,7 @@ import { SupplyStatusBadge } from "@/components/admin/SupplyStatusBadge";
 import { confirmGoodsReceipt, getGoodsReceipt, reverseGoodsReceipt } from "@/lib/supplies.functions";
 import { brl } from "@/lib/format";
 import { formatDate, num, qty } from "@/lib/supplies-ui";
+import { SupplyGuard } from "@/components/admin/SupplyGuard";
 
 export const Route = createFileRoute("/_authenticated/admin/recebimentos/$id")({
   head: () => ({
@@ -15,7 +16,7 @@ export const Route = createFileRoute("/_authenticated/admin/recebimentos/$id")({
       { name: "description", content: "Conferência, confirmação e estorno de recebimento de mercadoria." },
     ],
   }),
-  component: RecebimentoDetailPage,
+  component: GuardedRecebimentoDetailPage,
 });
 
 function RecebimentoDetailPage() {
@@ -164,5 +165,13 @@ function RecebimentoDetailPage() {
         </p>
       )}
     </div>
+  );
+}
+
+function GuardedRecebimentoDetailPage() {
+  return (
+    <SupplyGuard>
+      <RecebimentoDetailPage />
+    </SupplyGuard>
   );
 }

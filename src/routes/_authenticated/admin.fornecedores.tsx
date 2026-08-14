@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { SupplyGuard } from "@/components/admin/SupplyGuard";
 import {
   listSuppliers,
   setSupplierActive,
@@ -21,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/admin/fornecedores")({
       { name: "description", content: "Cadastro de fornecedores do módulo de suprimentos." },
     ],
   }),
-  component: FornecedoresPage,
+  component: GuardedFornecedoresPage,
 });
 
 const emptyForm: SupplierInput = {
@@ -258,5 +259,13 @@ function FornecedoresPage() {
         ))}
       </div>
     </div>
+  );
+}
+
+function GuardedFornecedoresPage() {
+  return (
+    <SupplyGuard>
+      <FornecedoresPage />
+    </SupplyGuard>
   );
 }

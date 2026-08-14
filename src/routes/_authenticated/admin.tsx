@@ -87,6 +87,7 @@ const items: Item[] = [
   { to: "/admin/fornecedores", label: "Fornecedores", icon: Truck, group: "suprimentos" },
   { to: "/admin/pedidos-compra", label: "Pedidos de compra", icon: ShoppingCart, group: "suprimentos" },
   { to: "/admin/recebimentos", label: "Recebimentos", icon: PackageCheck, group: "suprimentos" },
+  { to: "/admin/historico-custos", label: "Histórico de custo", icon: FileText, group: "suprimentos" },
 
   { to: "/admin/promocoes", label: "Promoções", icon: Percent, group: "marketing" },
   { to: "/admin/cupons", label: "Cupons", icon: Ticket, group: "marketing" },

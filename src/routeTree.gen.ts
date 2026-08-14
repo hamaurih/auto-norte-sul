@@ -44,6 +44,7 @@ import { Route as AuthenticatedAdminOrcamentosRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminMarcasRouteImport } from './routes/_authenticated/admin.marcas'
 import { Route as AuthenticatedAdminIaAesBusinessRouteImport } from './routes/_authenticated/admin.ia-aes-business'
 import { Route as AuthenticatedAdminHomologacaoRouteImport } from './routes/_authenticated/admin.homologacao'
+import { Route as AuthenticatedAdminHistoricoCustosRouteImport } from './routes/_authenticated/admin.historico-custos'
 import { Route as AuthenticatedAdminFornecedoresRouteImport } from './routes/_authenticated/admin.fornecedores'
 import { Route as AuthenticatedAdminFiliaisRouteImport } from './routes/_authenticated/admin.filiais'
 import { Route as AuthenticatedAdminEstoqueRouteImport } from './routes/_authenticated/admin.estoque'
@@ -71,6 +72,7 @@ import { Route as AuthenticatedAdminPedidosCompraNovoRouteImport } from './route
 import { Route as AuthenticatedAdminPedidosCompraIdRouteImport } from './routes/_authenticated/admin.pedidos-compra.$id'
 import { Route as AuthenticatedAdminEcossistemaBlingRouteImport } from './routes/_authenticated/admin.ecossistema.bling'
 import { Route as AuthenticatedAdminEcossistemaSlugRouteImport } from './routes/_authenticated/admin.ecossistema.$slug'
+import { Route as AuthenticatedAdminPedidosCompraEditarIdRouteImport } from './routes/_authenticated/admin.pedidos-compra.editar.$id'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -262,6 +264,12 @@ const AuthenticatedAdminHomologacaoRoute =
     path: '/homologacao',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminHistoricoCustosRoute =
+  AuthenticatedAdminHistoricoCustosRouteImport.update({
+    id: '/historico-custos',
+    path: '/historico-custos',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminFornecedoresRoute =
   AuthenticatedAdminFornecedoresRouteImport.update({
     id: '/fornecedores',
@@ -422,6 +430,12 @@ const AuthenticatedAdminEcossistemaSlugRoute =
     path: '/$slug',
     getParentRoute: () => AuthenticatedAdminEcossistemaRoute,
   } as any)
+const AuthenticatedAdminPedidosCompraEditarIdRoute =
+  AuthenticatedAdminPedidosCompraEditarIdRouteImport.update({
+    id: '/pedidos-compra/editar/$id',
+    path: '/pedidos-compra/editar/$id',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -455,6 +469,7 @@ export interface FileRoutesByFullPath {
   '/admin/estoque': typeof AuthenticatedAdminEstoqueRoute
   '/admin/filiais': typeof AuthenticatedAdminFiliaisRoute
   '/admin/fornecedores': typeof AuthenticatedAdminFornecedoresRoute
+  '/admin/historico-custos': typeof AuthenticatedAdminHistoricoCustosRoute
   '/admin/homologacao': typeof AuthenticatedAdminHomologacaoRoute
   '/admin/ia-aes-business': typeof AuthenticatedAdminIaAesBusinessRoute
   '/admin/marcas': typeof AuthenticatedAdminMarcasRoute
@@ -485,6 +500,7 @@ export interface FileRoutesByFullPath {
   '/admin/pedidos-compra/': typeof AuthenticatedAdminPedidosCompraIndexRoute
   '/admin/produtos/': typeof AuthenticatedAdminProdutosIndexRoute
   '/admin/recebimentos/': typeof AuthenticatedAdminRecebimentosIndexRoute
+  '/admin/pedidos-compra/editar/$id': typeof AuthenticatedAdminPedidosCompraEditarIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -515,6 +531,7 @@ export interface FileRoutesByTo {
   '/admin/estoque': typeof AuthenticatedAdminEstoqueRoute
   '/admin/filiais': typeof AuthenticatedAdminFiliaisRoute
   '/admin/fornecedores': typeof AuthenticatedAdminFornecedoresRoute
+  '/admin/historico-custos': typeof AuthenticatedAdminHistoricoCustosRoute
   '/admin/homologacao': typeof AuthenticatedAdminHomologacaoRoute
   '/admin/ia-aes-business': typeof AuthenticatedAdminIaAesBusinessRoute
   '/admin/marcas': typeof AuthenticatedAdminMarcasRoute
@@ -545,6 +562,7 @@ export interface FileRoutesByTo {
   '/admin/pedidos-compra': typeof AuthenticatedAdminPedidosCompraIndexRoute
   '/admin/produtos': typeof AuthenticatedAdminProdutosIndexRoute
   '/admin/recebimentos': typeof AuthenticatedAdminRecebimentosIndexRoute
+  '/admin/pedidos-compra/editar/$id': typeof AuthenticatedAdminPedidosCompraEditarIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -580,6 +598,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/estoque': typeof AuthenticatedAdminEstoqueRoute
   '/_authenticated/admin/filiais': typeof AuthenticatedAdminFiliaisRoute
   '/_authenticated/admin/fornecedores': typeof AuthenticatedAdminFornecedoresRoute
+  '/_authenticated/admin/historico-custos': typeof AuthenticatedAdminHistoricoCustosRoute
   '/_authenticated/admin/homologacao': typeof AuthenticatedAdminHomologacaoRoute
   '/_authenticated/admin/ia-aes-business': typeof AuthenticatedAdminIaAesBusinessRoute
   '/_authenticated/admin/marcas': typeof AuthenticatedAdminMarcasRoute
@@ -610,6 +629,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/pedidos-compra/': typeof AuthenticatedAdminPedidosCompraIndexRoute
   '/_authenticated/admin/produtos/': typeof AuthenticatedAdminProdutosIndexRoute
   '/_authenticated/admin/recebimentos/': typeof AuthenticatedAdminRecebimentosIndexRoute
+  '/_authenticated/admin/pedidos-compra/editar/$id': typeof AuthenticatedAdminPedidosCompraEditarIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -645,6 +665,7 @@ export interface FileRouteTypes {
     | '/admin/estoque'
     | '/admin/filiais'
     | '/admin/fornecedores'
+    | '/admin/historico-custos'
     | '/admin/homologacao'
     | '/admin/ia-aes-business'
     | '/admin/marcas'
@@ -675,6 +696,7 @@ export interface FileRouteTypes {
     | '/admin/pedidos-compra/'
     | '/admin/produtos/'
     | '/admin/recebimentos/'
+    | '/admin/pedidos-compra/editar/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -705,6 +727,7 @@ export interface FileRouteTypes {
     | '/admin/estoque'
     | '/admin/filiais'
     | '/admin/fornecedores'
+    | '/admin/historico-custos'
     | '/admin/homologacao'
     | '/admin/ia-aes-business'
     | '/admin/marcas'
@@ -735,6 +758,7 @@ export interface FileRouteTypes {
     | '/admin/pedidos-compra'
     | '/admin/produtos'
     | '/admin/recebimentos'
+    | '/admin/pedidos-compra/editar/$id'
   id:
     | '__root__'
     | '/'
@@ -769,6 +793,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/estoque'
     | '/_authenticated/admin/filiais'
     | '/_authenticated/admin/fornecedores'
+    | '/_authenticated/admin/historico-custos'
     | '/_authenticated/admin/homologacao'
     | '/_authenticated/admin/ia-aes-business'
     | '/_authenticated/admin/marcas'
@@ -799,6 +824,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/pedidos-compra/'
     | '/_authenticated/admin/produtos/'
     | '/_authenticated/admin/recebimentos/'
+    | '/_authenticated/admin/pedidos-compra/editar/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1068,6 +1094,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminHomologacaoRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/historico-custos': {
+      id: '/_authenticated/admin/historico-custos'
+      path: '/historico-custos'
+      fullPath: '/admin/historico-custos'
+      preLoaderRoute: typeof AuthenticatedAdminHistoricoCustosRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/fornecedores': {
       id: '/_authenticated/admin/fornecedores'
       path: '/fornecedores'
@@ -1257,6 +1290,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEcossistemaSlugRouteImport
       parentRoute: typeof AuthenticatedAdminEcossistemaRoute
     }
+    '/_authenticated/admin/pedidos-compra/editar/$id': {
+      id: '/_authenticated/admin/pedidos-compra/editar/$id'
+      path: '/pedidos-compra/editar/$id'
+      fullPath: '/admin/pedidos-compra/editar/$id'
+      preLoaderRoute: typeof AuthenticatedAdminPedidosCompraEditarIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
   }
 }
 
@@ -1324,6 +1364,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminEstoqueRoute: typeof AuthenticatedAdminEstoqueRoute
   AuthenticatedAdminFiliaisRoute: typeof AuthenticatedAdminFiliaisRoute
   AuthenticatedAdminFornecedoresRoute: typeof AuthenticatedAdminFornecedoresRoute
+  AuthenticatedAdminHistoricoCustosRoute: typeof AuthenticatedAdminHistoricoCustosRoute
   AuthenticatedAdminHomologacaoRoute: typeof AuthenticatedAdminHomologacaoRoute
   AuthenticatedAdminIaAesBusinessRoute: typeof AuthenticatedAdminIaAesBusinessRoute
   AuthenticatedAdminMarcasRoute: typeof AuthenticatedAdminMarcasRoute
@@ -1344,6 +1385,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminPedidosCompraIndexRoute: typeof AuthenticatedAdminPedidosCompraIndexRoute
   AuthenticatedAdminProdutosIndexRoute: typeof AuthenticatedAdminProdutosIndexRoute
   AuthenticatedAdminRecebimentosIndexRoute: typeof AuthenticatedAdminRecebimentosIndexRoute
+  AuthenticatedAdminPedidosCompraEditarIdRoute: typeof AuthenticatedAdminPedidosCompraEditarIdRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
@@ -1360,6 +1402,8 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminEstoqueRoute: AuthenticatedAdminEstoqueRoute,
   AuthenticatedAdminFiliaisRoute: AuthenticatedAdminFiliaisRoute,
   AuthenticatedAdminFornecedoresRoute: AuthenticatedAdminFornecedoresRoute,
+  AuthenticatedAdminHistoricoCustosRoute:
+    AuthenticatedAdminHistoricoCustosRoute,
   AuthenticatedAdminHomologacaoRoute: AuthenticatedAdminHomologacaoRoute,
   AuthenticatedAdminIaAesBusinessRoute: AuthenticatedAdminIaAesBusinessRoute,
   AuthenticatedAdminMarcasRoute: AuthenticatedAdminMarcasRoute,
@@ -1386,6 +1430,8 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminProdutosIndexRoute: AuthenticatedAdminProdutosIndexRoute,
   AuthenticatedAdminRecebimentosIndexRoute:
     AuthenticatedAdminRecebimentosIndexRoute,
+  AuthenticatedAdminPedidosCompraEditarIdRoute:
+    AuthenticatedAdminPedidosCompraEditarIdRoute,
 }
 
 const AuthenticatedAdminRouteWithChildren =
