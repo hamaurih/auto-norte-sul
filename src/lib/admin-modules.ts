@@ -25,6 +25,7 @@ import {
   Warehouse,
   PlusCircle,
   type LucideIcon,
+  ClipboardList,
 } from "lucide-react";
 
 export type AdminShortcut = {
