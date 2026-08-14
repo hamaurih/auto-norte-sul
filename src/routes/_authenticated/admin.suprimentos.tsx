@@ -318,6 +318,15 @@ function SuprimentosPage() {
             Risco de ruptura, cobertura, excesso e quantidade sugerida para compra.
           </p>
         </Link>
+        <Link
+          to="/admin/inteligencia-comercial"
+          className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40"
+        >
+          <h2 className="font-display text-lg font-bold">Inteligência comercial</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Curva ABC, margem, markup, rentabilidade e formação de preço.
+          </p>
+        </Link>
       </section>
     </div>
   );
