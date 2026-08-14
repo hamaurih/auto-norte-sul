@@ -856,3 +856,89 @@ export const upsertReplenishmentSetting = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+
+// ===================== Compras automáticas e inteligência comercial =====================
+
+export const createReplenishmentPurchaseOrders = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: {
+    warehouseId: string;
+    items: Array<{ productId: string; supplierId: string; qty: number; unitCost: number }>;
+  }) => input)
+  .handler(async ({ data, context }) => {
+    const sb = tdb(context.supabase);
+    await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_WRITE_ROLES);
+    const items = (data.items ?? [])
+      .filter((item) => item.productId && item.supplierId && Number(item.qty) > 0)
+      .map((item) => ({
+        product_id: item.productId,
+        supplier_id: item.supplierId,
+        qty: Number(item.qty),
+        unit_cost: Math.max(0, Number(item.unitCost ?? 0)),
+      }));
+    if (!data.warehouseId) throw new Error("Selecione o depósito");
+    if (items.length === 0) throw new Error("Selecione produtos com fornecedor preferencial");
+    const { data: result, error } = await sb.rpc("create_replenishment_purchase_orders", {
+      p_tenant_id: context.tenantId,
+      p_warehouse_id: data.warehouseId,
+      p_items: items,
+    });
+    if (error) throw new Error(error.message);
+    return result as { ok: boolean; count: number; orders: Array<{ id: string; number: number; total: number }> };
+  });
+
+export const listCommercialIntelligence = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input?: { lookbackDays?: number; abcClass?: "A" | "B" | "C" | "all"; status?: string }) => input ?? {})
+  .handler(async ({ data, context }) => {
+    const sb = tdb(context.supabase);
+    await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_APPROVE_ROLES);
+    const lookbackDays = Math.max(1, Math.min(Number(data.lookbackDays ?? 90), 365));
+    const { data: rows, error } = await sb.rpc("get_commercial_intelligence", {
+      p_tenant_id: context.tenantId,
+      p_lookback_days: lookbackDays,
+    });
+    if (error) throw new Error(error.message);
+    return (rows ?? []).filter((row: any) =>
+      (!data.abcClass || data.abcClass === "all" || row.abc_class === data.abcClass) &&
+      (!data.status || data.status === "all" || row.pricing_status === data.status)
+    );
+  });
+
+export const upsertProductPricingSetting = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: {
+    productId: string;
+    taxRate: number;
+    commissionRate: number;
+    paymentFeeRate: number;
+    otherVariableRate: number;
+    fixedCostPerUnit: number;
+    desiredMarginRate: number;
+    priceRounding: "none" | "x90" | "x99" | "whole";
+  }) => input)
+  .handler(async ({ data, context }) => {
+    const sb = tdb(context.supabase);
+    await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_APPROVE_ROLES);
+    const rates = [data.taxRate, data.commissionRate, data.paymentFeeRate, data.otherVariableRate, data.desiredMarginRate]
+      .map((value) => Math.max(0, Number(value ?? 0)));
+    if (rates.reduce((sum, value) => sum + value, 0) >= 1) {
+      throw new Error("Custos variáveis e margem desejada devem somar menos de 100%");
+    }
+    const { error } = await sb.from("product_pricing_settings").upsert({
+      tenant_id: context.tenantId,
+      product_id: data.productId,
+      tax_rate: rates[0],
+      commission_rate: rates[1],
+      payment_fee_rate: rates[2],
+      other_variable_rate: rates[3],
+      fixed_cost_per_unit: Math.max(0, Number(data.fixedCostPerUnit ?? 0)),
+      desired_margin_rate: rates[4],
+      price_rounding: data.priceRounding,
+      created_by: context.userId,
+      updated_by: context.userId,
+    }, { onConflict: "tenant_id,product_id" });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
