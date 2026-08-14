@@ -123,7 +123,16 @@ function PedidoCompraDetailPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           {order.status === "draft" && (
-            <Button onClick={() => changeStatus.mutate({ status: "approved" })}>Aprovar</Button>
+            <Button variant="outline" asChild>
+              <Link to="/admin/pedidos-compra/editar/$id" params={{ id }}>
+                Editar
+              </Link>
+            </Button>
+          )}
+          {order.status === "draft" && (
+            <Button disabled={changeStatus.isPending} onClick={() => changeStatus.mutate({ status: "approved" })}>
+              Aprovar
+            </Button>
           )}
           {order.status === "approved" && (
             <Button onClick={() => changeStatus.mutate({ status: "sent" })}>Marcar como enviado</Button>
