@@ -36,6 +36,7 @@ import { Route as AuthenticatedVendedorClientesRouteImport } from './routes/_aut
 import { Route as AuthenticatedAdminVendedoresRouteImport } from './routes/_authenticated/admin.vendedores'
 import { Route as AuthenticatedAdminSuprimentosRouteImport } from './routes/_authenticated/admin.suprimentos'
 import { Route as AuthenticatedAdminSaneamentoRouteImport } from './routes/_authenticated/admin.saneamento'
+import { Route as AuthenticatedAdminRevisaoCodigosRouteImport } from './routes/_authenticated/admin.revisao-codigos'
 import { Route as AuthenticatedAdminPromocoesRouteImport } from './routes/_authenticated/admin.promocoes'
 import { Route as AuthenticatedAdminPedidosRouteImport } from './routes/_authenticated/admin.pedidos'
 import { Route as AuthenticatedAdminPdvRouteImport } from './routes/_authenticated/admin.pdv'
@@ -212,6 +213,12 @@ const AuthenticatedAdminSaneamentoRoute =
   AuthenticatedAdminSaneamentoRouteImport.update({
     id: '/saneamento',
     path: '/saneamento',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminRevisaoCodigosRoute =
+  AuthenticatedAdminRevisaoCodigosRouteImport.update({
+    id: '/revisao-codigos',
+    path: '/revisao-codigos',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminPromocoesRoute =
@@ -455,6 +462,7 @@ export interface FileRoutesByFullPath {
   '/admin/pdv': typeof AuthenticatedAdminPdvRoute
   '/admin/pedidos': typeof AuthenticatedAdminPedidosRoute
   '/admin/promocoes': typeof AuthenticatedAdminPromocoesRoute
+  '/admin/revisao-codigos': typeof AuthenticatedAdminRevisaoCodigosRoute
   '/admin/saneamento': typeof AuthenticatedAdminSaneamentoRouteWithChildren
   '/admin/suprimentos': typeof AuthenticatedAdminSuprimentosRoute
   '/admin/vendedores': typeof AuthenticatedAdminVendedoresRouteWithChildren
@@ -514,6 +522,7 @@ export interface FileRoutesByTo {
   '/admin/pdv': typeof AuthenticatedAdminPdvRoute
   '/admin/pedidos': typeof AuthenticatedAdminPedidosRoute
   '/admin/promocoes': typeof AuthenticatedAdminPromocoesRoute
+  '/admin/revisao-codigos': typeof AuthenticatedAdminRevisaoCodigosRoute
   '/admin/saneamento': typeof AuthenticatedAdminSaneamentoRouteWithChildren
   '/admin/suprimentos': typeof AuthenticatedAdminSuprimentosRoute
   '/admin/vendedores': typeof AuthenticatedAdminVendedoresRouteWithChildren
@@ -578,6 +587,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/pdv': typeof AuthenticatedAdminPdvRoute
   '/_authenticated/admin/pedidos': typeof AuthenticatedAdminPedidosRoute
   '/_authenticated/admin/promocoes': typeof AuthenticatedAdminPromocoesRoute
+  '/_authenticated/admin/revisao-codigos': typeof AuthenticatedAdminRevisaoCodigosRoute
   '/_authenticated/admin/saneamento': typeof AuthenticatedAdminSaneamentoRouteWithChildren
   '/_authenticated/admin/suprimentos': typeof AuthenticatedAdminSuprimentosRoute
   '/_authenticated/admin/vendedores': typeof AuthenticatedAdminVendedoresRouteWithChildren
@@ -642,6 +652,7 @@ export interface FileRouteTypes {
     | '/admin/pdv'
     | '/admin/pedidos'
     | '/admin/promocoes'
+    | '/admin/revisao-codigos'
     | '/admin/saneamento'
     | '/admin/suprimentos'
     | '/admin/vendedores'
@@ -701,6 +712,7 @@ export interface FileRouteTypes {
     | '/admin/pdv'
     | '/admin/pedidos'
     | '/admin/promocoes'
+    | '/admin/revisao-codigos'
     | '/admin/saneamento'
     | '/admin/suprimentos'
     | '/admin/vendedores'
@@ -764,6 +776,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/pdv'
     | '/_authenticated/admin/pedidos'
     | '/_authenticated/admin/promocoes'
+    | '/_authenticated/admin/revisao-codigos'
     | '/_authenticated/admin/saneamento'
     | '/_authenticated/admin/suprimentos'
     | '/_authenticated/admin/vendedores'
@@ -997,6 +1010,13 @@ declare module '@tanstack/react-router' {
       path: '/saneamento'
       fullPath: '/admin/saneamento'
       preLoaderRoute: typeof AuthenticatedAdminSaneamentoRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/revisao-codigos': {
+      id: '/_authenticated/admin/revisao-codigos'
+      path: '/revisao-codigos'
+      fullPath: '/admin/revisao-codigos'
+      preLoaderRoute: typeof AuthenticatedAdminRevisaoCodigosRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/promocoes': {
@@ -1311,6 +1331,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminPdvRoute: typeof AuthenticatedAdminPdvRoute
   AuthenticatedAdminPedidosRoute: typeof AuthenticatedAdminPedidosRoute
   AuthenticatedAdminPromocoesRoute: typeof AuthenticatedAdminPromocoesRoute
+  AuthenticatedAdminRevisaoCodigosRoute: typeof AuthenticatedAdminRevisaoCodigosRoute
   AuthenticatedAdminSaneamentoRoute: typeof AuthenticatedAdminSaneamentoRouteWithChildren
   AuthenticatedAdminSuprimentosRoute: typeof AuthenticatedAdminSuprimentosRoute
   AuthenticatedAdminVendedoresRoute: typeof AuthenticatedAdminVendedoresRouteWithChildren
@@ -1346,6 +1367,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminPdvRoute: AuthenticatedAdminPdvRoute,
   AuthenticatedAdminPedidosRoute: AuthenticatedAdminPedidosRoute,
   AuthenticatedAdminPromocoesRoute: AuthenticatedAdminPromocoesRoute,
+  AuthenticatedAdminRevisaoCodigosRoute: AuthenticatedAdminRevisaoCodigosRoute,
   AuthenticatedAdminSaneamentoRoute:
     AuthenticatedAdminSaneamentoRouteWithChildren,
   AuthenticatedAdminSuprimentosRoute: AuthenticatedAdminSuprimentosRoute,
