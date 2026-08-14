@@ -8,8 +8,10 @@ import { SupplyGuard } from "@/components/admin/SupplyGuard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  createReplenishmentPurchaseOrders,
   listReplenishmentSuggestions,
   listSuppliers,
+  listSupplyWarehouses,
   upsertReplenishmentSetting,
   type ReplenishmentRisk,
 } from "@/lib/supplies.functions";
@@ -56,9 +58,13 @@ function ReposicaoPage() {
   const listFn = useServerFn(listReplenishmentSuggestions);
   const suppliersFn = useServerFn(listSuppliers);
   const saveFn = useServerFn(upsertReplenishmentSetting);
+  const warehousesFn = useServerFn(listSupplyWarehouses);
+  const createOrdersFn = useServerFn(createReplenishmentPurchaseOrders);
   const [risk, setRisk] = useState<ReplenishmentRisk | "all">("all");
   const [lookbackDays, setLookbackDays] = useState(90);
   const [edit, setEdit] = useState<EditState | null>(null);
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [warehouseId, setWarehouseId] = useState("");
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["replenishment-suggestions", lookbackDays, risk],
@@ -67,6 +73,10 @@ function ReposicaoPage() {
   const { data: suppliers } = useQuery({
     queryKey: ["suppliers", "active-only"],
     queryFn: () => suppliersFn({ data: { onlyActive: true } }),
+  });
+  const { data: warehouses } = useQuery({
+    queryKey: ["supply-warehouses"],
+    queryFn: () => warehousesFn(),
   });
 
   const save = useMutation({
@@ -88,6 +98,31 @@ function ReposicaoPage() {
       toast.success("Parâmetros de reposição atualizados");
       setEdit(null);
       qc.invalidateQueries({ queryKey: ["replenishment-suggestions"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const generateOrders = useMutation({
+    mutationFn: () => {
+      const chosen = ((data ?? []) as any[]).filter((row) => selected[row.product_id]);
+      return createOrdersFn({
+        data: {
+          warehouseId,
+          items: chosen.map((row) => ({
+            productId: row.product_id,
+            supplierId: row.preferred_supplier_id ?? "",
+            qty: Number(row.suggested_qty ?? 0),
+            unitCost: Number(row.average_cost ?? 0),
+          })),
+        },
+      });
+    },
+    onSuccess: (result) => {
+      toast.success(`${result.count} pedido(s) de compra criado(s): ${result.orders.map((order) => `#${order.number}`).join(", ")}`);
+      setSelected({});
+      qc.invalidateQueries({ queryKey: ["replenishment-suggestions"] });
+      qc.invalidateQueries({ queryKey: ["purchase-orders"] });
+      qc.invalidateQueries({ queryKey: ["supply-alerts"] });
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -144,6 +179,33 @@ function ReposicaoPage() {
         </label>
       </div>
 
+      <section className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-4">
+        <label className="min-w-64 flex-1 text-xs font-semibold uppercase text-muted-foreground">
+          Depósito dos novos pedidos
+          <select
+            className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+            value={warehouseId}
+            onChange={(event) => setWarehouseId(event.target.value)}
+          >
+            <option value="">Selecione o depósito</option>
+            {(warehouses ?? []).map((warehouse) => (
+              <option key={warehouse.id} value={warehouse.id}>
+                {warehouse.name}{warehouse.branch_name ? ` · ${warehouse.branch_name}` : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="text-sm text-muted-foreground">
+          {Object.values(selected).filter(Boolean).length} produto(s) selecionado(s)
+        </div>
+        <Button
+          disabled={generateOrders.isPending || !warehouseId || Object.values(selected).every((value) => !value)}
+          onClick={() => generateOrders.mutate()}
+        >
+          {generateOrders.isPending ? "Gerando…" : "Gerar pedidos por fornecedor"}
+        </Button>
+      </section>
+
       {isError && (
         <div role="alert" className="rounded-lg border border-destructive bg-destructive/5 p-4 text-sm">
           {(error as Error)?.message ?? "Não foi possível calcular a reposição."}
@@ -162,6 +224,7 @@ function ReposicaoPage() {
           <table className="w-full min-w-[1050px] text-sm">
             <thead className="text-xs uppercase text-muted-foreground">
               <tr>
+                <th className="p-3 text-center">Comprar</th>
                 <th className="p-3 text-left">Produto</th>
                 <th className="p-3 text-right">Disponível</th>
                 <th className="p-3 text-right">Em compra</th>
@@ -176,6 +239,16 @@ function ReposicaoPage() {
             <tbody>
               {rows.map((row) => (
                 <tr key={row.product_id} className="border-t border-border">
+                  <td className="p-3 text-center">
+                    <input
+                      type="checkbox"
+                      aria-label={`Selecionar ${row.product_name}`}
+                      checked={Boolean(selected[row.product_id])}
+                      disabled={Number(row.suggested_qty ?? 0) <= 0 || !row.preferred_supplier_id}
+                      onChange={(event) => setSelected((current) => ({ ...current, [row.product_id]: event.target.checked }))}
+                      className="h-4 w-4 accent-primary"
+                    />
+                  </td>
                   <td className="p-3">
                     <div className="font-semibold">{row.product_name}</div>
                     <div className="text-xs text-muted-foreground">
