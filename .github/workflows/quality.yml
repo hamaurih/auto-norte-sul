@@ -30,15 +30,16 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Build and generate typed routes
+        run: bun run build
+
       - name: Typecheck
         run: bunx tsc --noEmit
-
-      - name: Build
-        run: bun run build
 
       - name: Validate migrations
         run: |
           test -f supabase/manual/20260814020000_supplies_module.sql
           test -f supabase/manual/20260815000000_product_code_normalization.sql
           test -f supabase/manual/20260815010000_product_code_audit_compatibility.sql
+          test -f supabase/manual/20260817000000_intelligent_replenishment.sql
           ! rg '^(<<<<<<<|=======|>>>>>>>)' supabase
