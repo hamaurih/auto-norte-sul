@@ -4,7 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { productUpsert, type ProductInput } from "@/lib/products.functions";
+import { checkInternalCodeDuplicate, productUpsert, type ProductInput } from "@/lib/products.functions";
+import { normalizeCode, normalizeName } from "@/lib/product-codes";
 import { slugify } from "@/lib/format";
 import { Trash2, ArrowUp, ArrowDown, Star, Plus, Upload, Loader2 } from "lucide-react";
 
@@ -17,6 +18,8 @@ function toInput(v: string | null | undefined) {
 export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { id?: string; images?: Img[] } }) {
   const navigate = useNavigate();
   const upsert = useServerFn(productUpsert);
+  const checkDup = useServerFn(checkInternalCodeDuplicate);
+  const [dupWarning, setDupWarning] = useState<string | null>(null);
   const [tab, setTab] = useState<"geral" | "precos" | "estoque" | "imagens">("geral");
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<ProductInput>({
@@ -136,13 +139,32 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
     }
   }
 
+  async function verifyInternalCode() {
+    const code = normalizeCode(form.internal_code);
+    if (!code) { setDupWarning(null); return; }
+    try {
+      const res = await checkDup({ data: { internal_code: code, excludeId: form.id ?? null } });
+      setDupWarning(
+        res.duplicate
+          ? `Atenção: código interno já usado em ${res.products.map((p) => p.name).join(", ")}`
+          : null,
+      );
+    } catch { setDupWarning(null); }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
+      const name = normalizeName(form.name);
+      if (!name) { toast.error("Nome do produto é obrigatório"); setSaving(false); return; }
       const payload: ProductInput = {
         ...form,
-        slug: form.slug || slugify(form.name),
+        name,
+        sku: normalizeCode(form.sku) ?? form.sku,
+        internal_code: normalizeCode(form.internal_code),
+        manufacturer_code: normalizeCode(form.manufacturer_code),
+        slug: form.slug || slugify(name),
         images: (form.images ?? []).filter((i) => i.url.trim().length > 0),
       };
       const res = await upsert({ data: payload });
@@ -186,9 +208,26 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
 
       {tab === "geral" && (
         <div className="grid gap-4 md:grid-cols-2">
-          <L label="SKU *"><input required value={form.sku} onChange={(e) => update("sku", e.target.value)} className={inp} /></L>
-          <L label="Código interno"><input value={form.internal_code ?? ""} onChange={(e) => update("internal_code", e.target.value)} className={inp} /></L>
-          <L label="Código do fabricante"><input value={form.manufacturer_code ?? ""} onChange={(e) => update("manufacturer_code", e.target.value.toUpperCase())} className={inp} placeholder="Ex.: 001CP" /></L>
+          <L label="Código interno" >
+            <input
+              value={form.internal_code ?? ""}
+              onChange={(e) => update("internal_code", e.target.value.toUpperCase())}
+              onBlur={verifyInternalCode}
+              className={`${inp} font-mono`}
+              placeholder="Ex.: AZ1234 ou F-YH05050ZL"
+            />
+            <span className="mt-1 block text-[11px] text-muted-foreground">Código da Norte Sul. Pode repetir? Não — avisamos se já existir.</span>
+            {dupWarning && <span className="mt-1 block text-[11px] font-bold text-hot">{dupWarning}</span>}
+          </L>
+          <L label="Código do fabricante">
+            <input
+              value={form.manufacturer_code ?? ""}
+              onChange={(e) => update("manufacturer_code", e.target.value.toUpperCase())}
+              className={`${inp} font-mono`}
+              placeholder="Ex.: 001CP"
+            />
+            <span className="mt-1 block text-[11px] text-muted-foreground">Código do fornecedor/fabricante. Pode repetir entre marcas.</span>
+          </L>
           <L label="Nome *">
             <input
               required
@@ -224,6 +263,12 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
           </L>
           <L label="Descrição completa" full>
             <textarea value={form.description ?? ""} onChange={(e) => update("description", e.target.value)} rows={6} className={inp} />
+          </L>
+          <L label="SKU / Bling (campo técnico) *" full>
+            <input required value={form.sku} onChange={(e) => update("sku", e.target.value.toUpperCase())} className={`${inp} font-mono`} />
+            <span className="mt-1 block text-[11px] text-muted-foreground">
+              Identificador técnico de integração com o Bling. Não é o código interno nem o do fabricante; mantenha como está salvo.
+            </span>
           </L>
           <div className="md:col-span-2 flex flex-wrap gap-4 rounded border border-border p-3">
             <Chk label="Ativo" checked={form.active ?? true} onChange={(v) => update("active", v)} />

@@ -97,7 +97,7 @@ function ProductsList() {
       <div className="mb-3 grid gap-2 md:grid-cols-5">
         <div className="relative md:col-span-2">
           <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nome, SKU ou cód. fabricante" className="w-full rounded border border-border bg-background p-2 pl-8 text-sm" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nome, código interno, código do fabricante ou SKU" className="w-full rounded border border-border bg-background p-2 pl-8 text-sm" />
         </div>
         <select value={filterCat} onChange={(e) => setFilterCat(e.target.value)} className="rounded border border-border bg-background p-2 text-sm">
           <option value="">Todas categorias</option>
