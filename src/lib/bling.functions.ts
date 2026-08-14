@@ -302,23 +302,31 @@ export const syncBlingProducts = createServerFn({ method: "POST" })
           const blingId = String(p.id);
           const rawName = p.nome ?? `Produto ${blingId}`;
           const { name: nome, manufacturerCode } = splitManufacturerCode(rawName);
-          const sku = p.codigo ?? blingId;
+          const sku = normalizeCode(p.codigo) ?? blingId;
+          const internalFromSku = deriveInternalCodeFromSku(sku);
           const preco = Number(p.preco ?? 0);
           const estoque = Number(p.estoque?.saldoVirtualTotal ?? p.estoque?.saldo ?? 0);
           const ativo = (p.situacao ?? "A") === "A";
 
           const { data: existing } = await sb
             .from("products")
-            .select("id,slug,manufacturer_code")
+            .select("id,slug,manufacturer_code,internal_code")
             .eq("bling_id", blingId)
             .maybeSingle();
 
           if (existing) {
+            // Nunca sobrescreve códigos já revisados manualmente e nunca apaga o SKU.
+            const reviewed = await isCodeReviewed(sb, existing.id);
             await sb
               .from("products")
               .update({
                 name: nome,
-                manufacturer_code: manufacturerCode ?? existing.manufacturer_code ?? null,
+                manufacturer_code: reviewed
+                  ? (existing.manufacturer_code ?? null)
+                  : (existing.manufacturer_code ?? manufacturerCode ?? null),
+                internal_code: reviewed
+                  ? (existing.internal_code ?? null)
+                  : (existing.internal_code ?? internalFromSku ?? null),
                 sku,
                 price_b2c: preco,
                 stock: estoque,
@@ -334,6 +342,7 @@ export const syncBlingProducts = createServerFn({ method: "POST" })
               sku,
               name: nome,
               manufacturer_code: manufacturerCode,
+              internal_code: internalFromSku,
               slug,
               price_b2c: preco,
               stock: estoque,
