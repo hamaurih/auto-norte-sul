@@ -27,6 +27,7 @@ import {
   Truck,
   ShoppingCart,
   PackageCheck,
+  FileUp,
 } from "lucide-react";
 import {
   Sidebar,
