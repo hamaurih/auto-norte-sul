@@ -271,6 +271,18 @@ function splitManufacturerCode(rawName: string) {
   return splitManufacturerCodeFromName(rawName);
 }
 
+/** Códigos revisados manualmente (auditoria applied com reviewed_at) nunca são sobrescritos. */
+async function isCodeReviewed(sb: any, productId: string): Promise<boolean> {
+  const { data, error } = await sb
+    .from("product_code_normalization_audit")
+    .select("id")
+    .eq("product_id", productId)
+    .not("reviewed_at", "is", null)
+    .limit(1);
+  if (error) return false;
+  return (data ?? []).length > 0;
+}
+
 async function uniqueSlug(supabase: any, base: string, blingId: string) {
   let slug = base || `produto-${blingId}`;
   const { data } = await supabase.from("products").select("id,bling_id").eq("slug", slug).maybeSingle();
