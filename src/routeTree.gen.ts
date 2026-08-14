@@ -43,6 +43,7 @@ import { Route as AuthenticatedAdminOrcamentosRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminMarcasRouteImport } from './routes/_authenticated/admin.marcas'
 import { Route as AuthenticatedAdminIaAesBusinessRouteImport } from './routes/_authenticated/admin.ia-aes-business'
 import { Route as AuthenticatedAdminHomologacaoRouteImport } from './routes/_authenticated/admin.homologacao'
+import { Route as AuthenticatedAdminFornecedoresRouteImport } from './routes/_authenticated/admin.fornecedores'
 import { Route as AuthenticatedAdminFiliaisRouteImport } from './routes/_authenticated/admin.filiais'
 import { Route as AuthenticatedAdminEstoqueRouteImport } from './routes/_authenticated/admin.estoque'
 import { Route as AuthenticatedAdminEcossistemaRouteImport } from './routes/_authenticated/admin.ecossistema'
@@ -249,6 +250,12 @@ const AuthenticatedAdminHomologacaoRoute =
     path: '/homologacao',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminFornecedoresRoute =
+  AuthenticatedAdminFornecedoresRouteImport.update({
+    id: '/fornecedores',
+    path: '/fornecedores',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminFiliaisRoute =
   AuthenticatedAdminFiliaisRouteImport.update({
     id: '/filiais',
@@ -405,6 +412,7 @@ export interface FileRoutesByFullPath {
   '/admin/ecossistema': typeof AuthenticatedAdminEcossistemaRouteWithChildren
   '/admin/estoque': typeof AuthenticatedAdminEstoqueRoute
   '/admin/filiais': typeof AuthenticatedAdminFiliaisRoute
+  '/admin/fornecedores': typeof AuthenticatedAdminFornecedoresRoute
   '/admin/homologacao': typeof AuthenticatedAdminHomologacaoRoute
   '/admin/ia-aes-business': typeof AuthenticatedAdminIaAesBusinessRoute
   '/admin/marcas': typeof AuthenticatedAdminMarcasRoute
@@ -458,6 +466,7 @@ export interface FileRoutesByTo {
   '/admin/cupons': typeof AuthenticatedAdminCuponsRoute
   '/admin/estoque': typeof AuthenticatedAdminEstoqueRoute
   '/admin/filiais': typeof AuthenticatedAdminFiliaisRoute
+  '/admin/fornecedores': typeof AuthenticatedAdminFornecedoresRoute
   '/admin/homologacao': typeof AuthenticatedAdminHomologacaoRoute
   '/admin/ia-aes-business': typeof AuthenticatedAdminIaAesBusinessRoute
   '/admin/marcas': typeof AuthenticatedAdminMarcasRoute
@@ -516,6 +525,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/ecossistema': typeof AuthenticatedAdminEcossistemaRouteWithChildren
   '/_authenticated/admin/estoque': typeof AuthenticatedAdminEstoqueRoute
   '/_authenticated/admin/filiais': typeof AuthenticatedAdminFiliaisRoute
+  '/_authenticated/admin/fornecedores': typeof AuthenticatedAdminFornecedoresRoute
   '/_authenticated/admin/homologacao': typeof AuthenticatedAdminHomologacaoRoute
   '/_authenticated/admin/ia-aes-business': typeof AuthenticatedAdminIaAesBusinessRoute
   '/_authenticated/admin/marcas': typeof AuthenticatedAdminMarcasRoute
@@ -574,6 +584,7 @@ export interface FileRouteTypes {
     | '/admin/ecossistema'
     | '/admin/estoque'
     | '/admin/filiais'
+    | '/admin/fornecedores'
     | '/admin/homologacao'
     | '/admin/ia-aes-business'
     | '/admin/marcas'
@@ -627,6 +638,7 @@ export interface FileRouteTypes {
     | '/admin/cupons'
     | '/admin/estoque'
     | '/admin/filiais'
+    | '/admin/fornecedores'
     | '/admin/homologacao'
     | '/admin/ia-aes-business'
     | '/admin/marcas'
@@ -684,6 +696,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/ecossistema'
     | '/_authenticated/admin/estoque'
     | '/_authenticated/admin/filiais'
+    | '/_authenticated/admin/fornecedores'
     | '/_authenticated/admin/homologacao'
     | '/_authenticated/admin/ia-aes-business'
     | '/_authenticated/admin/marcas'
@@ -970,6 +983,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminHomologacaoRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/fornecedores': {
+      id: '/_authenticated/admin/fornecedores'
+      path: '/fornecedores'
+      fullPath: '/admin/fornecedores'
+      preLoaderRoute: typeof AuthenticatedAdminFornecedoresRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/filiais': {
       id: '/_authenticated/admin/filiais'
       path: '/filiais'
@@ -1183,6 +1203,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminEcossistemaRoute: typeof AuthenticatedAdminEcossistemaRouteWithChildren
   AuthenticatedAdminEstoqueRoute: typeof AuthenticatedAdminEstoqueRoute
   AuthenticatedAdminFiliaisRoute: typeof AuthenticatedAdminFiliaisRoute
+  AuthenticatedAdminFornecedoresRoute: typeof AuthenticatedAdminFornecedoresRoute
   AuthenticatedAdminHomologacaoRoute: typeof AuthenticatedAdminHomologacaoRoute
   AuthenticatedAdminIaAesBusinessRoute: typeof AuthenticatedAdminIaAesBusinessRoute
   AuthenticatedAdminMarcasRoute: typeof AuthenticatedAdminMarcasRoute
@@ -1212,6 +1233,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
     AuthenticatedAdminEcossistemaRouteWithChildren,
   AuthenticatedAdminEstoqueRoute: AuthenticatedAdminEstoqueRoute,
   AuthenticatedAdminFiliaisRoute: AuthenticatedAdminFiliaisRoute,
+  AuthenticatedAdminFornecedoresRoute: AuthenticatedAdminFornecedoresRoute,
   AuthenticatedAdminHomologacaoRoute: AuthenticatedAdminHomologacaoRoute,
   AuthenticatedAdminIaAesBusinessRoute: AuthenticatedAdminIaAesBusinessRoute,
   AuthenticatedAdminMarcasRoute: AuthenticatedAdminMarcasRoute,
