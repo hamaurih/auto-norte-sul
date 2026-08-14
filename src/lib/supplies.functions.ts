@@ -740,3 +740,56 @@ export const listProductCostHistory = createServerFn({ method: "GET" })
         .some((value: string) => value.toLowerCase().includes(term)),
     );
   });
+
+
+// ===================== Alertas operacionais =====================
+
+export const getSupplyAlerts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const sb = tdb(context.supabase);
+    await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_READ_ROLES);
+
+    const today = new Date().toISOString().slice(0, 10);
+    const [overdueOrders, approvalQueue, divergentNfes, draftReceipts] = await Promise.all([
+      sb
+        .from("purchase_orders")
+        .select("id, number, expected_at, total_amount, status, supplier:suppliers(legal_name)")
+        .eq("tenant_id", context.tenantId)
+        .in("status", ["approved", "sent", "partially_received"])
+        .lt("expected_at", today)
+        .order("expected_at", { ascending: true })
+        .limit(10),
+      sb
+        .from("purchase_orders")
+        .select("id, number, created_at, total_amount, supplier:suppliers(legal_name)")
+        .eq("tenant_id", context.tenantId)
+        .eq("status", "draft")
+        .order("created_at", { ascending: true })
+        .limit(10),
+      sb
+        .from("nfe_imports")
+        .select("id, nfe_number, emitter_name, total_invoice, issued_at, status")
+        .eq("tenant_id", context.tenantId)
+        .eq("status", "divergente")
+        .order("created_at", { ascending: false })
+        .limit(10),
+      sb
+        .from("goods_receipts")
+        .select("id, number, received_at, invoice_number, supplier:suppliers(legal_name)")
+        .eq("tenant_id", context.tenantId)
+        .eq("status", "draft")
+        .order("received_at", { ascending: true })
+        .limit(10),
+    ]);
+
+    const firstError = [overdueOrders.error, approvalQueue.error, divergentNfes.error, draftReceipts.error].find(Boolean);
+    if (firstError) throw new Error(firstError.message);
+
+    return {
+      overdueOrders: overdueOrders.data ?? [],
+      approvalQueue: approvalQueue.data ?? [],
+      divergentNfes: divergentNfes.data ?? [],
+      draftReceipts: draftReceipts.data ?? [],
+    };
+  });
