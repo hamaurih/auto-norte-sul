@@ -1122,6 +1122,60 @@ export type Database = {
           },
         ]
       }
+      product_code_normalization_audit: {
+        Row: {
+          created_at: string
+          id: string
+          original_internal_code: string | null
+          original_manufacturer_code: string | null
+          original_name: string | null
+          original_sku: string | null
+          product_id: string | null
+          proposed_internal_code: string | null
+          proposed_manufacturer_code: string | null
+          proposed_name: string | null
+          reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          original_internal_code?: string | null
+          original_manufacturer_code?: string | null
+          original_name?: string | null
+          original_sku?: string | null
+          product_id?: string | null
+          proposed_internal_code?: string | null
+          proposed_manufacturer_code?: string | null
+          proposed_name?: string | null
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          original_internal_code?: string | null
+          original_manufacturer_code?: string | null
+          original_name?: string | null
+          original_sku?: string | null
+          product_id?: string | null
+          proposed_internal_code?: string | null
+          proposed_manufacturer_code?: string | null
+          proposed_name?: string | null
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          tenant_id?: string | null
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           active: boolean
@@ -1135,6 +1189,7 @@ export type Database = {
           hide_when_out_of_stock: boolean
           id: string
           internal_code: string | null
+          manufacturer_code: string | null
           is_bestseller: boolean
           is_new: boolean
           is_offer: boolean
@@ -1166,6 +1221,7 @@ export type Database = {
           hide_when_out_of_stock?: boolean
           id?: string
           internal_code?: string | null
+          manufacturer_code?: string | null
           is_bestseller?: boolean
           is_new?: boolean
           is_offer?: boolean
@@ -1197,6 +1253,7 @@ export type Database = {
           hide_when_out_of_stock?: boolean
           id?: string
           internal_code?: string | null
+          manufacturer_code?: string | null
           is_bestseller?: boolean
           is_new?: boolean
           is_offer?: boolean
