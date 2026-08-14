@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { brl } from "@/lib/format";
 import { productDelete, productDuplicate, productToggle } from "@/lib/products.functions";
+import { buildProductSearchFilter } from "@/lib/product-codes";
+import { ProductCodeBadges } from "@/components/admin/ProductCodeBadges";
 import { Plus, Pencil, Copy, Trash2, Search, ChevronLeft, ChevronRight, ImageOff } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/produtos/")({
@@ -39,9 +41,10 @@ function ProductsList() {
     queryFn: async () => {
       let query = supabase
         .from("products")
-        .select("id, sku, manufacturer_code, name, stock, price_b2c, sale_price_b2c, active, featured, is_new, is_bestseller, brand_id, category_id, images:product_images(url, is_primary, sort_order)", { count: "exact" })
+        .select("id, sku, internal_code, manufacturer_code, name, stock, price_b2c, sale_price_b2c, active, featured, is_new, is_bestseller, brand_id, category_id, images:product_images(url, is_primary, sort_order)", { count: "exact" })
         .order("name");
-      if (q) query = query.or(`name.ilike.%${q}%,sku.ilike.%${q}%,manufacturer_code.ilike.%${q}%`);
+      const orFilter = q ? buildProductSearchFilter(q) : null;
+      if (orFilter) query = query.or(orFilter);
       if (filterCat) query = query.eq("category_id", filterCat);
       if (filterBrand) query = query.eq("brand_id", filterBrand);
       if (filterActive === "true") query = query.eq("active", true);
@@ -128,9 +131,8 @@ function ProductsList() {
           <thead className="bg-muted text-xs uppercase">
             <tr>
               <th className="p-2 text-center">Foto</th>
-              <th className="p-2 text-left">SKU</th>
-              <th className="p-2 text-left">Cód. fabricante</th>
-              <th className="p-2 text-left">Nome</th>
+              <th className="p-2 text-left">SKU/Bling</th>
+              <th className="p-2 text-left">Produto</th>
               <th className="p-2 text-right">Estoque</th>
               <th className="p-2 text-right">Preço</th>
               <th className="p-2 text-center">Ativo</th>
