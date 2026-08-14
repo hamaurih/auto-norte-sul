@@ -16,6 +16,11 @@ dist-ssr
 .nitro
 *.local
 
+# Environment files: never version real credentials/config
+.env
+.env.*
+!.env.example
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
