@@ -14,6 +14,11 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  deriveInternalCodeFromSku,
+  normalizeCode,
+  splitManufacturerCodeFromName,
+} from "@/lib/product-codes";
 
 const BLING_AUTHORIZE_URL = "https://www.bling.com.br/Api/v3/oauth/authorize";
 
@@ -261,16 +266,21 @@ function slugify(s: string) {
     .slice(0, 80);
 }
 
+/** Regra conservadora compartilhada com o saneamento (src/lib/product-codes.ts). */
 function splitManufacturerCode(rawName: string) {
-  const normalizedName = (rawName || "").trim().replace(/\s+/g, " ");
-  const match = normalizedName.match(/^([A-Za-z0-9][A-Za-z0-9._/-]{2,})\s+(.+)$/);
-  if (!match || !/\d/.test(match[1])) {
-    return { name: normalizedName, manufacturerCode: null as string | null };
-  }
-  return {
-    name: match[2].trim(),
-    manufacturerCode: match[1].toUpperCase(),
-  };
+  return splitManufacturerCodeFromName(rawName);
+}
+
+/** Códigos revisados manualmente (auditoria applied com reviewed_at) nunca são sobrescritos. */
+async function isCodeReviewed(sb: any, productId: string): Promise<boolean> {
+  const { data, error } = await sb
+    .from("product_code_normalization_audit")
+    .select("id")
+    .eq("product_id", productId)
+    .not("reviewed_at", "is", null)
+    .limit(1);
+  if (error) return false;
+  return (data ?? []).length > 0;
 }
 
 async function uniqueSlug(supabase: any, base: string, blingId: string) {
@@ -304,23 +314,31 @@ export const syncBlingProducts = createServerFn({ method: "POST" })
           const blingId = String(p.id);
           const rawName = p.nome ?? `Produto ${blingId}`;
           const { name: nome, manufacturerCode } = splitManufacturerCode(rawName);
-          const sku = p.codigo ?? blingId;
+          const sku = normalizeCode(p.codigo) ?? blingId;
+          const internalFromSku = deriveInternalCodeFromSku(sku);
           const preco = Number(p.preco ?? 0);
           const estoque = Number(p.estoque?.saldoVirtualTotal ?? p.estoque?.saldo ?? 0);
           const ativo = (p.situacao ?? "A") === "A";
 
           const { data: existing } = await sb
             .from("products")
-            .select("id,slug,manufacturer_code")
+            .select("id,slug,manufacturer_code,internal_code")
             .eq("bling_id", blingId)
             .maybeSingle();
 
           if (existing) {
+            // Nunca sobrescreve códigos já revisados manualmente e nunca apaga o SKU.
+            const reviewed = await isCodeReviewed(sb, existing.id);
             await sb
               .from("products")
               .update({
                 name: nome,
-                manufacturer_code: manufacturerCode ?? existing.manufacturer_code ?? null,
+                manufacturer_code: reviewed
+                  ? (existing.manufacturer_code ?? null)
+                  : (existing.manufacturer_code ?? manufacturerCode ?? null),
+                internal_code: reviewed
+                  ? (existing.internal_code ?? null)
+                  : (existing.internal_code ?? internalFromSku ?? null),
                 sku,
                 price_b2c: preco,
                 stock: estoque,
@@ -336,6 +354,7 @@ export const syncBlingProducts = createServerFn({ method: "POST" })
               sku,
               name: nome,
               manufacturer_code: manufacturerCode,
+              internal_code: internalFromSku,
               slug,
               price_b2c: preco,
               stock: estoque,

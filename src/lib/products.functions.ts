@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { tdb } from "@/integrations/supabase/tenant-db";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
+import { normalizeCode, normalizeName } from "@/lib/product-codes";
 
 async function requireCatalogTenant(supabase: any, userId: string, tenantId: string) {
   const { data, error } = await supabase
@@ -55,7 +56,17 @@ export const productUpsert = createServerFn({ method: "POST" })
     const supabase = tdb(rawSupabase);
     const membership = await requireCatalogTenant(supabase, userId, context.tenantId);
     const { images, id, ...row } = data;
-    const payload = { ...row, tenant_id: membership.tenant_id, updated_at: new Date().toISOString() };
+    const name = normalizeName(row.name);
+    if (!name) throw new Error("Nome do produto é obrigatório");
+    const payload = {
+      ...row,
+      name,
+      sku: normalizeCode(row.sku) ?? row.sku,
+      internal_code: normalizeCode(row.internal_code),
+      manufacturer_code: normalizeCode(row.manufacturer_code),
+      tenant_id: membership.tenant_id,
+      updated_at: new Date().toISOString(),
+    };
     let productId = id;
     if (id) {
       const { error } = await supabase.from("products").update(payload).eq("id", id).eq("tenant_id", membership.tenant_id);
@@ -138,4 +149,27 @@ export const productDuplicate = createServerFn({ method: "POST" })
       await tdb(context.supabase).from("product_images").insert(imgs.map((i) => ({ ...i, product_id: inserted.id, tenant_id: membership.tenant_id })));
     }
     return { ok: true, id: inserted.id };
+  });
+
+/**
+ * Aviso (não bloqueio) de possível duplicidade do código interno no mesmo tenant.
+ * O código do fabricante pode repetir entre marcas — por isso não é verificado.
+ */
+export const checkInternalCodeDuplicate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { internal_code: string; excludeId?: string | null }) => input)
+  .handler(async ({ data, context }) => {
+    const code = normalizeCode(data.internal_code);
+    if (!code) return { duplicate: false, products: [] as { id: string; name: string; sku: string }[] };
+    const membership = await requireCatalogTenant(tdb(context.supabase), context.userId, context.tenantId);
+    let q = tdb(context.supabase)
+      .from("products")
+      .select("id, name, sku")
+      .eq("tenant_id", membership.tenant_id)
+      .eq("internal_code", code)
+      .limit(5);
+    if (data.excludeId) q = q.neq("id", data.excludeId);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return { duplicate: (rows ?? []).length > 0, products: rows ?? [] };
   });
