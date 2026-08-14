@@ -3,19 +3,13 @@
  * Mantém `supplies.functions.ts` como wrapper fino (exigência do code-splitting).
  */
 
-export const SUPPLY_READ_ROLES = [
-  "owner",
-  "admin",
-  "manager",
-  "stock",
-  "finance",
-  "accountant",
-  "sales",
-  "support",
-  "viewer",
-];
-
-export const SUPPLY_WRITE_ROLES = ["owner", "admin", "manager", "stock"];
+/**
+ * Suprimentos é restrito a perfis administrativos e de gerência:
+ * `owner`/`admin` (ADMIN) e `manager` (GERENTE). Nenhum outro perfil lê,
+ * cria, confirma ou estorna documentos do módulo.
+ */
+export const SUPPLY_READ_ROLES = ["owner", "admin", "manager"];
+export const SUPPLY_WRITE_ROLES = ["owner", "admin", "manager"];
 export const SUPPLY_APPROVE_ROLES = ["owner", "admin", "manager"];
 
 export type SupplyMembership = { tenant_id: string; role: string };

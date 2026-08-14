@@ -1,9 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ClipboardList, PackageCheck, ShoppingCart, Truck } from "lucide-react";
+import { ClipboardList, PackageCheck, ShieldAlert, ShoppingCart, Truck } from "lucide-react";
 import { getSuppliesOverview } from "@/lib/supplies.functions";
 import { brl } from "@/lib/format";
+import { formatDate } from "@/lib/supplies-ui";
+import { SupplyStatusBadge } from "@/components/admin/SupplyStatusBadge";
+import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/_authenticated/admin/suprimentos")({
   head: () => ({
@@ -16,16 +19,55 @@ export const Route = createFileRoute("/_authenticated/admin/suprimentos")({
 });
 
 function SuprimentosPage() {
+  const { isStaff, loading: sessionLoading } = useSession();
   const overviewFn = useServerFn(getSuppliesOverview);
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["supplies-overview"],
     queryFn: () => overviewFn(),
+    enabled: isStaff,
   });
 
+  if (sessionLoading) {
+    return <p className="p-4 text-sm text-muted-foreground">Carregando permissões…</p>;
+  }
+
+  if (!isStaff) {
+    return (
+      <div role="alert" className="mx-auto max-w-2xl rounded-lg border border-destructive bg-destructive/5 p-6">
+        <ShieldAlert className="h-5 w-5 text-destructive" aria-hidden="true" />
+        <h1 className="mt-2 font-display text-xl font-bold uppercase">Acesso restrito</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          O módulo de Suprimentos é exclusivo para perfis de administração e gerência.
+        </p>
+      </div>
+    );
+  }
+
   const cards = [
-    { label: "Fornecedores ativos", value: data?.activeSuppliers, icon: Truck, to: "/admin/fornecedores" },
-    { label: "Pedidos em aberto", value: data?.openOrders, icon: ShoppingCart, to: "/admin/pedidos-compra" },
-    { label: "Recebimentos em conferência", value: data?.pendingReceipts, icon: PackageCheck, to: "/admin/recebimentos" },
+    {
+      label: "Pedidos em aberto",
+      value: isLoading ? "…" : (data?.openOrders ?? "—"),
+      icon: ShoppingCart,
+      to: "/admin/pedidos-compra",
+    },
+    {
+      label: "Aguardando recebimento",
+      value: isLoading ? "…" : (data?.awaitingReceipt ?? "—"),
+      icon: Truck,
+      to: "/admin/pedidos-compra",
+    },
+    {
+      label: "Recebimentos em conferência",
+      value: isLoading ? "…" : (data?.pendingReceipts ?? "—"),
+      icon: PackageCheck,
+      to: "/admin/recebimentos",
+    },
+    {
+      label: "Fornecedores ativos",
+      value: isLoading ? "…" : (data?.activeSuppliers ?? "—"),
+      icon: Truck,
+      to: "/admin/fornecedores",
+    },
   ] as const;
 
   return (
@@ -52,14 +94,15 @@ function SuprimentosPage() {
             className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40"
           >
             <card.icon className="h-5 w-5 text-primary" aria-hidden="true" />
-            <div className="mt-2 font-display text-2xl font-bold">
-              {isLoading ? "…" : (card.value ?? "—")}
-            </div>
+            <div className="mt-2 font-display text-2xl font-bold">{card.value}</div>
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {card.label}
             </div>
           </Link>
         ))}
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-lg border border-border bg-card p-4">
           <ClipboardList className="h-5 w-5 text-primary" aria-hidden="true" />
           <div className="mt-2 font-display text-2xl font-bold">
@@ -68,6 +111,48 @@ function SuprimentosPage() {
           <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Valor comprometido em compras
           </div>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-4">
+          <ClipboardList className="h-5 w-5 text-primary" aria-hidden="true" />
+          <div className="mt-2 font-display text-2xl font-bold">
+            {isLoading ? "…" : data?.purchasedValue30d == null ? "—" : brl(data.purchasedValue30d)}
+          </div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Valor comprado (últimos 30 dias)
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-border bg-card p-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-display text-lg font-bold">Recebimentos recentes</h2>
+          <Link to="/admin/recebimentos" className="text-xs font-semibold uppercase text-primary hover:underline">
+            Ver todos
+          </Link>
+        </div>
+        <div className="mt-3 space-y-2">
+          {isLoading && <p className="text-sm text-muted-foreground">Carregando recebimentos…</p>}
+          {!isLoading && (data?.recentReceipts ?? []).length === 0 && (
+            <p className="text-sm text-muted-foreground">Nenhum recebimento registrado ainda.</p>
+          )}
+          {(data?.recentReceipts ?? []).map((receipt: any) => (
+            <Link
+              key={receipt.id}
+              to="/admin/recebimentos/$id"
+              params={{ id: receipt.id }}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-3 text-sm transition-colors hover:border-primary/40"
+            >
+              <span className="min-w-0">
+                <span className="font-semibold">#{receipt.number}</span> ·{" "}
+                {receipt.supplier?.legal_name ?? "Fornecedor"}
+                <span className="block text-xs text-muted-foreground">
+                  Pedido #{receipt.purchase_order?.number ?? "—"} · {formatDate(receipt.received_at)}
+                  {receipt.invoice_number ? ` · NF ${receipt.invoice_number}` : ""}
+                </span>
+              </span>
+              <SupplyStatusBadge status={receipt.status} kind="receipt" />
+            </Link>
+          ))}
         </div>
       </section>
 
