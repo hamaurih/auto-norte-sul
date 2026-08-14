@@ -97,6 +97,7 @@ const items: Item[] = [
   { to: "/admin/ia-aes-business", label: "IA A&S Business", icon: Bot, group: "integracoes", adminOnly: true },
 
   { to: "/admin/saneamento", label: "Saneamento", icon: ShieldAlert, group: "sistema", adminOnly: true },
+  { to: "/admin/revisao-codigos", label: "Revisão de códigos", icon: Tag, group: "sistema", adminOnly: true },
   { to: "/admin/saneamento/aliases", label: "Aliases", icon: Tag, group: "sistema", adminOnly: true },
   { to: "/admin/auditoria", label: "Auditoria", icon: ClipboardCheck, group: "sistema", adminOnly: true },
   { to: "/admin/homologacao", label: "Homologação", icon: ClipboardCheck, group: "sistema", adminOnly: true },
