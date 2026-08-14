@@ -14,6 +14,11 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  deriveInternalCodeFromSku,
+  normalizeCode,
+  splitManufacturerCodeFromName,
+} from "@/lib/product-codes";
 
 const BLING_AUTHORIZE_URL = "https://www.bling.com.br/Api/v3/oauth/authorize";
 
