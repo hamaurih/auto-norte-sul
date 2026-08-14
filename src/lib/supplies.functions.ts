@@ -707,3 +707,36 @@ export const getSuppliesOverview = createServerFn({ method: "GET" })
       recentReceipts: recent.error ? [] : (recent.data ?? []),
     };
   });
+
+// ===================== Histórico de custo =====================
+
+export const listProductCostHistory = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input?: { productId?: string | null; search?: string }) => input ?? {})
+  .handler(async ({ data, context }) => {
+    const sb = tdb(context.supabase);
+    await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_READ_ROLES);
+
+    let query = sb
+      .from("product_cost_history")
+      .select(
+        "id, product_id, source, reference_id, qty, unit_cost, previous_average_cost, new_average_cost, previous_last_cost, new_last_cost, created_at, product:products(id, name, sku, internal_code, manufacturer_code)",
+      )
+      .eq("tenant_id", context.tenantId)
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    if (data.productId) query = query.eq("product_id", data.productId);
+
+    const { data: rows, error } = await query;
+    if (error) throw new Error(error.message);
+
+    const term = (data.search ?? "").trim().toLowerCase();
+    const list = rows ?? [];
+    if (!term) return list;
+    return list.filter((row: any) =>
+      [row.product?.name, row.product?.sku, row.product?.internal_code, row.product?.manufacturer_code]
+        .filter(Boolean)
+        .some((value: string) => value.toLowerCase().includes(term)),
+    );
+  });
