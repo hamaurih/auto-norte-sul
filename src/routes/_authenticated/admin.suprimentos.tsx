@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ClipboardList, PackageCheck, ShieldAlert, ShoppingCart, Truck } from "lucide-react";
-import { getSuppliesOverview } from "@/lib/supplies.functions";
+import { AlertTriangle, ClipboardList, Clock3, FileWarning, PackageCheck, ShieldAlert, ShoppingCart, Truck } from "lucide-react";
+import { getSuppliesOverview, getSupplyAlerts } from "@/lib/supplies.functions";
 import { brl } from "@/lib/format";
 import { formatDate } from "@/lib/supplies-ui";
 import { SupplyStatusBadge } from "@/components/admin/SupplyStatusBadge";
@@ -21,9 +21,16 @@ export const Route = createFileRoute("/_authenticated/admin/suprimentos")({
 function SuprimentosPage() {
   const { isStaff, loading: sessionLoading } = useSession();
   const overviewFn = useServerFn(getSuppliesOverview);
+  const alertsFn = useServerFn(getSupplyAlerts);
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["supplies-overview"],
     queryFn: () => overviewFn(),
+    enabled: isStaff,
+  });
+
+  const { data: alerts, isLoading: alertsLoading, isError: alertsError } = useQuery({
+    queryKey: ["supply-alerts"],
+    queryFn: () => alertsFn(),
     enabled: isStaff,
   });
 
@@ -180,6 +187,128 @@ function SuprimentosPage() {
             Conferência por SKU, recebimento parcial, custo efetivo e estorno auditado.
           </p>
         </Link>
+      </section>
+
+
+      <section className="space-y-3" aria-labelledby="supply-alerts-title">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 id="supply-alerts-title" className="font-display text-xl font-bold uppercase">
+              Alertas operacionais
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Pendências que exigem aprovação, conferência ou cobrança do fornecedor.
+            </p>
+          </div>
+          {alertsLoading && <span className="text-xs text-muted-foreground">Atualizando…</span>}
+        </div>
+
+        {alertsError && (
+          <div role="alert" className="rounded-lg border border-destructive bg-destructive/5 p-4 text-sm">
+            Não foi possível carregar os alertas operacionais.
+          </div>
+        )}
+
+        {!alertsLoading && !alertsError &&
+          (alerts?.overdueOrders.length ?? 0) +
+            (alerts?.approvalQueue.length ?? 0) +
+            (alerts?.divergentNfes.length ?? 0) +
+            (alerts?.draftReceipts.length ?? 0) ===
+            0 && (
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 text-sm">
+              Nenhuma pendência crítica no módulo de Suprimentos.
+            </div>
+          )}
+
+        <div className="grid gap-3 lg:grid-cols-2">
+          {(alerts?.overdueOrders.length ?? 0) > 0 && (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4">
+              <div className="flex items-center gap-2 font-display font-bold uppercase">
+                <Clock3 className="h-5 w-5 text-amber-600" aria-hidden="true" />
+                Pedidos atrasados ({alerts?.overdueOrders.length})
+              </div>
+              <div className="mt-2 space-y-1">
+                {alerts?.overdueOrders.slice(0, 5).map((order: any) => (
+                  <Link
+                    key={order.id}
+                    to="/admin/pedidos-compra/$id"
+                    params={{ id: order.id }}
+                    className="flex justify-between gap-3 rounded px-2 py-1.5 text-sm hover:bg-muted"
+                  >
+                    <span>#{order.number} · {order.supplier?.legal_name ?? "Fornecedor"}</span>
+                    <span className="text-muted-foreground">{formatDate(order.expected_at)}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(alerts?.approvalQueue.length ?? 0) > 0 && (
+            <div className="rounded-lg border border-blue-500/40 bg-blue-500/5 p-4">
+              <div className="flex items-center gap-2 font-display font-bold uppercase">
+                <ClipboardList className="h-5 w-5 text-blue-600" aria-hidden="true" />
+                Aguardando aprovação ({alerts?.approvalQueue.length})
+              </div>
+              <div className="mt-2 space-y-1">
+                {alerts?.approvalQueue.slice(0, 5).map((order: any) => (
+                  <Link
+                    key={order.id}
+                    to="/admin/pedidos-compra/$id"
+                    params={{ id: order.id }}
+                    className="flex justify-between gap-3 rounded px-2 py-1.5 text-sm hover:bg-muted"
+                  >
+                    <span>#{order.number} · {order.supplier?.legal_name ?? "Fornecedor"}</span>
+                    <span className="font-semibold">{brl(Number(order.total_amount ?? 0))}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(alerts?.divergentNfes.length ?? 0) > 0 && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+              <div className="flex items-center gap-2 font-display font-bold uppercase">
+                <FileWarning className="h-5 w-5 text-destructive" aria-hidden="true" />
+                NF-e com divergência ({alerts?.divergentNfes.length})
+              </div>
+              <div className="mt-2 space-y-1">
+                {alerts?.divergentNfes.slice(0, 5).map((nfe: any) => (
+                  <Link
+                    key={nfe.id}
+                    to="/admin/nfe-importacao/$id"
+                    params={{ id: nfe.id }}
+                    className="flex justify-between gap-3 rounded px-2 py-1.5 text-sm hover:bg-muted"
+                  >
+                    <span>NF {nfe.nfe_number ?? "—"} · {nfe.emitter_name ?? "Emitente"}</span>
+                    <span className="font-semibold">{brl(Number(nfe.total_invoice ?? 0))}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(alerts?.draftReceipts.length ?? 0) > 0 && (
+            <div className="rounded-lg border border-orange-500/40 bg-orange-500/5 p-4">
+              <div className="flex items-center gap-2 font-display font-bold uppercase">
+                <AlertTriangle className="h-5 w-5 text-orange-600" aria-hidden="true" />
+                Recebimentos sem confirmação ({alerts?.draftReceipts.length})
+              </div>
+              <div className="mt-2 space-y-1">
+                {alerts?.draftReceipts.slice(0, 5).map((receipt: any) => (
+                  <Link
+                    key={receipt.id}
+                    to="/admin/recebimentos/$id"
+                    params={{ id: receipt.id }}
+                    className="flex justify-between gap-3 rounded px-2 py-1.5 text-sm hover:bg-muted"
+                  >
+                    <span>#{receipt.number} · {receipt.supplier?.legal_name ?? "Fornecedor"}</span>
+                    <span className="text-muted-foreground">{formatDate(receipt.received_at)}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </section>
     </div>
   );
