@@ -160,9 +160,11 @@ function ProductsList() {
                       </div>
                     )}
                   </td>
-                  <td className="p-2 font-mono text-xs">{p.sku}</td>
-                  <td className="p-2 font-mono text-xs">{p.manufacturer_code ?? "—"}</td>
-                  <td className="p-2">{p.name}</td>
+                  <td className="p-2 font-mono text-xs text-muted-foreground">{p.sku}</td>
+                  <td className="p-2">
+                    <div>{p.name}</div>
+                    <ProductCodeBadges internalCode={p.internal_code} manufacturerCode={p.manufacturer_code} />
+                  </td>
                   <td className={`p-2 text-right ${p.stock === 0 ? "text-destructive font-bold" : ""}`}>{p.stock}</td>
                   <td className="p-2 text-right">{brl(price)}</td>
                   <td className="p-2 text-center"><input type="checkbox" checked={p.active} onChange={(e) => handleToggle(p.id, "active", e.target.checked)} /></td>
