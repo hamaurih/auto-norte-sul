@@ -266,16 +266,9 @@ function slugify(s: string) {
     .slice(0, 80);
 }
 
+/** Regra conservadora compartilhada com o saneamento (src/lib/product-codes.ts). */
 function splitManufacturerCode(rawName: string) {
-  const normalizedName = (rawName || "").trim().replace(/\s+/g, " ");
-  const match = normalizedName.match(/^([A-Za-z0-9][A-Za-z0-9._/-]{2,})\s+(.+)$/);
-  if (!match || !/\d/.test(match[1])) {
-    return { name: normalizedName, manufacturerCode: null as string | null };
-  }
-  return {
-    name: match[2].trim(),
-    manufacturerCode: match[1].toUpperCase(),
-  };
+  return splitManufacturerCodeFromName(rawName);
 }
 
 async function uniqueSlug(supabase: any, base: string, blingId: string) {
