@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { buildProductSearchFilter } from "@/lib/product-codes";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 import { tdb } from "@/integrations/supabase/tenant-db";
 import {
@@ -224,9 +225,7 @@ export const searchSupplyProducts = createServerFn({ method: "GET" })
       .select(SUPPLY_PRODUCT_SELECT)
       .eq("tenant_id", context.tenantId)
       .eq("active", true)
-      .or(
-        `name.ilike.%${term}%,sku.ilike.%${term}%,internal_code.ilike.%${term}%,manufacturer_code.ilike.%${term}%`,
-      )
+      .or(buildProductSearchFilter(term) ?? `name.ilike.%${term}%`)
       .order("name")
       .limit(25);
     if (error) throw new Error(error.message);

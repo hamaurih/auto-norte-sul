@@ -76,6 +76,7 @@ export const adminModules: AdminModule[] = [
       { to: "/admin/produtos/novo", label: "Novo produto", description: "Cadastrar peça", icon: PlusCircle },
       { to: "/admin/categorias", label: "Categorias", description: "Árvore de categorias", icon: FolderTree },
       { to: "/admin/marcas", label: "Marcas", description: "Fabricantes", icon: Tag },
+      { to: "/admin/revisao-codigos", label: "Revisão de códigos", description: "Corrigir códigos internos e de fabricante", icon: Tag, adminOnly: true },
     ],
   },
   {
