@@ -11,7 +11,7 @@ const privateIp=(ip:string)=>/^(127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9
 
 async function safeHtml(url:URL,domains:string[]){
  if(url.protocol!=="https:"||!domains.includes(url.hostname.toLowerCase())) throw new Error("Domínio fora da lista permitida");
- const ips=[...(await Deno.resolveDns(url.hostname,"A").catch(()=>[])),...(await Deno.resolveDns(url.hostname,"AAAA").catch(()=>[])];
+ const ips=[...(await Deno.resolveDns(url.hostname,"A").catch(()=>[])),...(await Deno.resolveDns(url.hostname,"AAAA").catch(()=>[]))];
  if(!ips.length||ips.some(privateIp)) throw new Error("Destino de rede bloqueado");
  const response=await fetch(url,{redirect:"error",signal:AbortSignal.timeout(8000),headers:{"user-agent":"AutoNorteSulCatalog/1.0 (+catalog enrichment)"}});
  if(!response.ok) throw new Error(`Fonte respondeu ${response.status}`);
