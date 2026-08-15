@@ -1,5 +1,5 @@
 import {
-  Bot,
+  BarChart3,\n  Bot,
   Building2,
   Briefcase,
   ClipboardCheck,
@@ -9,7 +9,7 @@ import {
   Image as ImageIcon,
   Images,
   Network,
-  Package,
+  Package,\n  PackageSearch,
   Percent,
   RefreshCcw,
   PackageCheck,
@@ -103,6 +103,8 @@ export const adminModules: AdminModule[] = [
     accent: "bg-primary/10 text-primary",
     shortcuts: [
       { to: "/admin/suprimentos", label: "Visão geral", description: "Indicadores de compras", icon: Truck },
+      { to: "/admin/reposicao", label: "Reposição inteligente", description: "Sugestões por giro e fornecedor", icon: PackageSearch },
+      { to: "/admin/inteligencia-comercial", label: "Inteligência comercial", description: "ABC, margem, preço, giro e capital", icon: BarChart3, adminOnly: true },
       { to: "/admin/fornecedores", label: "Fornecedores", description: "Cadastro e condições", icon: Truck },
       { to: "/admin/pedidos-compra", label: "Pedidos de compra", description: "Emissão e aprovação", icon: ShoppingCart },
       { to: "/admin/pedidos-compra/novo", label: "Novo pedido de compra", description: "Comprar do fornecedor", icon: PlusCircle },
