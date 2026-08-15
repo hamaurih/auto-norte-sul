@@ -118,3 +118,18 @@ export const rejectProductEnrichmentCandidate = createServerFn({ method: "POST" 
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+
+export const processManufacturerEnrichment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input?: { limit?: number }) => input ?? {})
+  .handler(async ({ data, context }) => {
+    const sb = tdb(context.supabase);
+    await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_APPROVE_ROLES);
+    const { data: result, error } = await context.supabase.functions.invoke("process-manufacturer-enrichment", {
+      body: { limit: Math.max(1, Math.min(Number(data.limit ?? 3), 5)) },
+    });
+    if (error) throw new Error(error.message);
+    if (!result?.ok) throw new Error(result?.error ?? "Não foi possível processar a fila");
+    return result as { ok: true; processed: number; results: Array<{ jobId: string; status: string; sourceUrl?: string; reason?: string }> };
+  });
