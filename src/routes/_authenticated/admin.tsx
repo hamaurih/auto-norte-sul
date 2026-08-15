@@ -1,168 +1,129 @@
+import { useState } from "react";
 import { createFileRoute, Link, Outlet, redirect, useRouterState } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
-import { useSession } from "@/lib/session";
-import { fetchAccessContext } from "@/lib/access";
-import {
-  LayoutDashboard,
-  Users,
-  UserCog,
-  Briefcase,
-  ShoppingBag,
-  Package,
-  FolderTree,
-  Tag,
-  Percent,
-  Ticket,
-  Image as ImageIcon,
-  RefreshCcw,
-  Bot,
-  Settings,
-  ShieldAlert,
-  Network,
-  Building2,
-  Warehouse,
-  FileText,
-  ClipboardCheck,
-  ScanLine,
-  Truck,
-  ShoppingCart,
-  PackageCheck,
-  FileUp,
-} from "lucide-react";
+import { LayoutDashboard, Search, ShieldAlert, Store } from "lucide-react";
+import { AdminCommandPalette } from "@/components/admin/AdminCommandPalette";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
+  SidebarRail,
   SidebarTrigger,
-  useSidebar,
 } from "@/components/ui/sidebar";
+import { supabase } from "@/integrations/supabase/client";
+import { activeTenant, environmentLabel, fetchAccessContext, useAccessContext } from "@/lib/access";
+import { visibleModules } from "@/lib/admin-modules";
+import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async () => {
     const { data: userRes } = await supabase.auth.getUser();
     if (!userRes.user) throw redirect({ to: "/auth" });
 
-    // Membership decides access. An authenticated user without any membership
-    // goes to the activation screen, never to a generic error or a loop.
     const context = await fetchAccessContext();
     if (context.organizations.length > 0 || context.tenants.length > 0) return;
 
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userRes.user.id);
-    const isStaff = (roles ?? []).some((r) => r.role === "admin" || r.role === "gerente");
+    const isStaff = (roles ?? []).some((role) => role.role === "admin" || role.role === "gerente");
     if (!isStaff) throw redirect({ to: "/ativacao" });
   },
   component: AdminLayout,
 });
 
-type Item = {
-  to: string;
-  label: string;
-  icon: typeof LayoutDashboard;
-  group: "operacao" | "catalogo" | "estoque" | "suprimentos" | "marketing" | "integracoes" | "sistema";
-  adminOnly?: boolean;
-};
-
-const items: Item[] = [
-  { to: "/admin", label: "Dashboard", icon: LayoutDashboard, group: "operacao" },
-  { to: "/admin/pdv", label: "PDV", icon: ScanLine, group: "operacao" },
-  { to: "/admin/orcamentos", label: "Orçamentos", icon: FileText, group: "operacao" },
-  { to: "/admin/pedidos", label: "Pedidos", icon: ShoppingBag, group: "operacao" },
-  { to: "/admin/cadastros-b2b", label: "Cadastros B2B", icon: Briefcase, group: "operacao" },
-  { to: "/admin/clientes", label: "Clientes", icon: Users, group: "operacao" },
-  { to: "/admin/vendedores", label: "Vendedores", icon: UserCog, group: "operacao", adminOnly: true },
-
-  { to: "/admin/produtos", label: "Produtos", icon: Package, group: "catalogo" },
-  { to: "/admin/categorias", label: "Categorias", icon: FolderTree, group: "catalogo" },
-  { to: "/admin/marcas", label: "Marcas", icon: Tag, group: "catalogo" },
-
-  { to: "/admin/filiais", label: "Filiais e Depósitos", icon: Building2, group: "estoque" },
-  { to: "/admin/estoque", label: "Estoque", icon: Warehouse, group: "estoque" },
-
-  { to: "/admin/suprimentos", label: "Suprimentos", icon: Truck, group: "suprimentos" },
-  { to: "/admin/fornecedores", label: "Fornecedores", icon: Truck, group: "suprimentos" },
-  { to: "/admin/pedidos-compra", label: "Pedidos de compra", icon: ShoppingCart, group: "suprimentos" },
-  { to: "/admin/recebimentos", label: "Recebimentos", icon: PackageCheck, group: "suprimentos" },
-  { to: "/admin/nfe-importacao", label: "Importar XML NF-e", icon: FileUp, group: "suprimentos" },
-  { to: "/admin/historico-custos", label: "Histórico de custo", icon: FileText, group: "suprimentos" },
-
-  { to: "/admin/promocoes", label: "Promoções", icon: Percent, group: "marketing" },
-  { to: "/admin/cupons", label: "Cupons", icon: Ticket, group: "marketing" },
-  { to: "/admin/banners", label: "Banners", icon: ImageIcon, group: "marketing" },
-
-  { to: "/admin/ecossistema", label: "Ecossistema", icon: Network, group: "integracoes", adminOnly: true },
-  { to: "/admin/ecossistema/bling", label: "Bling", icon: RefreshCcw, group: "integracoes", adminOnly: true },
-  { to: "/admin/ia-aes-business", label: "IA A&S Business", icon: Bot, group: "integracoes", adminOnly: true },
-
-  { to: "/admin/saneamento", label: "Saneamento", icon: ShieldAlert, group: "sistema", adminOnly: true },
-  { to: "/admin/revisao-codigos", label: "Revisão de códigos", icon: Tag, group: "sistema", adminOnly: true },
-  { to: "/admin/saneamento/aliases", label: "Aliases", icon: Tag, group: "sistema", adminOnly: true },
-  { to: "/admin/auditoria", label: "Auditoria", icon: ClipboardCheck, group: "sistema", adminOnly: true },
-  { to: "/admin/homologacao", label: "Homologação", icon: ClipboardCheck, group: "sistema", adminOnly: true },
-  { to: "/admin/configuracoes", label: "Configurações", icon: Settings, group: "sistema", adminOnly: true },
-];
-
-const groupLabels: Record<Item["group"], string> = {
-  operacao: "Comercial",
-  catalogo: "Catálogo",
-  estoque: "Estoque",
-  suprimentos: "Suprimentos",
-  marketing: "Marketing",
-  integracoes: "Integrações",
-  sistema: "Sistema",
-};
-
 function AdminSidebar() {
   const { isAdmin, isStaff } = useSession();
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { data: access } = useAccessContext();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const tenant = activeTenant(access);
+  const modules = visibleModules(isAdmin);
+  const isActive = (to: string) =>
+    to === "/admin" ? pathname === "/admin" : pathname === to || pathname.startsWith(`${to}/`);
 
   if (!isStaff) return null;
 
-  const visible = items.filter((i) => !i.adminOnly || isAdmin);
-  const groups = ["operacao", "catalogo", "estoque", "suprimentos", "marketing", "integracoes", "sistema"] as const;
-
-  const isActive = (to: string) => (to === "/admin" ? pathname === "/admin" : pathname.startsWith(to));
-
   return (
-    <Sidebar collapsible="icon">
-      <SidebarContent>
-        {groups.map((g) => {
-          const gItems = visible.filter((i) => i.group === g);
-          if (gItems.length === 0) return null;
-          return (
-            <SidebarGroup key={g}>
-              <SidebarGroupLabel>{groupLabels[g]}</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {gItems.map((item) => (
-                    <SidebarMenuItem key={item.to}>
-                      <SidebarMenuButton asChild isActive={isActive(item.to)}>
-                        <Link to={item.to} className="flex items-center gap-2">
-                          <item.icon className="h-4 w-4" />
-                          {!collapsed && <span>{item.label}</span>}
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          );
-        })}
+    <Sidebar collapsible="icon" className="border-r-border/70">
+      <SidebarHeader className="border-b border-sidebar-border p-3">
+        <Link to="/admin" className="flex min-h-11 items-center gap-3 rounded-lg px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring">
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary font-display text-sm font-black text-primary-foreground shadow-sm">
+            NS
+          </span>
+          <span className="min-w-0 group-data-[collapsible=icon]:hidden">
+            <span className="block truncate font-display text-sm font-bold">Norte Sul</span>
+            <span className="block truncate text-[11px] text-sidebar-foreground/60">Centro de operações</span>
+          </span>
+        </Link>
+      </SidebarHeader>
+
+      <SidebarContent className="py-2">
+        <SidebarGroup>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild size="lg" isActive={isActive("/admin")} tooltip="Visão geral">
+                <Link to="/admin">
+                  <LayoutDashboard aria-hidden="true" />
+                  <span>Visão geral</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroup>
+
+        {modules.map((module) => (
+          <SidebarGroup key={module.key} className="py-1">
+            <SidebarGroupLabel>{module.title}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {module.shortcuts.map((shortcut) => (
+                  <SidebarMenuItem key={`${module.key}-${shortcut.to}-${shortcut.label}`}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive(shortcut.to)}
+                      tooltip={shortcut.label}
+                      className="min-h-9"
+                    >
+                      <Link to={shortcut.to}>
+                        <shortcut.icon aria-hidden="true" />
+                        <span>{shortcut.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
+
+      <SidebarFooter className="border-t border-sidebar-border p-3">
+        <div className="flex items-center gap-2 rounded-lg bg-sidebar-accent/60 p-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-1">
+          <span className="size-2 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-500/10" aria-hidden="true" />
+          <span className="min-w-0 group-data-[collapsible=icon]:hidden">
+            <span className="block truncate text-xs font-semibold">{tenant?.name ?? "Norte Sul"}</span>
+            <span className="block truncate text-[10px] text-sidebar-foreground/60">
+              {tenant ? environmentLabel[tenant.environment] ?? tenant.environment : "Ambiente administrativo"}
+            </span>
+          </span>
+        </div>
+      </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   );
 }
 
 function AdminLayout() {
-  const { isStaff, loading } = useSession();
+  const { isAdmin, isStaff, loading } = useSession();
+  const { data: access } = useAccessContext();
+  const [commandOpen, setCommandOpen] = useState(false);
+  const tenant = activeTenant(access);
 
   if (loading) return null;
   if (!isStaff) {
@@ -176,21 +137,48 @@ function AdminLayout() {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full">
-        <AdminSidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-10 flex h-12 items-center gap-2 border-b border-border bg-card px-3">
-            <SidebarTrigger />
-            <span className="font-display text-sm font-bold uppercase">Painel Administrativo</span>
-            <Link to="/" className="ml-auto text-xs font-semibold uppercase text-muted-foreground hover:text-foreground">
-              ← Voltar à loja
-            </Link>
-          </header>
-          <main className="p-4 md:p-6">
-            <Outlet />
-          </main>
-        </div>
-      </div>
+      <AdminSidebar />
+      <SidebarInset className="min-w-0 bg-muted/25">
+        <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-border/70 bg-background/90 px-3 backdrop-blur-xl md:px-5">
+          <SidebarTrigger className="size-10" />
+          <div className="hidden min-w-0 sm:block">
+            <p className="truncate text-sm font-semibold">Centro de operações</p>
+            <p className="truncate text-xs text-muted-foreground">{tenant?.name ?? "Norte Sul Autopeças"}</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setCommandOpen(true)}
+            className="ml-auto flex min-h-10 w-full max-w-md items-center gap-2 rounded-xl border border-border bg-muted/50 px-3 text-sm text-muted-foreground transition-colors hover:border-foreground/20 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:ml-4"
+            aria-label="Abrir busca do painel"
+          >
+            <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="truncate">Buscar no painel...</span>
+            <kbd className="ml-auto hidden rounded-md border bg-background px-1.5 py-0.5 font-sans text-[10px] font-semibold sm:inline">
+              Ctrl K
+            </kbd>
+          </button>
+
+          {tenant && (
+            <span className="hidden shrink-0 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-semibold text-muted-foreground lg:inline-flex">
+              {environmentLabel[tenant.environment] ?? tenant.environment}
+            </span>
+          )}
+          <Link
+            to="/"
+            className="grid size-10 shrink-0 place-items-center rounded-xl border border-border bg-background transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="Ver loja"
+            title="Ver loja"
+          >
+            <Store className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </header>
+
+        <main className="flex-1 p-4 md:p-6 lg:p-8">
+          <Outlet />
+        </main>
+      </SidebarInset>
+      <AdminCommandPalette open={commandOpen} onOpenChange={setCommandOpen} isAdmin={isAdmin} />
     </SidebarProvider>
   );
 }
