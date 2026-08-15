@@ -90,9 +90,9 @@ function FornecedoresPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+      <header className="admin-page-hero flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold uppercase">Fornecedores</h1>
+          <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-amber-700">Rede de parceiros</p>\n          <h1 className="mt-1 font-display text-3xl font-bold">Fornecedores</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Base de fornecedores usada nos pedidos de compra e recebimentos.
           </p>
@@ -106,7 +106,7 @@ function FornecedoresPage() {
       </header>
 
       <form
-        className="grid gap-2 rounded-lg border border-border bg-card p-4 md:grid-cols-3"
+        className="grid gap-3 rounded-3xl border border-violet-200/70 bg-gradient-to-br from-white to-violet-50/70 p-5 shadow-sm md:grid-cols-3"
         onSubmit={(event) => {
           event.preventDefault();
           save.mutate(form);
@@ -206,7 +206,7 @@ function FornecedoresPage() {
         {(data ?? []).map((supplier: any) => (
           <div
             key={supplier.id}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-4"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-amber-200/70 bg-gradient-to-br from-white to-amber-50/60 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
           >
             <div className="min-w-0">
               <div className="font-display text-lg font-bold">
