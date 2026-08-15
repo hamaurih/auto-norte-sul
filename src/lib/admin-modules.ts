@@ -1,5 +1,6 @@
 import {
-  BarChart3,\n  Bot,
+  BarChart3,
+  Bot,
   Building2,
   Briefcase,
   ClipboardCheck,
@@ -9,7 +10,8 @@ import {
   Image as ImageIcon,
   Images,
   Network,
-  Package,\n  PackageSearch,
+  Package,
+  PackageSearch,
   Percent,
   RefreshCcw,
   PackageCheck,
