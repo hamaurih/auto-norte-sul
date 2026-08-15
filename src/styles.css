@@ -205,6 +205,150 @@
     radial-gradient(circle at 80% 0%, oklch(0.87 0.1 150 / 0.35), transparent 30rem);
 }
 
+/* Shared admin component language: pages inherit this without duplicating styles. */
+.admin-shell main h1,
+.admin-shell main h2,
+.admin-shell main h3 {
+  text-transform: none;
+}
+
+.admin-shell main h1 {
+  color: oklch(0.27 0.1 258);
+  font-weight: 900;
+}
+
+.admin-shell main h2,
+.admin-shell main h3 {
+  font-weight: 800;
+}
+
+.admin-page-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid oklch(0.86 0.07 255);
+  border-radius: 1.75rem;
+  padding: 1.25rem;
+  background:
+    radial-gradient(circle at 92% 15%, oklch(0.88 0.13 95 / 0.65), transparent 10rem),
+    linear-gradient(135deg, oklch(0.97 0.045 250), oklch(0.96 0.06 290));
+  box-shadow: 0 12px 34px -24px oklch(0.45 0.18 260 / 0.6);
+}
+
+.admin-page-hero::after {
+  content: "";
+  position: absolute;
+  right: 2rem;
+  bottom: -2.5rem;
+  width: 8rem;
+  height: 8rem;
+  border-radius: 999px;
+  background: oklch(0.83 0.14 155 / 0.24);
+  filter: blur(6px);
+  pointer-events: none;
+}
+
+.admin-page-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.admin-filter-bar {
+  border: 1px solid oklch(0.87 0.05 255);
+  border-radius: 1.25rem;
+  padding: 0.75rem;
+  background: oklch(1 0 0 / 0.78);
+  box-shadow: 0 8px 24px -22px oklch(0.4 0.12 260 / 0.7);
+  backdrop-filter: blur(12px);
+}
+
+.admin-shell main :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
+  min-height: 2.75rem;
+  border-color: oklch(0.85 0.055 255);
+  border-radius: 0.9rem;
+  background-color: oklch(1 0 0 / 0.9);
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.admin-shell main :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select):focus {
+  outline: none;
+  border-color: oklch(0.62 0.16 255);
+  box-shadow: 0 0 0 3px oklch(0.72 0.13 255 / 0.18);
+  background-color: white;
+}
+
+.admin-shell main input[type="checkbox"] {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: oklch(0.57 0.19 255);
+}
+
+.admin-shell main button,
+.admin-shell main a[role="button"] {
+  border-radius: 0.9rem;
+}
+
+.admin-shell main [class*="bg-card"][class*="border"] {
+  border-radius: 1.4rem;
+  box-shadow: 0 12px 28px -26px oklch(0.38 0.1 260 / 0.65);
+}
+
+.admin-shell main table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.admin-shell main table thead {
+  background: linear-gradient(90deg, oklch(0.94 0.045 250), oklch(0.96 0.04 285));
+  color: oklch(0.39 0.08 260);
+}
+
+.admin-shell main table thead th {
+  height: 3rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+.admin-shell main table tbody tr {
+  transition: background-color 140ms ease, transform 140ms ease;
+}
+
+.admin-shell main table tbody tr:hover {
+  background-color: oklch(0.965 0.032 250);
+}
+
+.admin-shell main table tbody td {
+  border-color: oklch(0.91 0.025 250);
+}
+
+.admin-shell main code {
+  border-radius: 0.45rem;
+  background: oklch(0.93 0.04 270);
+  color: oklch(0.38 0.14 270);
+  padding: 0.1rem 0.35rem;
+}
+
+.admin-shell main ::selection {
+  background: oklch(0.82 0.11 255 / 0.55);
+}
+
+@media (min-width: 768px) {
+  .admin-page-hero {
+    padding: 1.5rem 1.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-shell main *,
+  .admin-shell main *::before,
+  .admin-shell main *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
 /* Comprovante térmico do PDV: oculto na tela, visível apenas na impressão. */
 .pdv-receipt { display: none; }
 .pdv-receipt hr { border: 0; border-top: 1px dashed #000; margin: 4px 0; }
