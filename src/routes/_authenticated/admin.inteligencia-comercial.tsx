@@ -232,7 +232,7 @@ function CommercialIntelligencePage() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,.6fr)]">
-        <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm">
+        <div className="rounded-3xl border border-blue-200/70 bg-gradient-to-br from-white to-blue-50 p-5 shadow-sm">
           <h2 className="font-display text-lg font-bold">Concentração do faturamento</h2>
           <p className="mt-1 text-xs text-muted-foreground">Distribuição ABC no período selecionado</p>
           <div className="mt-5 space-y-4">
@@ -255,13 +255,13 @@ function CommercialIntelligencePage() {
             })}
           </div>
         </div>
-        <div className="rounded-2xl border border-border/70 bg-zinc-950 p-5 text-white shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/50">Leitura executiva</p>
+        <div className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-100 via-orange-50 to-rose-100 p-5 text-slate-900 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-700">Leitura executiva</p>
           <h2 className="mt-1 font-display text-xl font-bold">Onde agir primeiro</h2>
-          <ul className="mt-4 space-y-3 text-sm text-white/75">
-            <li><strong className="text-white">{summary.ruptureRisk}</strong> itens podem perder vendas por falta de estoque.</li>
-            <li><strong className="text-white">{brl(summary.capitalAtRisk)}</strong> estão em excesso, sem giro ou parados.</li>
-            <li><strong className="text-white">{summary.pricingAlerts}</strong> preços exigem revisão de margem.</li>
+          <ul className="mt-4 space-y-3 text-sm text-slate-600">
+            <li><strong className="text-slate-900">{summary.ruptureRisk}</strong> itens podem perder vendas por falta de estoque.</li>
+            <li><strong className="text-slate-900">{brl(summary.capitalAtRisk)}</strong> estão em excesso, sem giro ou parados.</li>
+            <li><strong className="text-slate-900">{summary.pricingAlerts}</strong> preços exigem revisão de margem.</li>
           </ul>
         </div>
       </section>

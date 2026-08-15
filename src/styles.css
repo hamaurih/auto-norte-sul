@@ -154,6 +154,57 @@
   letter-spacing: -0.02em;
 }
 
+/* Admin workspace — colorful, friendly and operationally legible. */
+.admin-shell {
+  --primary: oklch(0.57 0.19 255);
+  --primary-foreground: oklch(0.99 0.01 255);
+  --background: oklch(0.985 0.012 250);
+  --foreground: oklch(0.22 0.045 260);
+  --card: oklch(0.995 0.006 250);
+  --card-foreground: oklch(0.22 0.045 260);
+  --muted: oklch(0.95 0.025 250);
+  --muted-foreground: oklch(0.48 0.05 260);
+  --accent: oklch(0.93 0.055 250);
+  --accent-foreground: oklch(0.29 0.12 255);
+  --border: oklch(0.88 0.035 250);
+  --input: oklch(0.92 0.03 250);
+  --ring: oklch(0.57 0.19 255);
+  font-family: "Nunito", "Inter", "Segoe UI", system-ui, sans-serif;
+  background:
+    radial-gradient(circle at 8% 4%, oklch(0.9 0.08 255 / 0.42), transparent 28rem),
+    radial-gradient(circle at 96% 18%, oklch(0.93 0.09 95 / 0.32), transparent 24rem),
+    oklch(0.985 0.012 250);
+}
+
+.admin-shell h1,
+.admin-shell h2,
+.admin-shell h3,
+.admin-shell .font-display {
+  font-family: "Nunito", "Inter", system-ui, sans-serif;
+  letter-spacing: -0.035em;
+}
+
+.admin-shell [data-sidebar="sidebar"] {
+  background: linear-gradient(180deg, oklch(0.985 0.025 250), oklch(0.965 0.035 265));
+}
+
+.admin-shell [data-sidebar="menu-button"][data-active="true"] {
+  background: oklch(0.9 0.075 255);
+  color: oklch(0.35 0.17 255);
+  box-shadow: inset 3px 0 0 oklch(0.57 0.19 255);
+}
+
+.admin-shell [data-sidebar="group-label"] {
+  color: oklch(0.48 0.09 260);
+  font-weight: 800;
+}
+
+.admin-shell-surface {
+  background:
+    linear-gradient(oklch(0.985 0.012 250 / 0.82), oklch(0.985 0.012 250 / 0.92)),
+    radial-gradient(circle at 80% 0%, oklch(0.87 0.1 150 / 0.35), transparent 30rem);
+}
+
 /* Comprovante térmico do PDV: oculto na tela, visível apenas na impressão. */
 .pdv-receipt { display: none; }
 .pdv-receipt hr { border: 0; border-top: 1px dashed #000; margin: 4px 0; }
