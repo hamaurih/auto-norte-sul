@@ -60,7 +60,7 @@ export const adminModules: AdminModule[] = [
     title: "Gestão Comercial",
     description: "Venda no balcão, orçamentos, pedidos e carteira de clientes.",
     icon: ShoppingBag,
-    accent: "bg-primary/10 text-primary",
+    accent: "bg-blue-100 text-blue-700",
     shortcuts: [
       { to: "/admin/pdv", label: "PDV", description: "Frente de caixa", icon: ScanLine },
       { to: "/admin/pedidos", label: "Pedidos", description: "Acompanhar vendas", icon: ShoppingBag },
@@ -75,7 +75,7 @@ export const adminModules: AdminModule[] = [
     title: "Gestão de Produtos",
     description: "Catálogo, taxonomia e cadastro de peças.",
     icon: Package,
-    accent: "bg-foreground/10 text-foreground",
+    accent: "bg-violet-100 text-violet-700",
     shortcuts: [
       { to: "/admin/produtos", label: "Produtos", description: "Listar e editar", icon: Package },
       { to: "/admin/produtos/novo", label: "Novo produto", description: "Cadastrar peça", icon: PlusCircle },
@@ -91,7 +91,7 @@ export const adminModules: AdminModule[] = [
     title: "Gestão de Estoque",
     description: "Saldos por depósito, filiais e movimentações.",
     icon: Warehouse,
-    accent: "bg-hot/15 text-hot",
+    accent: "bg-cyan-100 text-cyan-700",
     shortcuts: [
       { to: "/admin/estoque", label: "Estoque", description: "Saldos e ajustes", icon: Warehouse },
       { to: "/admin/filiais", label: "Filiais e Depósitos", description: "Estrutura física", icon: Building2 },
@@ -102,7 +102,7 @@ export const adminModules: AdminModule[] = [
     title: "Suprimentos e Compras",
     description: "Fornecedores, pedidos de compra e recebimento de mercadorias.",
     icon: Truck,
-    accent: "bg-primary/10 text-primary",
+    accent: "bg-amber-100 text-amber-700",
     shortcuts: [
       { to: "/admin/suprimentos", label: "Visão geral", description: "Indicadores de compras", icon: Truck },
       { to: "/admin/reposicao", label: "Reposição inteligente", description: "Sugestões por giro e fornecedor", icon: PackageSearch },
@@ -120,7 +120,7 @@ export const adminModules: AdminModule[] = [
     title: "Gestão do Site",
     description: "Vitrine, campanhas e descontos da loja.",
     icon: Store,
-    accent: "bg-primary/10 text-primary",
+    accent: "bg-rose-100 text-rose-700",
     shortcuts: [
       { to: "/admin/banners", label: "Banners", description: "Vitrine da home", icon: ImageIcon },
       { to: "/admin/promocoes", label: "Promoções", description: "Campanhas de preço", icon: Percent },
@@ -133,7 +133,7 @@ export const adminModules: AdminModule[] = [
     title: "Integrações e Automação",
     description: "Ecossistema conectado, Bling e assistente de IA.",
     icon: Network,
-    accent: "bg-foreground/10 text-foreground",
+    accent: "bg-emerald-100 text-emerald-700",
     adminOnly: true,
     shortcuts: [
       { to: "/admin/ecossistema", label: "Ecossistema", description: "Conexões ativas", icon: Network, adminOnly: true },
@@ -146,7 +146,7 @@ export const adminModules: AdminModule[] = [
     title: "Administração e Segurança",
     description: "Configurações, saneamento de dados e auditoria.",
     icon: ShieldAlert,
-    accent: "bg-destructive/10 text-destructive",
+    accent: "bg-slate-100 text-slate-700",
     adminOnly: true,
     shortcuts: [
       { to: "/admin/configuracoes", label: "Configurações", description: "Dados da empresa", icon: Settings, adminOnly: true },
