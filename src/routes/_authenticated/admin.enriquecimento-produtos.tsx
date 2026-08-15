@@ -26,7 +26,8 @@ const emptyForm = { sourceType: "manufacturer", sourceUrl: "", imageUrl: "", lic
 function EnrichmentPage() {
   const qc=useQueryClient();
   const listFn=useServerFn(listProductEnrichmentJobs);
-  const enqueueFn=useServerFn(enqueueMissingProductEnrichment);\n  const processFn=useServerFn(processManufacturerEnrichment);
+  const enqueueFn=useServerFn(enqueueMissingProductEnrichment);
+  const processFn=useServerFn(processManufacturerEnrichment);
   const addFn=useServerFn(addProductEnrichmentCandidate);
   const copyFn=useServerFn(copyProductEnrichmentImage);
   const approveFn=useServerFn(approveProductEnrichmentCandidate);
@@ -37,7 +38,8 @@ function EnrichmentPage() {
   const {data,isLoading,isError,error}=useQuery({queryKey:["product-enrichment",status],queryFn:()=>listFn({data:{status}})});
   const refresh=()=>qc.invalidateQueries({queryKey:["product-enrichment"]});
 
-  const enqueue=useMutation({mutationFn:()=>enqueueFn({data:{limit:100}}),onSuccess:r=>{toast.success(`${r.count} produto(s) incluído(s) na fila`);refresh();},onError:(e:Error)=>toast.error(e.message)});\n  const process=useMutation({mutationFn:()=>processFn({data:{limit:3}}),onSuccess:r=>{const review=r.results.filter(v=>v.status==="review").length;toast.success(`${r.processed} processado(s); ${review} enviado(s) para revisão`);refresh();},onError:(e:Error)=>toast.error(e.message)});
+  const enqueue=useMutation({mutationFn:()=>enqueueFn({data:{limit:100}}),onSuccess:r=>{toast.success(`${r.count} produto(s) incluído(s) na fila`);refresh();},onError:(e:Error)=>toast.error(e.message)});
+  const process=useMutation({mutationFn:()=>processFn({data:{limit:3}}),onSuccess:r=>{const review=r.results.filter(v=>v.status==="review").length;toast.success(`${r.processed} processado(s); ${review} enviado(s) para revisão`);refresh();},onError:(e:Error)=>toast.error(e.message)});
   const add=useMutation({mutationFn:()=>addFn({data:{
     jobId:editing.id,productId:editing.product.id,sourceType:form.sourceType as any,sourceUrl:form.sourceUrl,
     imageUrl:form.imageUrl||undefined,licenseName:form.licenseName||undefined,suggestedName:form.suggestedName||undefined,
