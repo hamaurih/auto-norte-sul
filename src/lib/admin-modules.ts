@@ -6,7 +6,7 @@ import {
   FileText,
   FileUp,
   FolderTree,
-  Image as ImageIcon,
+  Image as ImageIcon,\n  Images,
   Network,
   Package,
   Percent,
@@ -78,7 +78,7 @@ export const adminModules: AdminModule[] = [
       { to: "/admin/produtos/novo", label: "Novo produto", description: "Cadastrar peça", icon: PlusCircle },
       { to: "/admin/categorias", label: "Categorias", description: "Árvore de categorias", icon: FolderTree },
       { to: "/admin/marcas", label: "Marcas", description: "Fabricantes", icon: Tag },
-      { to: "/admin/revisao-codigos", label: "Revisão de códigos", description: "Corrigir códigos internos e de fabricante", icon: Tag, adminOnly: true },
+      { to: "/admin/revisao-codigos", label: "Revisão de códigos", description: "Corrigir códigos internos e de fabricante", icon: Tag, adminOnly: true },\n      { to: "/admin/enriquecimento-produtos", label: "Enriquecer produtos", description: "Imagens e descrições com fonte e aprovação", icon: Images, adminOnly: true },
     ],
   },
   {
