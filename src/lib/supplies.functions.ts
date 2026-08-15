@@ -890,20 +890,33 @@ export const createReplenishmentPurchaseOrders = createServerFn({ method: "POST"
 
 export const listCommercialIntelligence = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input?: { lookbackDays?: number; abcClass?: "A" | "B" | "C" | "all"; status?: string }) => input ?? {})
+  .inputValidator((input?: { lookbackDays?: number; abcClass?: "A" | "B" | "C" | "all"; status?: string; inventoryStatus?: string }) => input ?? {})
   .handler(async ({ data, context }) => {
     const sb = tdb(context.supabase);
     await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_APPROVE_ROLES);
     const lookbackDays = Math.max(1, Math.min(Number(data.lookbackDays ?? 90), 365));
-    const { data: rows, error } = await sb.rpc("get_commercial_intelligence", {
-      p_tenant_id: context.tenantId,
-      p_lookback_days: lookbackDays,
-    });
-    if (error) throw new Error(error.message);
-    return (rows ?? []).filter((row: any) =>
+    const [productsResult, suppliersResult] = await Promise.all([
+      sb.rpc("get_commercial_intelligence_v2", {
+        p_tenant_id: context.tenantId,
+        p_lookback_days: lookbackDays,
+      }),
+      sb.rpc("get_supplier_performance", {
+        p_tenant_id: context.tenantId,
+        p_lookback_days: Math.max(lookbackDays, 180),
+      }),
+    ]);
+    if (productsResult.error) throw new Error(productsResult.error.message);
+    if (suppliersResult.error) throw new Error(suppliersResult.error.message);
+
+    const products = (Array.isArray(productsResult.data) ? productsResult.data : []).filter((row: any) =>
       (!data.abcClass || data.abcClass === "all" || row.abc_class === data.abcClass) &&
-      (!data.status || data.status === "all" || row.pricing_status === data.status)
+      (!data.status || data.status === "all" || row.pricing_status === data.status) &&
+      (!data.inventoryStatus || data.inventoryStatus === "all" || row.inventory_status === data.inventoryStatus)
     );
+    return {
+      products,
+      suppliers: Array.isArray(suppliersResult.data) ? suppliersResult.data : [],
+    };
   });
 
 export const upsertProductPricingSetting = createServerFn({ method: "POST" })
