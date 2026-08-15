@@ -20,6 +20,14 @@ import { useAdminOverview } from "@/lib/admin-overview";
 import { activeTenant, environmentLabel, useAccessContext } from "@/lib/access";
 import { useSession } from "@/lib/session";
 
+const quickActionStyles = [
+  "bg-blue-100 text-blue-700",
+  "bg-violet-100 text-violet-700",
+  "bg-emerald-100 text-emerald-700",
+  "bg-amber-100 text-amber-700",
+  "bg-rose-100 text-rose-700",
+] as const;
+
 export const Route = createFileRoute("/_authenticated/admin/")({
   head: () => ({
     meta: [
@@ -137,7 +145,7 @@ function AdminHome() {
                 to={action.to}
                 className="group flex min-h-11 items-center gap-3 rounded-xl border border-transparent bg-muted/55 px-3 py-2 text-sm font-semibold transition-all hover:border-border hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <span className={`grid size-9 shrink-0 place-items-center rounded-xl shadow-sm ${["bg-blue-100 text-blue-700", "bg-violet-100 text-violet-700", "bg-emerald-100 text-emerald-700", "bg-amber-100 text-amber-700", "bg-rose-100 text-rose-700"][index]}`}>
+                <span className={`grid size-9 shrink-0 place-items-center rounded-xl shadow-sm ${quickActionStyles[index]}`}>
                   <action.icon className="h-4 w-4" aria-hidden="true" />
                 </span>
                 <span className="min-w-0 flex-1 truncate">{action.label}</span>
