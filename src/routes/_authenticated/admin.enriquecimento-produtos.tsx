@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   addProductEnrichmentCandidate, approveProductEnrichmentCandidate, copyProductEnrichmentImage,
-  enqueueMissingProductEnrichment, listProductEnrichmentJobs, rejectProductEnrichmentCandidate,
+  enqueueMissingProductEnrichment, listProductEnrichmentJobs, processManufacturerEnrichment, rejectProductEnrichmentCandidate,
 } from "@/lib/product-enrichment.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/enriquecimento-produtos")({
@@ -26,7 +26,7 @@ const emptyForm = { sourceType: "manufacturer", sourceUrl: "", imageUrl: "", lic
 function EnrichmentPage() {
   const qc=useQueryClient();
   const listFn=useServerFn(listProductEnrichmentJobs);
-  const enqueueFn=useServerFn(enqueueMissingProductEnrichment);
+  const enqueueFn=useServerFn(enqueueMissingProductEnrichment);\n  const processFn=useServerFn(processManufacturerEnrichment);
   const addFn=useServerFn(addProductEnrichmentCandidate);
   const copyFn=useServerFn(copyProductEnrichmentImage);
   const approveFn=useServerFn(approveProductEnrichmentCandidate);
@@ -37,7 +37,7 @@ function EnrichmentPage() {
   const {data,isLoading,isError,error}=useQuery({queryKey:["product-enrichment",status],queryFn:()=>listFn({data:{status}})});
   const refresh=()=>qc.invalidateQueries({queryKey:["product-enrichment"]});
 
-  const enqueue=useMutation({mutationFn:()=>enqueueFn({data:{limit:100}}),onSuccess:r=>{toast.success(`${r.count} produto(s) incluído(s) na fila`);refresh();},onError:(e:Error)=>toast.error(e.message)});
+  const enqueue=useMutation({mutationFn:()=>enqueueFn({data:{limit:100}}),onSuccess:r=>{toast.success(`${r.count} produto(s) incluído(s) na fila`);refresh();},onError:(e:Error)=>toast.error(e.message)});\n  const process=useMutation({mutationFn:()=>processFn({data:{limit:3}}),onSuccess:r=>{const review=r.results.filter(v=>v.status==="review").length;toast.success(`${r.processed} processado(s); ${review} enviado(s) para revisão`);refresh();},onError:(e:Error)=>toast.error(e.message)});
   const add=useMutation({mutationFn:()=>addFn({data:{
     jobId:editing.id,productId:editing.product.id,sourceType:form.sourceType as any,sourceUrl:form.sourceUrl,
     imageUrl:form.imageUrl||undefined,licenseName:form.licenseName||undefined,suggestedName:form.suggestedName||undefined,
@@ -54,7 +54,7 @@ function EnrichmentPage() {
     <header className="flex flex-wrap items-end justify-between gap-3">
       <div><h1 className="font-display text-2xl font-bold uppercase">Enriquecimento de produtos</h1>
         <p className="mt-1 max-w-3xl text-sm text-muted-foreground">Fila independente do Bling para localizar, conferir e aprovar imagens, descrições, GTIN e códigos. Nenhuma sugestão altera o catálogo sem aprovação.</p></div>
-      <Button disabled={enqueue.isPending} onClick={()=>enqueue.mutate()}><Search className="mr-2 h-4 w-4"/>{enqueue.isPending?"Preparando…":"Enfileirar incompletos"}</Button>
+      <div className="flex flex-wrap gap-2"><Button variant="outline" disabled={process.isPending} onClick={()=>process.mutate()}><Search className="mr-2 h-4 w-4"/>{process.isPending?"Consultando fontes…":"Processar fabricantes"}</Button><Button disabled={enqueue.isPending} onClick={()=>enqueue.mutate()}><Search className="mr-2 h-4 w-4"/>{enqueue.isPending?"Preparando…":"Enfileirar incompletos"}</Button></div>
     </header>
     <div className="flex gap-2">
       {["all","queued","review","approved","failed"].map(value=><button key={value} onClick={()=>setStatus(value)}
