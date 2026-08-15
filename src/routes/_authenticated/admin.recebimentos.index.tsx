@@ -46,15 +46,15 @@ function RecebimentosPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <header>
-        <h1 className="font-display text-2xl font-bold uppercase">Recebimentos</h1>
+      <header className="admin-page-hero">
+        <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-emerald-700">Entrada segura</p>\n        <h1 className="mt-1 font-display text-3xl font-bold">Recebimentos</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Conferência de mercadoria: ao confirmar, o estoque do depósito e o custo do produto são atualizados
           em uma única transação.
         </p>
       </header>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="admin-filter-bar flex flex-wrap items-center gap-2">
         {filters.map((filter) => (
           <button
             key={filter.key}
@@ -91,7 +91,7 @@ function RecebimentosPage() {
             key={receipt.id}
             to="/admin/recebimentos/$id"
             params={{ id: receipt.id }}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-emerald-200/70 bg-gradient-to-br from-white to-emerald-50/60 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
           >
             <div className="min-w-0">
               <div className="font-display text-lg font-bold">
