@@ -41,9 +41,9 @@ function PedidosCompraPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+      <header className="admin-page-hero flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold uppercase">Pedidos de compra</h1>
+          <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-blue-700">Fluxo de compras</p>\n          <h1 className="mt-1 font-display text-3xl font-bold">Pedidos de compra</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Rascunho → aprovado → enviado → recebido, com controle de saldo por item.
           </p>
@@ -55,7 +55,7 @@ function PedidosCompraPage() {
         </Button>
       </header>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="admin-filter-bar flex flex-wrap items-center gap-2">
         {filters.map((filter) => (
           <button
             key={filter.key}
@@ -92,7 +92,7 @@ function PedidosCompraPage() {
             key={order.id}
             to="/admin/pedidos-compra/$id"
             params={{ id: order.id }}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-blue-200/70 bg-gradient-to-br from-white to-blue-50/60 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md"
           >
             <div className="min-w-0">
               <div className="font-display text-lg font-bold">
