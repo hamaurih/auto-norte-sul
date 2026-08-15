@@ -44,7 +44,8 @@ function AdminSidebar() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const tenant = activeTenant(access);
   const modules = visibleModules(isAdmin);
-  const isActive = (to: string) =>\n    to === "/admin" ? pathname === "/admin" : pathname === to || pathname.startsWith(`${to}/`);
+  const isActive = (to: string) =>
+    to === "/admin" ? pathname === "/admin" : pathname === to || pathname.startsWith(`${to}/`);
 
   if (!isStaff) return null;
 
