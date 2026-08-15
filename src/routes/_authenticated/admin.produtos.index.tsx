@@ -88,8 +88,8 @@ function ProductsList() {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold uppercase">Produtos <span className="text-sm text-muted-foreground">({total})</span></h1>
-        <Link to="/admin/produtos/novo" className="inline-flex items-center gap-2 rounded bg-primary px-4 py-2 text-sm font-bold uppercase text-primary-foreground">
+        <div><p className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">Catálogo inteligente</p><h1 className="mt-1 font-display text-3xl font-bold">Produtos <span className="text-base text-muted-foreground">({total})</span></h1><p className="mt-1 text-sm text-muted-foreground">Cadastre, filtre e mantenha códigos, imagens, preços e estoque organizados.</p></div>
+        <Link to="/admin/produtos/novo" className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-violet-600 px-4 py-2 text-sm font-extrabold text-white shadow-lg shadow-blue-500/20 transition-transform hover:-translate-y-0.5">
           <Plus className="h-4 w-4" /> Novo Produto
         </Link>
       </div>
