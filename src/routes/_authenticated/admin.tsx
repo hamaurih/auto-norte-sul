@@ -53,7 +53,7 @@ function AdminSidebar() {
     <Sidebar collapsible="icon" className="border-r-border/70">
       <SidebarHeader className="border-b border-sidebar-border p-3">
         <Link to="/admin" className="flex min-h-11 items-center gap-3 rounded-lg px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring">
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary font-display text-sm font-black text-primary-foreground shadow-sm">
+          <span className="grid size-9 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-blue-600 via-violet-600 to-fuchsia-500 font-display text-sm font-black text-white shadow-lg shadow-blue-500/20">
             NS
           </span>
           <span className="min-w-0 group-data-[collapsible=icon]:hidden">
@@ -136,10 +136,10 @@ function AdminLayout() {
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="admin-shell">
       <AdminSidebar />
-      <SidebarInset className="min-w-0 bg-muted/25">
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-border/70 bg-background/90 px-3 backdrop-blur-xl md:px-5">
+      <SidebarInset className="admin-shell-surface min-w-0">
+        <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-blue-100/80 bg-white/80 px-3 backdrop-blur-xl md:px-5">
           <SidebarTrigger className="size-10" />
           <div className="hidden min-w-0 sm:block">
             <p className="truncate text-sm font-semibold">Centro de operações</p>
@@ -149,7 +149,7 @@ function AdminLayout() {
           <button
             type="button"
             onClick={() => setCommandOpen(true)}
-            className="ml-auto flex min-h-10 w-full max-w-md items-center gap-2 rounded-xl border border-border bg-muted/50 px-3 text-sm text-muted-foreground transition-colors hover:border-foreground/20 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:ml-4"
+            className="ml-auto flex min-h-10 w-full max-w-md items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/70 px-3 text-sm text-muted-foreground transition-colors hover:border-blue-300 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:ml-4"
             aria-label="Abrir busca do painel"
           >
             <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -160,13 +160,13 @@ function AdminLayout() {
           </button>
 
           {tenant && (
-            <span className="hidden shrink-0 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-semibold text-muted-foreground lg:inline-flex">
+            <span className="hidden shrink-0 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground lg:inline-flex">
               {environmentLabel[tenant.environment] ?? tenant.environment}
             </span>
           )}
           <Link
             to="/"
-            className="grid size-10 shrink-0 place-items-center rounded-xl border border-border bg-background transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="grid size-10 shrink-0 place-items-center rounded-xl border border-amber-200 bg-amber-50 text-amber-800 transition-colors hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Ver loja"
             title="Ver loja"
           >
