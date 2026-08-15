@@ -98,7 +98,7 @@ function SuprimentosPage() {
           <Link
             key={card.label}
             to={card.to}
-            className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40"
+            className="rounded-3xl border border-amber-200/70 bg-gradient-to-br from-white to-amber-50/60 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md"
           >
             <card.icon className="h-5 w-5 text-primary" aria-hidden="true" />
             <div className="mt-2 font-display text-2xl font-bold">{card.value}</div>
@@ -166,21 +166,21 @@ function SuprimentosPage() {
       <section className="grid gap-3 md:grid-cols-3">
         <Link
           to="/admin/fornecedores"
-          className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40"
+          className="rounded-3xl border border-amber-200/70 bg-gradient-to-br from-white to-amber-50/60 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md"
         >
           <h2 className="font-display text-lg font-bold">Fornecedores</h2>
           <p className="mt-1 text-sm text-muted-foreground">Cadastro completo, contatos, prazo médio e condições.</p>
         </Link>
         <Link
           to="/admin/pedidos-compra"
-          className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40"
+          className="rounded-3xl border border-amber-200/70 bg-gradient-to-br from-white to-amber-50/60 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md"
         >
           <h2 className="font-display text-lg font-bold">Pedidos de compra</h2>
           <p className="mt-1 text-sm text-muted-foreground">Rascunho, aprovação, envio e acompanhamento do recebido.</p>
         </Link>
         <Link
           to="/admin/recebimentos"
-          className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40"
+          className="rounded-3xl border border-amber-200/70 bg-gradient-to-br from-white to-amber-50/60 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md"
         >
           <h2 className="font-display text-lg font-bold">Recebimentos</h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -311,7 +311,7 @@ function SuprimentosPage() {
         </div>
         <Link
           to="/admin/reposicao"
-          className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40"
+          className="rounded-3xl border border-amber-200/70 bg-gradient-to-br from-white to-amber-50/60 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md"
         >
           <h2 className="font-display text-lg font-bold">Reposição inteligente</h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -320,7 +320,7 @@ function SuprimentosPage() {
         </Link>
         <Link
           to="/admin/inteligencia-comercial"
-          className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40"
+          className="rounded-3xl border border-amber-200/70 bg-gradient-to-br from-white to-amber-50/60 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md"
         >
           <h2 className="font-display text-lg font-bold">Inteligência comercial</h2>
           <p className="mt-1 text-sm text-muted-foreground">
