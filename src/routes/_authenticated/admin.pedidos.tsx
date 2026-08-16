@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import {
@@ -19,12 +19,14 @@ export const Route = createFileRoute("/_authenticated/admin/pedidos")({
 
 const statusStyles: Record<string, string> = {
   pending: "bg-amber-100 text-amber-800",
+  aguardando_pagamento: "bg-amber-100 text-amber-800",
   pendente: "bg-amber-100 text-amber-800",
   paid: "bg-emerald-100 text-emerald-800",
   pago: "bg-emerald-100 text-emerald-800",
   approved: "bg-emerald-100 text-emerald-800",
   aprovado: "bg-emerald-100 text-emerald-800",
   processing: "bg-blue-100 text-blue-800",
+  faturado: "bg-blue-100 text-blue-800",
   processando: "bg-blue-100 text-blue-800",
   shipped: "bg-violet-100 text-violet-800",
   enviado: "bg-violet-100 text-violet-800",
@@ -170,7 +172,7 @@ function OrdersList() {
             <tbody>
               {filteredOrders.map((order) => (
                 <tr key={order.id} className="border-t border-border/70">
-                  <td className="p-3 font-mono text-xs font-bold text-violet-700">#{order.id.slice(0, 8)}</td>
+                  <td className="p-3"><Link to="/admin/pedidos/$id" params={{ id: order.id }} className="inline-flex min-h-11 items-center font-mono text-xs font-extrabold text-violet-700 hover:underline">#{order.id.slice(0, 8)}</Link></td>
                   <td className="p-3">
                     <span className="font-bold">{order.customer_name || "Cliente não identificado"}</span>
                     <span className="mt-0.5 block text-xs text-muted-foreground">{order.customer_email || "Sem e-mail"}</span>
@@ -189,7 +191,7 @@ function OrdersList() {
                     </span>
                   </td>
                   <td className="p-3 text-right price-tag">{brl(Number(order.total ?? 0))}</td>
-                  <td className="p-3 text-xs font-semibold">{order.bling_number ?? "—"}</td>
+                  <td className="p-3 text-xs font-semibold"><div>{order.bling_number ?? "—"}</div><Link to="/admin/pedidos/$id" params={{ id: order.id }} className="mt-1 inline-flex min-h-8 items-center font-bold text-primary hover:underline">Abrir pedido</Link></td>
                 </tr>
               ))}
             </tbody>
