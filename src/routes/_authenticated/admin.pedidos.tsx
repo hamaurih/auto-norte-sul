@@ -32,7 +32,6 @@ const statusStyles: Record<string, string> = {
   enviado: "bg-violet-100 text-violet-800",
   delivered: "bg-cyan-100 text-cyan-800",
   entregue: "bg-cyan-100 text-cyan-800",
-  entregue: "bg-cyan-100 text-cyan-800",
   cancelled: "bg-rose-100 text-rose-800",
   cancelado: "bg-rose-100 text-rose-800",
 };
