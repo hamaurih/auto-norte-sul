@@ -61,7 +61,7 @@ function OrdersList() {
   });
 
   const statuses = useMemo(
-    () => Array.from(new Set(data.map((order) => order.status).filter((status): status is string => Boolean(status))).sort(),
+    () => Array.from(new Set(data.map((order) => order.status).filter((status): status is string => Boolean(status)))).sort(),
     [data],
   );
 
