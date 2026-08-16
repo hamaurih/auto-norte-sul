@@ -25,6 +25,7 @@ create table if not exists public.shipments (
   updated_at timestamptz not null default now(),
   constraint shipments_order_tenant_fkey foreign key (order_id, tenant_id)
     references public.orders(id, tenant_id) on delete cascade,
+  constraint shipments_id_tenant_unique unique (id, tenant_id),
   constraint shipments_order_unique unique (order_id, tenant_id),
   constraint shipments_tracking_url_check check (tracking_url is null or tracking_url ~ '^https://'),
   constraint shipments_notes_length check (notes is null or char_length(notes) <= 1000)
@@ -61,7 +62,6 @@ create table if not exists public.shipment_events (
     references public.shipments(id, tenant_id) on delete cascade
 );
 
-create unique index if not exists shipments_id_tenant_unique on public.shipments(id, tenant_id);
 create index if not exists shipments_queue_idx on public.shipments(tenant_id, status, updated_at desc);
 create index if not exists shipments_tracking_idx on public.shipments(tenant_id, tracking_code) where tracking_code is not null;
 create index if not exists shipment_packages_shipment_idx on public.shipment_packages(tenant_id, shipment_id, sequence);
