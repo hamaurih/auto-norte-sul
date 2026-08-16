@@ -64,6 +64,7 @@ export const adminModules: AdminModule[] = [
     shortcuts: [
       { to: "/admin/pdv", label: "PDV", description: "Frente de caixa", icon: ScanLine },
       { to: "/admin/pedidos", label: "Pedidos", description: "Acompanhar vendas", icon: ShoppingBag },
+      { to: "/admin/expedicao", label: "Expedição", description: "Separação, conferência e envios", icon: Truck },
       { to: "/admin/orcamentos", label: "Orçamentos", description: "Propostas comerciais", icon: FileText },
       { to: "/admin/clientes", label: "Clientes", description: "Base de clientes", icon: Users },
       { to: "/admin/cadastros-b2b", label: "Cadastros B2B", description: "Aprovações de revenda", icon: Briefcase },
