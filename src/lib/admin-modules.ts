@@ -1,5 +1,6 @@
 import {
-  BarChart3,\n  BadgeDollarSign,
+  BarChart3,
+  BadgeDollarSign,
   Bot,
   Building2,
   Briefcase,
@@ -113,7 +114,8 @@ export const adminModules: AdminModule[] = [
       { to: "/admin/pedidos-compra/novo", label: "Novo pedido de compra", description: "Comprar do fornecedor", icon: PlusCircle },
       { to: "/admin/recebimentos", label: "Recebimentos", description: "Entrada de mercadoria", icon: PackageCheck },
       { to: "/admin/nfe-importacao", label: "Importar XML NF-e", description: "Conferência da nota de compra", icon: FileUp },
-      { to: "/admin/historico-custos", label: "Financeiro do estoque", description: "Valorização e fechamentos", icon: ClipboardList },\n      { to: "/admin/saneamento-custos", label: "Saneamento de custos", description: "Recuperar e aprovar custos reais", icon: BadgeDollarSign, adminOnly: true },
+      { to: "/admin/historico-custos", label: "Financeiro do estoque", description: "Valorização e fechamentos", icon: ClipboardList },
+      { to: "/admin/saneamento-custos", label: "Saneamento de custos", description: "Recuperar e aprovar custos reais", icon: BadgeDollarSign, adminOnly: true },
     ],
   },
   {
