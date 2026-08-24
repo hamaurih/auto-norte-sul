@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, Check, Loader2, Search } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, ImageSearch, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import { listPurchaseOrders, listSupplyWarehouses, searchSupplyProducts } from "
 import { formatAccessKey, matchSourceLabel, nfeStatusClass, nfeStatusLabel } from "@/lib/nfe-ui";
 import { formatDate } from "@/lib/supplies-ui";
 import { brl } from "@/lib/format";
+import { enqueueNfeItemEnrichment } from "@/lib/product-enrichment.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/nfe-importacao/$id")({
   head: () => ({
@@ -47,6 +48,7 @@ function NfeDetail() {
   const createSupplierFn = useServerFn(createSupplierFromNfe);
   const createReceiptFn = useServerFn(createReceiptFromNfe);
   const cancelFn = useServerFn(cancelNfeImport);
+  const enqueueEnrichmentFn = useServerFn(enqueueNfeItemEnrichment);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["nfe-import", id],
@@ -129,6 +131,15 @@ function NfeDetail() {
     onSuccess: () => {
       toast.success("Importação cancelada.");
       invalidate();
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const enqueueEnrichment = useMutation({
+    mutationFn: (nfeItemId: string) => enqueueEnrichmentFn({ data: { nfeItemId } }),
+    onSuccess: (result) => {
+      toast.success(result.reused ? "Produto já estava na fila de enriquecimento" : "Busca de imagem e dados preparada");
+      window.open("/admin/enriquecimento-produtos", "_blank", "noopener,noreferrer");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -325,18 +336,29 @@ function NfeDetail() {
                         sku={item.product.sku}
                       />
                     </div>
-                    {editable && (
+                    <div className="flex flex-wrap gap-2">
                       <Button
                         size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setActiveItem(item.id);
-                          setTerm(item.supplier_code ?? item.description.slice(0, 20));
-                        }}
+                        variant="outline"
+                        disabled={enqueueEnrichment.isPending}
+                        onClick={() => enqueueEnrichment.mutate(item.id)}
                       >
-                        Trocar produto
+                        <ImageSearch className="mr-2 h-4 w-4" aria-hidden="true" />
+                        Buscar imagem e dados
                       </Button>
-                    )}
+                      {editable && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setActiveItem(item.id);
+                            setTerm(item.supplier_code ?? item.description.slice(0, 20));
+                          }}
+                        >
+                          Trocar produto
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="flex flex-wrap items-center justify-between gap-2">
