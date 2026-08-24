@@ -133,3 +133,79 @@ export const processManufacturerEnrichment = createServerFn({ method: "POST" })
     if (!result?.ok) throw new Error(result?.error ?? "Não foi possível processar a fila");
     return result as { ok: true; processed: number; results: Array<{ jobId: string; status: string; sourceUrl?: string; reason?: string }> };
   });
+
+
+export type EnqueueNfeItemEnrichmentResult = {
+  ok: boolean;
+  jobId: string;
+  reused: boolean;
+  searchQuery: string;
+};
+
+export const enqueueNfeItemEnrichment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { nfeItemId: string }) => input)
+  .handler(async ({ data, context }): Promise<EnqueueNfeItemEnrichmentResult> => {
+    const sb = tdb(context.supabase);
+    await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_APPROVE_ROLES);
+
+    const { data: item, error } = await sb
+      .from("nfe_import_items")
+      .select("id, product_id, supplier_code, gtin, description, product:products(id,name,sku,gtin,manufacturer_code,internal_code)")
+      .eq("tenant_id", context.tenantId)
+      .eq("id", data.nfeItemId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!item) throw new Error("Item da NF-e não encontrado");
+    if (!item.product_id || !item.product) throw new Error("Vincule o item a um produto antes de buscar imagem e dados");
+
+    const product = item.product as any;
+    const terms = [
+      product.gtin || item.gtin,
+      product.manufacturer_code,
+      item.supplier_code,
+      product.name,
+      item.description,
+    ].map((value) => String(value ?? "").trim()).filter(Boolean);
+    const searchQuery = [...new Set(terms)].join(" ").slice(0, 500);
+
+    const { data: active, error: activeError } = await sb
+      .from("product_enrichment_jobs")
+      .select("id, search_query")
+      .eq("tenant_id", context.tenantId)
+      .eq("product_id", item.product_id)
+      .in("status", ["queued", "processing", "review"])
+      .maybeSingle();
+    if (activeError) throw new Error(activeError.message);
+    if (active) {
+      if (active.search_query !== searchQuery) {
+        await sb.from("product_enrichment_jobs")
+          .update({ search_query: searchQuery, trigger_source: "nfe", scheduled_at: new Date().toISOString() })
+          .eq("id", active.id).eq("tenant_id", context.tenantId);
+      }
+      return { ok: true, jobId: active.id as string, reused: true, searchQuery };
+    }
+
+    const { data: created, error: createError } = await sb
+      .from("product_enrichment_jobs")
+      .insert({
+        tenant_id: context.tenantId,
+        product_id: item.product_id,
+        trigger_source: "nfe",
+        status: "queued",
+        search_query: searchQuery,
+        created_by: context.userId,
+      })
+      .select("id")
+      .single();
+    if (createError) {
+      if (createError.code === "23505") {
+        const { data: concurrent } = await sb.from("product_enrichment_jobs").select("id")
+          .eq("tenant_id", context.tenantId).eq("product_id", item.product_id)
+          .in("status", ["queued", "processing", "review"]).single();
+        if (concurrent) return { ok: true, jobId: concurrent.id as string, reused: true, searchQuery };
+      }
+      throw new Error(createError.message);
+    }
+    return { ok: true, jobId: created.id as string, reused: false, searchQuery };
+  });
