@@ -160,13 +160,12 @@ export const adminModules: AdminModule[] = [
 ];
 
 export const adminQuickActions: AdminShortcut[] = [
-  { to: "/admin/pdv", label: "Nova venda", icon: ScanLine },
-  { to: "/admin/produtos/novo", label: "Novo produto", icon: PlusCircle },
-  { to: "/admin/orcamentos", label: "Novo orçamento", icon: FileText },
-  { to: "/admin/estoque", label: "Gerenciar estoque", icon: Warehouse },
-  { to: "/admin/pedidos-compra/novo", label: "Novo pedido de compra", icon: ShoppingCart },
-  { to: "/admin/promocoes", label: "Criar promoção", icon: Percent },
-  { to: "/admin/banners", label: "Gerenciar banners", icon: ImageIcon },
+  { to: "/admin/pdv", label: "Nova venda", description: "Abrir frente de caixa", icon: ScanLine },
+  { to: "/admin/pedidos", label: "Pedidos", description: "Acompanhar vendas", icon: ShoppingBag },
+  { to: "/admin/expedicao", label: "Expedição", description: "Separar e despachar", icon: Truck },
+  { to: "/admin/pedidos-compra/novo", label: "Nova compra", description: "Comprar de fornecedor", icon: ShoppingCart },
+  { to: "/admin/recebimentos", label: "Recebimentos", description: "Dar entrada em mercadoria", icon: PackageCheck },
+  { to: "/admin/estoque", label: "Estoque", description: "Consultar e ajustar saldos", icon: Warehouse },
 ];
 
 export function visibleModules(isAdmin: boolean): AdminModule[] {
