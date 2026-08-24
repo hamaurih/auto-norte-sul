@@ -14,6 +14,17 @@ export type InventoryFinancialPosition = {
   stock_divergence_products: number;
 };
 
+export type InventoryClosingResult = {
+  ok: boolean;
+  already_closed: boolean;
+  closing_id: string;
+  period_date: string;
+  products_count?: number;
+  units_total?: number;
+  inventory_value?: number;
+  missing_cost_products?: number;
+};
+
 export const getInventoryFinancialPosition = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -42,10 +53,10 @@ export const listInventoryClosings = createServerFn({ method: "GET" })
 export const closeInventoryPeriod = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { periodDate: string }) => input)
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }): Promise<InventoryClosingResult> => {
     const sb = tdb(context.supabase);
     await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_APPROVE_ROLES);
     const { data: result, error } = await sb.rpc("close_inventory_period", { p_period_date: data.periodDate });
     if (error) throw new Error(error.message);
-    return result as Record<string, unknown>;
+    return result as unknown as InventoryClosingResult;
   });
