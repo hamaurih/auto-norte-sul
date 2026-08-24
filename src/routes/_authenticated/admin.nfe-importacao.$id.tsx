@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, Check, ImageSearch, Loader2, Search } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, Images, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -343,7 +343,7 @@ function NfeDetail() {
                         disabled={enqueueEnrichment.isPending}
                         onClick={() => enqueueEnrichment.mutate(item.id)}
                       >
-                        <ImageSearch className="mr-2 h-4 w-4" aria-hidden="true" />
+                        <Images className="mr-2 h-4 w-4" aria-hidden="true" />
                         Buscar imagem e dados
                       </Button>
                       {editable && (
