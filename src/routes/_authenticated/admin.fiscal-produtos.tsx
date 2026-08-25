@@ -1,13 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
-import { ArrowLeft, FileSearch, Search, ShieldCheck, Tags } from "lucide-react";
+import { useRef, useState } from "react";
+import { ArrowLeft, Download, FileSearch, Search, ShieldCheck, Tags, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { SupplyGuard } from "@/components/admin/SupplyGuard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getFiscalProductQueue, saveFiscalProfilesBatch, type FiscalProfileInput } from "@/lib/fiscal.functions";
+import { exportFiscalProfiles, getFiscalProductQueue, importFiscalProfiles, saveFiscalProfilesBatch, type FiscalProfileInput } from "@/lib/fiscal.functions";
+import { downloadFiscalCsv, parseFiscalCsv } from "@/lib/fiscal-csv";
 import { qty } from "@/lib/supplies-ui";
 
 export const Route=createFileRoute("/_authenticated/admin/fiscal-produtos")({
@@ -18,10 +19,12 @@ export const Route=createFileRoute("/_authenticated/admin/fiscal-produtos")({
 const initialForm:Omit<FiscalProfileInput,"productIds">={ncm:"",cest:"",origin:0,cfopInState:"",cfopOutState:"",icmsCst:"",icmsCsosn:"",icmsRate:0,pisCst:"",pisRate:0,cofinsCst:"",cofinsRate:0,notes:""};
 
 function FiscalProductsPage(){
-  const qc=useQueryClient();const queueFn=useServerFn(getFiscalProductQueue);const saveFn=useServerFn(saveFiscalProfilesBatch);
+  const qc=useQueryClient();const queueFn=useServerFn(getFiscalProductQueue);const saveFn=useServerFn(saveFiscalProfilesBatch);const exportFn=useServerFn(exportFiscalProfiles);const importFn=useServerFn(importFiscalProfiles);const fileRef=useRef<HTMLInputElement>(null);
   const [typedSearch,setTypedSearch]=useState("");const [search,setSearch]=useState("");const [selected,setSelected]=useState<string[]>([]);const [form,setForm]=useState(initialForm);
   const query=useQuery({queryKey:["fiscal-product-queue",search],queryFn:()=>queueFn({data:{search}})});const data=query.data as any;const items=(data?.items??[]) as any[];
   const save=useMutation({mutationFn:()=>saveFn({data:{...form,productIds:selected}}),onSuccess:r=>{toast.success(`${r.updated} produto(s) classificados`);setSelected([]);qc.invalidateQueries({queryKey:["fiscal-product-queue"]});qc.invalidateQueries({queryKey:["fiscal-overview"]});},onError:(e:Error)=>toast.error(e.message)});
+  const spreadsheet=useMutation({mutationFn:async(file:File)=>{const parsed=parseFiscalCsv(await file.text());let updated=0;for(let i=0;i<parsed.length;i+=500){const result=await importFn({data:{rows:parsed.slice(i,i+500) as any}});updated+=result.updated}return updated},onSuccess:updated=>{toast.success(`${updated} produto(s) importados da planilha`);qc.invalidateQueries({queryKey:["fiscal-product-queue"]});qc.invalidateQueries({queryKey:["fiscal-overview"]})},onError:(e:Error)=>toast.error(e.message)});
+  const exportSheet=async()=>{try{const rows=await exportFn();downloadFiscalCsv(rows as Record<string,unknown>[]);toast.success("Planilha fiscal exportada")}catch(e){toast.error(e instanceof Error?e.message:"Falha ao exportar")}}
   const toggle=(id:string)=>setSelected(v=>v.includes(id)?v.filter(x=>x!==id):[...v,id]);const allSelected=items.length>0&&items.every(i=>selected.includes(i.id));
   const field=(key:keyof typeof form,label:string,type="text")=><label className="text-xs font-bold uppercase text-muted-foreground">{label}<Input className="mt-1" type={type} value={String(form[key]??"")} onChange={e=>setForm({...form,[key]:type==="number"?Number(e.target.value):e.target.value})}/></label>;
   return <div className="mx-auto max-w-7xl space-y-6">
@@ -36,7 +39,7 @@ function FiscalProductsPage(){
     </section>
     <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 p-4 text-sm"><strong>Controle de risco:</strong> NCM encontrado em XML de compra não define sozinho a tributação da venda. CFOP, CSOSN/CST e alíquotas devem ser confirmados com a contabilidade.</div>
     <section className="rounded-2xl border bg-card p-5">
-      <div className="flex flex-wrap gap-2"><Input value={typedSearch} onChange={e=>setTypedSearch(e.target.value)} onKeyDown={e=>e.key==="Enter"&&setSearch(typedSearch)} placeholder="Buscar por nome, SKU, código do fabricante ou GTIN" className="min-w-[260px] flex-1"/><Button variant="outline" onClick={()=>setSearch(typedSearch)}><Search className="mr-2 h-4 w-4"/>Buscar</Button></div>
+      <div className="flex flex-wrap gap-2"><Input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={e=>{const file=e.target.files?.[0];if(file)spreadsheet.mutate(file);e.target.value=""}}/><Button variant="outline" onClick={exportSheet}><Download className="mr-2 h-4 w-4"/>Exportar planilha</Button><Button variant="outline" disabled={spreadsheet.isPending} onClick={()=>fileRef.current?.click()}><Upload className="mr-2 h-4 w-4"/>{spreadsheet.isPending?"Importando…":"Importar planilha"}</Button><Input value={typedSearch} onChange={e=>setTypedSearch(e.target.value)} onKeyDown={e=>e.key==="Enter"&&setSearch(typedSearch)} placeholder="Buscar por nome, SKU, código do fabricante ou GTIN" className="min-w-[260px] flex-1"/><Button variant="outline" onClick={()=>setSearch(typedSearch)}><Search className="mr-2 h-4 w-4"/>Buscar</Button></div>
       <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[850px] text-sm"><thead className="bg-muted/50 text-xs uppercase text-muted-foreground"><tr><th className="p-3 text-left"><input aria-label="Selecionar todos" type="checkbox" checked={allSelected} onChange={()=>setSelected(allSelected?[]:items.map(i=>i.id))}/></th><th className="p-3 text-left">Produto</th><th className="p-3 text-left">Códigos</th><th className="p-3 text-left">Sugestão do XML</th><th className="p-3 text-right">Ação</th></tr></thead><tbody>{items.map(p=><tr key={p.id} className="border-t"><td className="p-3"><input aria-label={`Selecionar ${p.name}`} type="checkbox" checked={selected.includes(p.id)} onChange={()=>toggle(p.id)}/></td><td className="p-3"><strong>{p.name}</strong><div className="text-xs text-muted-foreground">{p.sku||"sem SKU"}</div></td><td className="p-3 text-xs">Interno: {p.internal_code||"—"}<br/>Fabricante: {p.manufacturer_code||"—"}<br/>GTIN: {p.gtin||"—"}</td><td className="p-3">{p.candidate?<div><strong>NCM {p.candidate.ncm}</strong><div className="text-xs text-muted-foreground">CFOP de entrada {p.candidate.cfop||"—"}</div></div>:<span className="text-muted-foreground">Sem XML vinculado</span>}</td><td className="p-3 text-right">{p.candidate&&<Button size="sm" variant="outline" onClick={()=>{setSelected([p.id]);setForm(v=>({...v,ncm:p.candidate.ncm}))}}>Usar NCM</Button>}</td></tr>)}</tbody></table>{!query.isLoading&&!items.length&&<p className="py-8 text-center text-sm text-muted-foreground">Nenhum produto pendente encontrado.</p>}</div>
     </section>
     <section className="rounded-2xl border border-primary/30 bg-card p-5"><div className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-emerald-700"/><h2 className="font-display text-xl font-bold">Aprovar classificação em lote</h2></div><p className="mt-1 text-sm text-muted-foreground">{qty(selected.length)} produto(s) selecionado(s). Use lote apenas para produtos tributariamente equivalentes.</p>
