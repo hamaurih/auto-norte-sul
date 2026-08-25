@@ -46,9 +46,9 @@ export const saveFiscalSettings = createServerFn({method:"POST"}).middleware([re
       tax_regime:data.taxRegime,crt:Number(data.crt),state:data.state.toUpperCase(),city_code:digits(data.cityCode),city:data.city.trim(),
       zip_code:digits(data.zipCode),street:data.street.trim(),number:data.number.trim(),complement:data.complement?.trim()||null,
       district:data.district.trim(),phone:data.phone?.trim()||null,email:data.email?.trim()||null,nfe_series:Number(data.nfeSeries??1),
-      nfce_series:Number(data.nfceSeries??1),updated_by:context.userId};
+      nfce_series:Number(data.nfceSeries??1),enabled:data.environment==="homologation",updated_by:context.userId};
     if(data.id){const{error}=await sb.from("fiscal_settings").update(row).eq("id",data.id).eq("tenant_id",context.tenantId);if(error)throw new Error(error.message);return{ok:true,id:data.id};}
-    const{data:created,error}=await sb.from("fiscal_settings").insert({...row,enabled:data.environment==="homologation",created_by:context.userId}).select("id").single();
+    const{data:created,error}=await sb.from("fiscal_settings").insert({...row,created_by:context.userId}).select("id").single();
     if(error)throw new Error(error.message);return{ok:true,id:created.id as string};
   });
 
