@@ -1,0 +1,51 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { AlertTriangle, CheckCircle2, FileCheck2, FileClock, Landmark, ShieldCheck } from "lucide-react";
+import { SupplyGuard } from "@/components/admin/SupplyGuard";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { createFiscalDraft, getFiscalOverview, saveFiscalSettings, type FiscalSettingsInput } from "@/lib/fiscal.functions";
+import { brl } from "@/lib/format";
+import { formatDate, num, qty } from "@/lib/supplies-ui";
+
+export const Route=createFileRoute("/_authenticated/admin/fiscal")({
+ head:()=>({meta:[{title:"Central Fiscal · Admin"},{name:"description",content:"Configuração, preparação e acompanhamento de NF-e e NFC-e."}]}),
+ component:()=> <SupplyGuard><FiscalPage/></SupplyGuard>,
+});
+
+const empty:any={environment:"homologation",provider:"internal",legalName:"",tradeName:"",taxId:"",stateTaxId:"",taxRegime:"simples_nacional",crt:1,state:"PB",cityCode:"2504009",city:"Campina Grande",zipCode:"",street:"",number:"",complement:"",district:"",phone:"",email:"",nfeSeries:1,nfceSeries:1};
+
+function FiscalPage(){
+ const qc=useQueryClient();const overviewFn=useServerFn(getFiscalOverview);const saveFn=useServerFn(saveFiscalSettings);const draftFn=useServerFn(createFiscalDraft);
+ const query=useQuery({queryKey:["fiscal-overview"],queryFn:()=>overviewFn()});const data=query.data as any;
+ const [form,setForm]=useState<any>(empty);const [showConfig,setShowConfig]=useState(false);
+ useEffect(()=>{const s=data?.settings?.[0];if(s)setForm({id:s.id,branchId:s.branch_id,environment:s.environment,provider:s.provider,legalName:s.legal_name,tradeName:s.trade_name||"",taxId:s.tax_id,stateTaxId:s.state_tax_id,taxRegime:s.tax_regime,crt:s.crt,state:s.state,cityCode:s.city_code,city:s.city,zipCode:s.zip_code,street:s.street,number:s.number,complement:s.complement||"",district:s.district,phone:s.phone||"",email:s.email||"",nfeSeries:s.nfe_series,nfceSeries:s.nfce_series});else if(data?.branches?.[0])setForm((v:any)=>({...v,branchId:data.branches[0].id}));},[data]);
+ const refresh=()=>qc.invalidateQueries({queryKey:["fiscal-overview"]});
+ const save=useMutation({mutationFn:()=>saveFn({data:form as FiscalSettingsInput}),onSuccess:()=>{toast.success("Configuração fiscal salva em homologação");setShowConfig(false);refresh();},onError:(e:Error)=>toast.error(e.message)});
+ const draft=useMutation({mutationFn:(v:{orderId:string;model:"55"|"65"})=>draftFn({data:v}),onSuccess:r=>{toast.success(r.reused?"Rascunho fiscal já existente":"Rascunho fiscal criado");refresh();},onError:(e:Error)=>toast.error(e.message)});
+ const settings=data?.settings?.[0];const coverage=data?.productsCount?Math.round(((data.productsCount-data.missingFiscalProfiles)/data.productsCount)*100):0;
+ return <div className="mx-auto max-w-7xl space-y-6">
+  <header className="rounded-3xl border bg-gradient-to-br from-blue-500/15 via-card to-emerald-500/10 p-6">
+   <div className="flex flex-wrap items-start justify-between gap-4"><div><div className="inline-flex items-center gap-2 rounded-full bg-blue-500/10 px-3 py-1 text-xs font-bold text-blue-700"><Landmark className="h-4 w-4"/> CENTRAL FISCAL</div><h1 className="mt-3 font-display text-3xl font-bold">NF-e e NFC-e próprias</h1><p className="mt-2 max-w-3xl text-sm text-muted-foreground">Preparação fiscal independente do Bling, com numeração, snapshots tributários, IBS/CBS e trilha auditável.</p></div>
+   <Button variant="outline" onClick={()=>setShowConfig(!showConfig)}>{settings?"Editar emitente":"Configurar emitente"}</Button></div>
+  </header>
+  <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm"><strong>Barreira de segurança:</strong> produção permanece bloqueada até certificado A1, credenciamento SEFAZ, CSC da NFC-e e homologação técnica. Rascunhos não possuem validade fiscal.</div>
+  <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+   <Metric icon={settings?CheckCircle2:AlertTriangle} label="Emitente" value={settings?"Configurado":"Pendente"} detail={settings?`${settings.environment} · série ${settings.nfe_series}`:"CNPJ, IE, CRT e endereço"} good={!!settings}/>
+   <Metric icon={ShieldCheck} label="Cadastro tributário" value={`${coverage}%`} detail={`${qty(data?.missingFiscalProfiles??0)} produtos sem NCM/regra`} good={coverage===100}/>
+   <Metric icon={FileClock} label="Vendas a faturar" value={qty(data?.pendingOrders?.length??0)} detail="Vendas pagas sem documento fiscal" good={(data?.pendingOrders?.length??0)===0}/>
+   <Metric icon={FileCheck2} label="Documentos" value={qty(data?.documents?.length??0)} detail="Rascunhos e documentos processados" good={true}/>
+  </section>
+  {showConfig&&<ConfigForm form={form} setForm={setForm} branches={data?.branches??[]} saving={save.isPending} onSave={()=>save.mutate()}/>}
+  <section className="rounded-2xl border bg-card p-5"><h2 className="font-display text-xl font-bold">Vendas aguardando documento</h2><p className="mt-1 text-sm text-muted-foreground">O rascunho só é criado se todos os itens possuírem perfil fiscal.</p>
+   <div className="mt-4 space-y-2">{(data?.pendingOrders??[]).map((o:any)=><div key={o.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-muted/50 p-3"><div><strong>{o.customer_name}</strong><div className="text-xs text-muted-foreground">{formatDate(o.created_at)} · {o.customer_document||"documento não informado"} · {brl(num(o.total))}</div></div><div className="flex gap-2"><Button size="sm" variant="outline" disabled={draft.isPending||!settings} onClick={()=>draft.mutate({orderId:o.id,model:"65"})}>Preparar NFC-e</Button><Button size="sm" disabled={draft.isPending||!settings} onClick={()=>draft.mutate({orderId:o.id,model:"55"})}>Preparar NF-e</Button></div></div>)}
+   {!query.isLoading&&!(data?.pendingOrders??[]).length&&<p className="mt-4 text-sm text-muted-foreground">Nenhuma venda paga aguardando documento.</p>}</div>
+  </section>
+  <section className="overflow-x-auto rounded-2xl border bg-card"><table className="w-full min-w-[760px] text-sm"><thead className="bg-muted/50 text-xs uppercase text-muted-foreground"><tr><th className="p-3 text-left">Documento</th><th className="p-3 text-left">Destinatário</th><th className="p-3 text-left">Ambiente</th><th className="p-3 text-left">Status</th><th className="p-3 text-right">Valor</th><th className="p-3 text-right">Criação</th></tr></thead><tbody>{(data?.documents??[]).map((d:any)=><tr key={d.id} className="border-t"><td className="p-3 font-semibold">{d.model==="55"?"NF-e":"NFC-e"} {d.series}/{d.number}</td><td className="p-3">{d.recipient_name}</td><td className="p-3">{d.environment}</td><td className="p-3">{d.status}</td><td className="p-3 text-right">{brl(num(d.totals?.total))}</td><td className="p-3 text-right">{formatDate(d.created_at)}</td></tr>)}</tbody></table></section>
+ </div>;
+}
+function Metric({icon:Icon,label,value,detail,good}:any){return <div className="rounded-2xl border bg-card p-4"><Icon className={`h-5 w-5 ${good?"text-emerald-700":"text-amber-700"}`}/><div className="mt-2 text-xs font-bold uppercase text-muted-foreground">{label}</div><div className="mt-1 text-2xl font-bold">{value}</div><p className="text-xs text-muted-foreground">{detail}</p></div>}
+function ConfigForm({form,setForm,branches,saving,onSave}:any){const field=(key:string,label:string,type="text")=><label className="text-xs font-bold uppercase text-muted-foreground">{label}<Input type={type} className="mt-1" value={form[key]??""} onChange={e=>setForm({...form,[key]:type==="number"?Number(e.target.value):e.target.value})}/></label>;return <section className="rounded-2xl border border-primary/30 bg-card p-5"><h2 className="font-display text-xl font-bold">Configuração do emitente</h2><p className="mt-1 text-sm text-muted-foreground">Salva inicialmente em homologação. Confirme os dados com a contabilidade.</p><div className="mt-4 grid gap-3 md:grid-cols-3"><label className="text-xs font-bold uppercase text-muted-foreground">Filial<select className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-sm" value={form.branchId||""} onChange={e=>setForm({...form,branchId:e.target.value})}>{branches.map((b:any)=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label>{field("legalName","Razão social")}{field("tradeName","Nome fantasia")}{field("taxId","CNPJ")}{field("stateTaxId","Inscrição estadual")}<label className="text-xs font-bold uppercase text-muted-foreground">Regime<select className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-sm" value={form.taxRegime} onChange={e=>setForm({...form,taxRegime:e.target.value,crt:e.target.value==="regime_normal"?3:1})}><option value="simples_nacional">Simples Nacional</option><option value="regime_normal">Regime Normal</option><option value="mei">MEI</option></select></label>{field("state","UF")}{field("cityCode","Código IBGE")}{field("city","Cidade")}{field("zipCode","CEP")}{field("street","Logradouro")}{field("number","Número")}{field("district","Bairro")}{field("complement","Complemento")}{field("phone","Telefone")}{field("email","E-mail","email")}{field("nfeSeries","Série NF-e","number")}{field("nfceSeries","Série NFC-e","number")}</div><div className="mt-4 flex justify-end"><Button disabled={saving||!form.branchId} onClick={onSave}>{saving?"Salvando…":"Salvar homologação"}</Button></div></section>}
