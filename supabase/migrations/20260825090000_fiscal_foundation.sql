@@ -115,7 +115,8 @@ create table if not exists public.fiscal_documents (
  constraint fiscal_documents_branch_tenant_fkey foreign key(branch_id,tenant_id) references public.branches(id,tenant_id) on delete restrict,
  constraint fiscal_documents_order_tenant_fkey foreign key(order_id,tenant_id) references public.orders(id,tenant_id) on delete restrict,
  unique(tenant_id,model,series,number),
- unique(tenant_id,idempotency_key)
+ unique(tenant_id,idempotency_key),
+ unique(id,tenant_id)
 );
 create unique index if not exists fiscal_documents_order_model_active_unique on public.fiscal_documents(tenant_id,order_id,model) where order_id is not null and status<>'cancelled';
 
@@ -160,9 +161,6 @@ create table if not exists public.fiscal_document_events (
  constraint fiscal_document_events_document_tenant_fkey foreign key(fiscal_document_id,tenant_id) references public.fiscal_documents(id,tenant_id) on delete cascade
 );
 
-alter table public.fiscal_documents add constraint fiscal_documents_id_tenant_key unique(id,tenant_id);
-alter table public.branches add constraint branches_id_tenant_key unique(id,tenant_id);
-alter table public.orders add constraint orders_id_tenant_key unique(id,tenant_id);
 
 create index if not exists fiscal_settings_tenant_idx on public.fiscal_settings(tenant_id);
 create index if not exists product_fiscal_profiles_tenant_product_idx on public.product_fiscal_profiles(tenant_id,product_id);
