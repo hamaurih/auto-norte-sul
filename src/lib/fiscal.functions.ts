@@ -10,6 +10,12 @@ export type FiscalSettingsInput = {
   complement?: string; district: string; phone?: string; email?: string; nfeSeries?: number; nfceSeries?: number;
 };
 
+export type FiscalProfileInput = {
+  productIds: string[]; ncm: string; cest?: string; origin: number; cfopInState: string; cfopOutState: string;
+  icmsCst?: string; icmsCsosn?: string; icmsRate?: number; pisCst?: string; pisRate?: number;
+  cofinsCst?: string; cofinsRate?: number; notes?: string;
+};
+
 export type FiscalDraftResult = { ok: boolean; reused: boolean; document_id: string; status: string; series?: number; number?: number };
 
 export const getFiscalOverview = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth])
@@ -34,6 +40,33 @@ export const getFiscalOverview = createServerFn({ method: "GET" }).middleware([r
       productsCount:(products.data??[]).length };
   });
 
+export const getFiscalProductQueue = createServerFn({method:"POST"}).middleware([requireSupabaseAuth])
+  .inputValidator((input:{search?:string})=>input)
+  .handler(async({data,context})=>{
+    const sb=tdb(context.supabase);await requireSupplyRole(sb,context.userId,context.tenantId,SUPPLY_READ_ROLES);
+    const [products,profiles]=await Promise.all([
+      sb.from("products").select("id,sku,internal_code,manufacturer_code,gtin,name,active")
+        .eq("tenant_id",context.tenantId).eq("active",true).order("name").limit(10000),
+      sb.from("product_fiscal_profiles").select("product_id,ncm,cest,origin,cfop_in_state,cfop_out_state,icms_cst,icms_csosn,pis_cst,cofins_cst,updated_at")
+        .eq("tenant_id",context.tenantId),
+    ]);
+    if(products.error)throw new Error(products.error.message);if(profiles.error)throw new Error(profiles.error.message);
+    const approved=new Map(((profiles.data??[]) as any[]).map(p=>[p.product_id,p]));
+    const term=String(data.search??"").trim().toLowerCase();
+    const missing=((products.data??[]) as any[]).filter(p=>!approved.has(p.id))
+      .filter(p=>!term||[p.name,p.sku,p.internal_code,p.manufacturer_code,p.gtin].some(v=>String(v??"").toLowerCase().includes(term)))
+      .slice(0,200);
+    const ids=missing.map(p=>p.id);let candidates:any[]=[];
+    if(ids.length){
+      const nfe=await sb.from("nfe_import_items").select("product_id,ncm,cfop,created_at")
+        .eq("tenant_id",context.tenantId).in("product_id",ids).not("ncm","is",null).order("created_at",{ascending:false}).limit(2000);
+      if(nfe.error)throw new Error(nfe.error.message);candidates=(nfe.data??[]) as any[];
+    }
+    const candidateByProduct=new Map<string,any>();
+    for(const c of candidates)if(c.product_id&&!candidateByProduct.has(c.product_id)&&/^\d{8}$/.test(String(c.ncm??"")))candidateByProduct.set(c.product_id,c);
+    return {items:missing.map(p=>({...p,candidate:candidateByProduct.get(p.id)??null})),approvedCount:approved.size,totalProducts:(products.data??[]).length,missingCount:(products.data??[]).length-approved.size};
+  });
+
 export const saveFiscalSettings = createServerFn({method:"POST"}).middleware([requireSupabaseAuth])
   .inputValidator((input:FiscalSettingsInput)=>input).handler(async({data,context})=>{
     const sb=tdb(context.supabase);await requireSupplyRole(sb,context.userId,context.tenantId,SUPPLY_APPROVE_ROLES);
@@ -50,6 +83,28 @@ export const saveFiscalSettings = createServerFn({method:"POST"}).middleware([re
     if(data.id){const{error}=await sb.from("fiscal_settings").update(row).eq("id",data.id).eq("tenant_id",context.tenantId);if(error)throw new Error(error.message);return{ok:true,id:data.id};}
     const{data:created,error}=await sb.from("fiscal_settings").insert({...row,created_by:context.userId}).select("id").single();
     if(error)throw new Error(error.message);return{ok:true,id:created.id as string};
+  });
+
+export const saveFiscalProfilesBatch = createServerFn({method:"POST"}).middleware([requireSupabaseAuth])
+  .inputValidator((input:FiscalProfileInput)=>input)
+  .handler(async({data,context})=>{
+    const sb=tdb(context.supabase);await requireSupplyRole(sb,context.userId,context.tenantId,SUPPLY_APPROVE_ROLES);
+    const digits=(v:string)=>String(v??"").replace(/\D/g,"");
+    const ids=[...new Set(data.productIds)].slice(0,200);const ncm=digits(data.ncm);const cest=digits(data.cest??"");
+    if(!ids.length)throw new Error("Selecione pelo menos um produto");
+    if(!/^\d{8}$/.test(ncm))throw new Error("NCM deve conter exatamente 8 dígitos");
+    if(cest&&!/^\d{7}$/.test(cest))throw new Error("CEST deve conter 7 dígitos");
+    if(!/^\d{4}$/.test(digits(data.cfopInState))||!/^\d{4}$/.test(digits(data.cfopOutState)))throw new Error("Informe os CFOPs de venda com 4 dígitos");
+    if(!Number.isInteger(Number(data.origin))||Number(data.origin)<0||Number(data.origin)>8)throw new Error("Origem da mercadoria inválida");
+    const check=await sb.from("products").select("id").eq("tenant_id",context.tenantId).in("id",ids);
+    if(check.error)throw new Error(check.error.message);if((check.data??[]).length!==ids.length)throw new Error("Há produto inválido ou fora da empresa");
+    const rows=ids.map(productId=>({tenant_id:context.tenantId,product_id:productId,ncm,cest:cest||null,origin:Number(data.origin),
+      cfop_in_state:digits(data.cfopInState),cfop_out_state:digits(data.cfopOutState),icms_cst:data.icmsCst?.trim()||null,
+      icms_csosn:data.icmsCsosn?.trim()||null,icms_rate:Number(data.icmsRate??0),pis_cst:data.pisCst?.trim()||null,
+      pis_rate:Number(data.pisRate??0),cofins_cst:data.cofinsCst?.trim()||null,cofins_rate:Number(data.cofinsRate??0),
+      notes:data.notes?.trim()||"Aprovado na fila de saneamento fiscal",created_by:context.userId,updated_by:context.userId,updated_at:new Date().toISOString()}));
+    const{error}=await sb.from("product_fiscal_profiles").upsert(rows,{onConflict:"tenant_id,product_id"});if(error)throw new Error(error.message);
+    return{ok:true,updated:rows.length};
   });
 
 export const createFiscalDraft = createServerFn({method:"POST"}).middleware([requireSupabaseAuth])
