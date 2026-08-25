@@ -68,6 +68,7 @@ export const adminModules: AdminModule[] = [
       { to: "/admin/pedidos", label: "Pedidos", description: "Acompanhar vendas", icon: ShoppingBag },
       { to: "/admin/expedicao", label: "Expedição", description: "Separação, conferência e envios", icon: Truck },
       { to: "/admin/fiscal", label: "Central Fiscal", description: "NF-e, NFC-e e configuração tributária", icon: Landmark, adminOnly: true },
+      { to: "/admin/fiscal-produtos", label: "Saneamento tributário", description: "NCM e regras fiscais dos produtos", icon: ClipboardCheck, adminOnly: true },
       { to: "/admin/orcamentos", label: "Orçamentos", description: "Propostas comerciais", icon: FileText },
       { to: "/admin/clientes", label: "Clientes", description: "Base de clientes", icon: Users },
       { to: "/admin/cadastros-b2b", label: "Cadastros B2B", description: "Aprovações de revenda", icon: Briefcase },
