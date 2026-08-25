@@ -27,7 +27,7 @@ export type FiscalDraftResult = { ok: boolean; reused: boolean; document_id: str
 export const getFiscalOverview = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const sb=tdb(context.supabase); await requireSupplyRole(sb,context.userId,context.tenantId,SUPPLY_READ_ROLES);
-    const [settings,documents,branches,paidOrders,profiles,products]=await Promise.all([
+    const [settings,documents,branches,paidOrders,profiles,products,jobs]=await Promise.all([
       sb.from("fiscal_settings").select("*").eq("tenant_id",context.tenantId).order("created_at").limit(10),
       sb.from("fiscal_documents").select("id,order_id,model,environment,series,number,status,access_key,protocol,issued_at,authorized_at,created_at,recipient_name,totals")
         .eq("tenant_id",context.tenantId).order("created_at",{ascending:false}).limit(100),
@@ -36,11 +36,12 @@ export const getFiscalOverview = createServerFn({ method: "GET" }).middleware([r
         .eq("tenant_id",context.tenantId).in("status",["pago","faturado","enviado","entregue"]).order("created_at",{ascending:false}).limit(50),
       sb.from("product_fiscal_profiles").select("product_id").eq("tenant_id",context.tenantId),
       sb.from("products").select("id").eq("tenant_id",context.tenantId).eq("active",true).limit(10000),
+      sb.from("fiscal_transmission_jobs").select("id,fiscal_document_id,operation,status,response_code,response_message,diagnostics,created_at").eq("tenant_id",context.tenantId).order("created_at",{ascending:false}).limit(50),
     ]);
-    for(const r of [settings,documents,branches,paidOrders,profiles,products]) if(r.error) throw new Error(r.error.message);
+    for(const r of [settings,documents,branches,paidOrders,profiles,products,jobs]) if(r.error) throw new Error(r.error.message);
     const docs=(documents.data??[]) as any[]; const documented=new Set(docs.map(d=>d.order_id).filter(Boolean));
     const profiled=new Set(((profiles.data??[]) as any[]).map(p=>p.product_id));
-    return { settings:settings.data??[],documents:docs,branches:branches.data??[],
+    return { tenantId:context.tenantId,settings:settings.data??[],documents:docs,jobs:jobs.data??[],branches:branches.data??[],
       pendingOrders:((paidOrders.data??[]) as any[]).filter(o=>!documented.has(o.id)),
       missingFiscalProfiles:((products.data??[]) as any[]).filter(p=>!profiled.has(p.id)).length,
       productsCount:(products.data??[]).length };
@@ -153,6 +154,15 @@ export const importFiscalProfiles = createServerFn({method:"POST"}).middleware([
       cofins_rate:Number(r.cofinsRate??0),notes:r.notes?.trim()||"Importado por planilha fiscal",created_by:context.userId,updated_by:context.userId,updated_at:new Date().toISOString()}));
     const result=await sb.from("product_fiscal_profiles").upsert(values,{onConflict:"tenant_id,product_id"});if(result.error)throw new Error(result.error.message);
     return{ok:true,updated:values.length};
+  });
+
+
+export const runFiscalHomologation = createServerFn({method:"POST"}).middleware([requireSupabaseAuth])
+  .inputValidator((input:{action:"preflight"|"prepare";documentId?:string})=>input)
+  .handler(async({data,context})=>{
+    const sb=tdb(context.supabase);await requireSupplyRole(sb,context.userId,context.tenantId,SUPPLY_APPROVE_ROLES);
+    const result=await context.supabase.functions.invoke("fiscal-homologation",{body:{tenantId:context.tenantId,action:data.action,documentId:data.documentId}});
+    if(result.error)throw new Error(result.error.message);return result.data as any;
   });
 
 export const createFiscalDraft = createServerFn({method:"POST"}).middleware([requireSupabaseAuth])
