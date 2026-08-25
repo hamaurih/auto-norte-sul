@@ -48,4 +48,5 @@ jobs:
           test -f supabase/manual/20260818000000_purchasing_commercial_intelligence.sql
           test -f supabase/migrations/20260825090000_fiscal_foundation.sql
           test -f supabase/migrations/20260825091000_fiscal_management_policies.sql
+          test -f supabase/migrations/20260825140000_fiscal_homologation_gateway.sql
           ! rg '^(<<<<<<<|=======|>>>>>>>)' supabase
