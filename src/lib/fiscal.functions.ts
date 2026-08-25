@@ -16,6 +16,12 @@ export type FiscalProfileInput = {
   cofinsCst?: string; cofinsRate?: number; notes?: string;
 };
 
+export type FiscalCsvRow = {
+  productId: string; sku?: string; name?: string; ncm: string; cest?: string; origin: number | string;
+  cfopInState: string; cfopOutState: string; icmsCst?: string; icmsCsosn?: string; icmsRate?: number | string;
+  pisCst?: string; pisRate?: number | string; cofinsCst?: string; cofinsRate?: number | string; notes?: string;
+};
+
 export type FiscalDraftResult = { ok: boolean; reused: boolean; document_id: string; status: string; series?: number; number?: number };
 
 export const getFiscalOverview = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth])
@@ -105,6 +111,48 @@ export const saveFiscalProfilesBatch = createServerFn({method:"POST"}).middlewar
       notes:data.notes?.trim()||"Aprovado na fila de saneamento fiscal",created_by:context.userId,updated_by:context.userId,updated_at:new Date().toISOString()}));
     const{error}=await sb.from("product_fiscal_profiles").upsert(rows,{onConflict:"tenant_id,product_id"});if(error)throw new Error(error.message);
     return{ok:true,updated:rows.length};
+  });
+
+
+export const exportFiscalProfiles = createServerFn({method:"GET"}).middleware([requireSupabaseAuth])
+  .handler(async({context})=>{
+    const sb=tdb(context.supabase);await requireSupplyRole(sb,context.userId,context.tenantId,SUPPLY_READ_ROLES);
+    const [products,profiles]=await Promise.all([
+      sb.from("products").select("id,sku,name,internal_code,manufacturer_code,gtin").eq("tenant_id",context.tenantId).eq("active",true).order("name").limit(10000),
+      sb.from("product_fiscal_profiles").select("*").eq("tenant_id",context.tenantId),
+    ]);
+    if(products.error)throw new Error(products.error.message);if(profiles.error)throw new Error(profiles.error.message);
+    const byProduct=new Map(((profiles.data??[]) as any[]).map(p=>[p.product_id,p]));
+    return ((products.data??[]) as any[]).map(p=>{const f:any=byProduct.get(p.id)??{};return{
+      productId:p.id,sku:p.sku??"",name:p.name,internalCode:p.internal_code??"",manufacturerCode:p.manufacturer_code??"",gtin:p.gtin??"",
+      ncm:f.ncm??"",cest:f.cest??"",origin:f.origin??0,cfopInState:f.cfop_in_state??"",cfopOutState:f.cfop_out_state??"",
+      icmsCst:f.icms_cst??"",icmsCsosn:f.icms_csosn??"",icmsRate:f.icms_rate??0,pisCst:f.pis_cst??"",pisRate:f.pis_rate??0,
+      cofinsCst:f.cofins_cst??"",cofinsRate:f.cofins_rate??0,notes:f.notes??""
+    }});
+  });
+
+export const importFiscalProfiles = createServerFn({method:"POST"}).middleware([requireSupabaseAuth])
+  .inputValidator((input:{rows:FiscalCsvRow[]})=>input)
+  .handler(async({data,context})=>{
+    const sb=tdb(context.supabase);await requireSupplyRole(sb,context.userId,context.tenantId,SUPPLY_APPROVE_ROLES);
+    const digits=(v:unknown)=>String(v??"").replace(/\D/g,"");const rows=data.rows.slice(0,500);
+    if(!rows.length)throw new Error("A planilha não contém linhas para importar");
+    const errors:string[]=[];const seen=new Set<string>();
+    rows.forEach((r,i)=>{const line=i+2;if(!r.productId||seen.has(r.productId))errors.push(`Linha ${line}: produto ausente ou duplicado`);seen.add(r.productId);
+      if(!/^\d{8}$/.test(digits(r.ncm)))errors.push(`Linha ${line}: NCM inválido`);
+      if(r.cest&&!/^\d{7}$/.test(digits(r.cest)))errors.push(`Linha ${line}: CEST inválido`);
+      if(!/^\d{4}$/.test(digits(r.cfopInState))||!/^\d{4}$/.test(digits(r.cfopOutState)))errors.push(`Linha ${line}: CFOP de venda inválido`);
+      if(!Number.isInteger(Number(r.origin))||Number(r.origin)<0||Number(r.origin)>8)errors.push(`Linha ${line}: origem inválida`);
+    });
+    if(errors.length)throw new Error(errors.slice(0,8).join(" · "));
+    const ids=rows.map(r=>r.productId);const check=await sb.from("products").select("id").eq("tenant_id",context.tenantId).in("id",ids);
+    if(check.error)throw new Error(check.error.message);if((check.data??[]).length!==ids.length)throw new Error("A planilha contém produto inexistente ou de outra empresa");
+    const values=rows.map(r=>({tenant_id:context.tenantId,product_id:r.productId,ncm:digits(r.ncm),cest:digits(r.cest)||null,origin:Number(r.origin),
+      cfop_in_state:digits(r.cfopInState),cfop_out_state:digits(r.cfopOutState),icms_cst:r.icmsCst?.trim()||null,icms_csosn:r.icmsCsosn?.trim()||null,
+      icms_rate:Number(r.icmsRate??0),pis_cst:r.pisCst?.trim()||null,pis_rate:Number(r.pisRate??0),cofins_cst:r.cofinsCst?.trim()||null,
+      cofins_rate:Number(r.cofinsRate??0),notes:r.notes?.trim()||"Importado por planilha fiscal",created_by:context.userId,updated_by:context.userId,updated_at:new Date().toISOString()}));
+    const result=await sb.from("product_fiscal_profiles").upsert(values,{onConflict:"tenant_id,product_id"});if(result.error)throw new Error(result.error.message);
+    return{ok:true,updated:values.length};
   });
 
 export const createFiscalDraft = createServerFn({method:"POST"}).middleware([requireSupabaseAuth])
