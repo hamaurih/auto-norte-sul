@@ -2,6 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { supabaseUrl, supabasePublishableKey, missingSupabaseEnvMessage } from './env';
+import { activeTenantSlug, TENANT_HEADER } from './tenant';
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
@@ -23,10 +24,17 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
     }
 
     headers.set('apikey', supabaseKey);
+
+    // Public catalog RLS resolves the isolated storefront from this header.
+    // On SSR this returns the production default; in the browser it respects
+    // the explicit environment switcher used by authorized staff.
+    if (!headers.has(TENANT_HEADER)) {
+      headers.set(TENANT_HEADER, activeTenantSlug());
+    }
+
     return fetch(input, { ...init, headers });
   };
 }
-
 
 function createSupabaseClient() {
   // Use import.meta.env for client-side (Vite build-time replacement)
@@ -62,4 +70,3 @@ export const supabase = new Proxy({} as ReturnType<typeof createSupabaseClient>,
     return Reflect.get(_supabase, prop, receiver);
   },
 });
-
