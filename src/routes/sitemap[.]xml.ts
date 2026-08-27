@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 
-const BASE_URL = "https://project--85fdfc37-b145-4339-b4a4-c0cd11eacb03.lovable.app";
+const BASE_URL = "https://www.nortesulauto.com.br";
 
 interface Entry { path: string; changefreq?: string; priority?: string }
 
