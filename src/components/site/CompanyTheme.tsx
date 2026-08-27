@@ -6,6 +6,7 @@ export function CompanyTheme() {
 
   useEffect(() => {
     if (!data) return;
+
     const root = document.documentElement;
     root.style.setProperty("--primary", data.primary_color);
     root.style.setProperty("--brand", data.primary_color);
@@ -15,13 +16,21 @@ export function CompanyTheme() {
     document.title = data.store_title || data.trade_name;
 
     if (data.favicon_url) {
-      let favicon = document.querySelector<HTMLLinkElement>("link[rel='icon']");
-      if (!favicon) {
-        favicon = document.createElement("link");
-        favicon.rel = "icon";
-        document.head.appendChild(favicon);
-      }
+      document
+        .querySelectorAll<HTMLLinkElement>("link[rel='icon'], link[rel='shortcut icon']")
+        .forEach((icon) => icon.remove());
+
+      const favicon = document.createElement("link");
+      favicon.rel = "icon";
+      favicon.type = "image/webp";
       favicon.href = data.favicon_url;
+      document.head.appendChild(favicon);
+
+      const shortcutIcon = document.createElement("link");
+      shortcutIcon.rel = "shortcut icon";
+      shortcutIcon.type = "image/webp";
+      shortcutIcon.href = data.favicon_url;
+      document.head.appendChild(shortcutIcon);
     }
   }, [data]);
 
