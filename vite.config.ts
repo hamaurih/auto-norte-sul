@@ -7,17 +7,19 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
 
+const isVercel = Boolean(process.env.VERCEL);
+
 export default defineConfig({
   tanstackStart: {
     server: { entry: "server" },
   },
-  // Vercel hosts the production app independently from Lovable.
-  // Nitro still auto-detects local/Lovable environments, while production builds
-  // generate Vercel's serverless output instead of the previous Cloudflare target.
+  // Vercel hosts production independently from Lovable.
   nitro: {
-    preset: process.env.VERCEL ? "vercel" : "cloudflare",
+    preset: isVercel ? "vercel" : "cloudflare",
   },
   vite: {
-    plugins: [mcpPlugin()],
+    // The Lovable MCP plugin expects Lovable's OAuth issuer at runtime.
+    // Excluding it on Vercel prevents SSR failures while preserving Lovable development.
+    plugins: isVercel ? [] : [mcpPlugin()],
   },
 });
