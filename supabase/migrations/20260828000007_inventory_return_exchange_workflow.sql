@@ -85,7 +85,7 @@ alter table public.inventory_return_items enable row level security;
 alter table public.inventory_quarantine enable row level security;
 
 revoke all on public.inventory_returns, public.inventory_return_items, public.inventory_quarantine
-  from public, anon;
+  from public, anon, authenticated;
 grant select on public.inventory_returns, public.inventory_return_items, public.inventory_quarantine
   to authenticated;
 grant all on public.inventory_returns, public.inventory_return_items, public.inventory_quarantine
