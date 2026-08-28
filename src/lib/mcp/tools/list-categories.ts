@@ -1,21 +1,14 @@
-import { createClient } from "@supabase/supabase-js";
 import { defineTool } from "@lovable.dev/mcp-js";
+import { createMcpSupabase } from "../supabase.server";
 
 export default defineTool({
   name: "list_categories",
   title: "List categories",
-  description: "List all active product categories with their slug. Use to help the customer navigate the catalog or to narrow searches.",
+  description: "List active product categories with their slug.",
   inputSchema: {},
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async () => {
-    const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_PUBLISHABLE_KEY!,
-      {
-        global: { headers: { "x-tenant-slug": process.env.PUBLIC_TENANT_SLUG ?? "norte-sul-real" } },
-        auth: { persistSession: false, autoRefreshToken: false },
-      },
-    );
+    const supabase = createMcpSupabase();
     const { data, error } = await supabase
       .from("categories")
       .select("id, name, slug, parent_id")

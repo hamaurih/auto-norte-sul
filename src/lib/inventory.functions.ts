@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { tdb } from "@/integrations/supabase/tenant-db";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 
@@ -113,11 +114,14 @@ export const listStockByProduct = createServerFn({ method: "GET" })
 
 export const adjustStock = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: {
-    product_id: string; warehouse_id: string;
-    type: "IN" | "OUT" | "ADJUST"; qty: number;
-    reference?: string; notes?: string;
-  }) => input)
+  .inputValidator((input) => z.object({
+    product_id: z.string().uuid(),
+    warehouse_id: z.string().uuid(),
+    type: z.enum(["IN", "OUT", "ADJUST"]),
+    qty: z.number().int(),
+    reference: z.string().trim().max(200).optional(),
+    notes: z.string().trim().max(2000).optional(),
+  }).parse(input))
   .handler(async ({ data, context }) => {
     const membership = await requireTenantRole(
       tdb(context.supabase),
@@ -125,39 +129,22 @@ export const adjustStock = createServerFn({ method: "POST" })
       context.tenantId,
       ["owner", "admin", "manager", "stock"],
     );
-    const sb = tdb(context.supabase);
-    // upsert product_stock row
-    const { data: existing } = await sb
-      .from("product_stock")
-      .select("id, on_hand")
-      .eq("tenant_id", membership.tenant_id)
-      .eq("product_id", data.product_id)
-      .eq("warehouse_id", data.warehouse_id)
-      .maybeSingle();
-    const delta = data.type === "OUT" ? -Math.abs(data.qty) : data.type === "IN" ? Math.abs(data.qty) : data.qty;
-    const newOnHand = data.type === "ADJUST" ? data.qty : Math.max((existing?.on_hand ?? 0) + delta, 0);
-    if (existing) {
-      const { error } = await sb.from("product_stock").update({ on_hand: newOnHand }).eq("id", existing.id).eq("tenant_id", membership.tenant_id);
-      if (error) throw new Error(error.message);
-    } else {
-      const { error } = await sb.from("product_stock").insert({
-        tenant_id: membership.tenant_id,
-        product_id: data.product_id, warehouse_id: data.warehouse_id, on_hand: newOnHand,
-      });
-      if (error) throw new Error(error.message);
+    if (data.type === "ADJUST" ? data.qty < 0 : data.qty <= 0) {
+      throw new Error(data.type === "ADJUST" ? "O estoque não pode ser negativo" : "A quantidade deve ser maior que zero");
     }
-    const { error: movementError } = await sb.from("stock_movements").insert({
-      tenant_id: membership.tenant_id,
-      product_id: data.product_id,
-      warehouse_id: data.warehouse_id,
-      type: data.type,
-      qty: Math.abs(data.qty),
-      reference: data.reference ?? null,
-      notes: data.notes ?? null,
-      user_id: context.userId,
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: newOnHand, error } = await (supabaseAdmin as any).rpc("adjust_product_stock", {
+      p_tenant_id: membership.tenant_id,
+      p_product_id: data.product_id,
+      p_warehouse_id: data.warehouse_id,
+      p_type: data.type,
+      p_qty: data.type === "ADJUST" ? data.qty : Math.abs(data.qty),
+      p_reference: data.reference?.trim() || null,
+      p_notes: data.notes?.trim() || null,
+      p_user_id: context.userId,
     });
-    if (movementError) throw new Error(movementError.message);
-    return { ok: true, on_hand: newOnHand };
+    if (error) throw new Error(error.message);
+    return { ok: true, on_hand: Number(newOnHand) };
   });
 
 export const listMovements = createServerFn({ method: "GET" })
