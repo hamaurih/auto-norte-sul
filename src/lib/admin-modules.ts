@@ -1,4 +1,5 @@
 import {
+  ArrowLeftRight,
   BarChart3,
   BadgeDollarSign,
   Bot,
@@ -101,6 +102,7 @@ export const adminModules: AdminModule[] = [
     accent: "bg-cyan-100 text-cyan-700",
     shortcuts: [
       { to: "/admin/estoque", label: "Estoque", description: "Saldos e ajustes", icon: Warehouse },
+      { to: "/admin/estoque#devolucoes", label: "Devoluções e trocas", description: "Quarentena e substituições", icon: ArrowLeftRight },
       { to: "/admin/filiais", label: "Filiais e Depósitos", description: "Estrutura física", icon: Building2 },
     ],
   },
