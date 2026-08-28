@@ -65,6 +65,58 @@ type TenantMembership = {
 };
 type ProfileRecord = { id: string; full_name: string | null; phone: string | null };
 
+function isPermissionsTableMissing(error: unknown): boolean {
+  const typed = error as { code?: string; message?: string } | null | undefined;
+  const message = String(typed?.message ?? error ?? "").toLowerCase();
+  return (
+    typed?.code === "42P01" ||
+    (message.includes("tenant_user_permissions") &&
+      (message.includes("does not exist") ||
+        message.includes("schema cache") ||
+        message.includes("could not find the table")))
+  );
+}
+
+function permissionsFromAppMetadata(
+  user: User | null | undefined,
+  tenantId: string,
+): ModulePermission[] | null {
+  const byTenant = user?.app_metadata?.tenant_permissions;
+  if (!byTenant || typeof byTenant !== "object" || Array.isArray(byTenant)) return null;
+  const rows = (byTenant as Record<string, unknown>)[tenantId];
+  return Array.isArray(rows) ? (rows as ModulePermission[]) : null;
+}
+
+async function savePermissionsToAppMetadata(
+  supabaseAdmin: TenantDb,
+  tenantId: string,
+  userId: string,
+  permissions: ModulePermission[],
+) {
+  const { data: current, error: currentError } = await supabaseAdmin.auth.admin.getUserById(userId);
+  if (currentError || !current.user) {
+    throw new Error(currentError?.message ?? "Usuário de autenticação não encontrado.");
+  }
+
+  const metadata = (current.user.app_metadata ?? {}) as Record<string, unknown>;
+  const existingByTenant =
+    metadata.tenant_permissions &&
+    typeof metadata.tenant_permissions === "object" &&
+    !Array.isArray(metadata.tenant_permissions)
+      ? (metadata.tenant_permissions as Record<string, unknown>)
+      : {};
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+    app_metadata: {
+      ...metadata,
+      tenant_permissions: {
+        ...existingByTenant,
+        [tenantId]: permissions,
+      },
+    },
+  });
+  if (error) throw new Error(error.message);
+}
+
 function tenantRoleForSystemRole(role: SystemRole): TenantRole {
   const roles: Record<SystemRole, TenantRole> = {
     admin: "admin",
@@ -158,10 +210,13 @@ async function requireTenantAdmin(
       .eq("user_id", userId)
       .eq("module_key", "users")
       .maybeSingle();
-    if (usersPermissionError) throw new Error(usersPermissionError.message);
+    const permissionsTableMissing = isPermissionsTableMissing(usersPermissionError);
+    if (usersPermissionError && !permissionsTableMissing) {
+      throw new Error(usersPermissionError.message);
+    }
     const permissionField =
       action === "create" ? "can_create" : action === "update" ? "can_update" : "can_view";
-    if (usersPermission && !usersPermission[permissionField]) {
+    if (!permissionsTableMissing && usersPermission && !usersPermission[permissionField]) {
       throw new Error("Seu usuário não possui essa permissão no módulo de usuários.");
     }
     return membership as TenantMembership;
@@ -224,7 +279,14 @@ async function savePermissions(
     permissions.map((permission) => ({ tenant_id: tenantId, user_id: userId, ...permission })),
     { onConflict: "tenant_id,user_id,module_key" },
   );
-  if (error) throw new Error(error.message);
+  if (!error) return;
+  if (isPermissionsTableMissing(error)) {
+    // Temporary compatibility while the production schema cache catches up.
+    // The same scoped permissions remain server-side in Auth metadata.
+    await savePermissionsToAppMetadata(supabaseAdmin, tenantId, userId, permissions);
+    return;
+  }
+  throw new Error(error.message);
 }
 
 async function syncSalesRep(
@@ -316,10 +378,7 @@ export const listTenantUsers = createServerFn({ method: "GET" })
     const ids = (memberships ?? []).map((membership: { user_id: string }) => membership.user_id);
     if (ids.length === 0) return [] as ManagedUser[];
 
-    const [
-      { data: profiles, error: profileError },
-      { data: permissionRows, error: permissionError },
-    ] = await Promise.all([
+    const [profilesResult, permissionsResult] = await Promise.all([
       supabaseAdmin.from("profiles").select("id, full_name, phone").in("id", ids),
       supabaseAdmin
         .from("tenant_user_permissions")
@@ -327,8 +386,11 @@ export const listTenantUsers = createServerFn({ method: "GET" })
         .eq("tenant_id", context.tenantId)
         .in("user_id", ids),
     ]);
+    const { data: profiles, error: profileError } = profilesResult;
+    const { data: permissionRows, error: permissionError } = permissionsResult;
+    const permissionTableMissing = isPermissionsTableMissing(permissionError);
     if (profileError) throw new Error(profileError.message);
-    if (permissionError) throw new Error(permissionError.message);
+    if (permissionError && !permissionTableMissing) throw new Error(permissionError.message);
 
     const authUsers: User[] = [];
     for (let page = 1; page <= 100; page += 1) {
@@ -343,6 +405,12 @@ export const listTenantUsers = createServerFn({ method: "GET" })
     );
     const authById = new Map<string, User>(authUsers.map((user) => [user.id, user]));
     const permissionsByUser = new Map<string, ModulePermission[]>();
+    if (permissionTableMissing) {
+      for (const authUser of authUsers) {
+        const metadataRows = permissionsFromAppMetadata(authUser, context.tenantId);
+        if (metadataRows) permissionsByUser.set(authUser.id, metadataRows);
+      }
+    }
     for (const row of permissionRows ?? []) {
       const list = permissionsByUser.get(row.user_id) ?? [];
       list.push(row as ModulePermission);
