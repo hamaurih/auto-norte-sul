@@ -69,7 +69,7 @@ export const productUpsert = createServerFn({ method: "POST" })
     };
     let productId = id;
     if (id) {
-      const { error } = await supabase.from("products").update(payload).eq("id", id).eq("tenant_id", membership.tenant_id);
+      const { error } = await supabase.from("products").update(payload).eq("id", id).eq("tenant_id", membership.tenant_id).is("deleted_at", null);
       if (error) throw new Error(error.message);
     } else {
       const { data: inserted, error } = await supabase.from("products").insert(payload).select("id").single();
@@ -102,9 +102,10 @@ export const productDelete = createServerFn({ method: "POST" })
     const membership = await requireCatalogTenant(tdb(context.supabase), context.userId, context.tenantId);
     const { error } = await tdb(context.supabase)
       .from("products")
-      .delete()
+      .update({ deleted_at: new Date().toISOString(), active: false } as any)
       .eq("id", data.id)
-      .eq("tenant_id", membership.tenant_id);
+      .eq("tenant_id", membership.tenant_id)
+      .is("deleted_at", null);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -115,7 +116,7 @@ export const productToggle = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const membership = await requireCatalogTenant(tdb(context.supabase), context.userId, context.tenantId);
     const patch: Record<string, boolean> = { [data.field]: data.value };
-    const { error } = await tdb(context.supabase).from("products").update(patch as never).eq("id", data.id).eq("tenant_id", membership.tenant_id);
+    const { error } = await tdb(context.supabase).from("products").update(patch as never).eq("id", data.id).eq("tenant_id", membership.tenant_id).is("deleted_at", null);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -130,6 +131,8 @@ export const productDuplicate = createServerFn({ method: "POST" })
       .select("*")
       .eq("id", data.id)
       .eq("tenant_id", membership.tenant_id)
+      .is("deleted_at", null)
+      .eq("active", true)
       .single();
     if (error || !src) throw new Error(error?.message ?? "Produto não encontrado");
     const suffix = Math.random().toString(36).slice(2, 6);
@@ -167,6 +170,7 @@ export const checkInternalCodeDuplicate = createServerFn({ method: "POST" })
       .select("id, name, sku")
       .eq("tenant_id", membership.tenant_id)
       .eq("internal_code", code)
+      .is("deleted_at", null)
       .limit(5);
     if (data.excludeId) q = q.neq("id", data.excludeId);
     const { data: rows, error } = await q;

@@ -1,7 +1,8 @@
-import { createClient } from "@supabase/supabase-js";
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import { normalizeTerm } from "../../normalize";
+import { sanitizeSearchTerm, sanitizeOrQuery } from "../../sanitize";
+import { createMcpSupabase } from "../supabase.server";
 
 export default defineTool({
   name: "search_products",
@@ -20,24 +21,18 @@ export default defineTool({
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ query, brand, limit, in_stock_only }) => {
-    const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_PUBLISHABLE_KEY!,
-      {
-        global: { headers: { "x-tenant-slug": process.env.PUBLIC_TENANT_SLUG ?? "norte-sul-real" } },
-        auth: { persistSession: false, autoRefreshToken: false },
-      },
-    );
-    const safe = query.replace(/[,()]/g, " ");
+    const supabase = createMcpSupabase();
+    const safe = sanitizeOrQuery(sanitizeSearchTerm(query));
 
     // Detect brand: match query or explicit `brand` param against brands table
     const brandTerm = (brand ?? query).trim().toLowerCase();
+    const safeBrandTerm = sanitizeOrQuery(sanitizeSearchTerm(brandTerm));
     let matchedBrand: { id: string; name: string; slug: string } | null = null;
-    if (brandTerm.length >= 2) {
+    if (safeBrandTerm.length >= 2) {
       const { data: brands } = await supabase
         .from("brands")
         .select("id, name, slug")
-        .or(`name.ilike.%${brandTerm}%,slug.ilike.%${brandTerm}%`)
+        .or(`name.ilike.%${safeBrandTerm}%,slug.ilike.%${safeBrandTerm}%`)
         .limit(3);
       // Prefer exact match if any
       const exact = (brands ?? []).find(
@@ -79,6 +74,7 @@ export default defineTool({
         "id, sku, name, slug, short_description, price_b2c, sale_price_b2c, compare_at_price, stock, active, brand:brands(name, slug), images:product_images(url, is_primary, sort_order)",
       )
       .eq("active", true)
+      .is("deleted_at", null)
       .order("sales_count", { ascending: false })
       .limit(limit ?? 10);
 

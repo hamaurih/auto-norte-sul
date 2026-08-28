@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
+import { z } from "zod";
 
 export type StorefrontOrderInput = {
   customer: {
@@ -20,18 +21,61 @@ export type StorefrontOrderInput = {
   idempotencyKey: string;
 };
 
+export type ValidatedCartItem = {
+  product_id: string;
+  sku: string;
+  name: string;
+  quantity: number;
+  unit_price: number;
+  list_price: number;
+  stock_available: number;
+};
+
+const storefrontOrderSchema = z.object({
+  customer: z.object({
+    name: z.string().trim().min(3).max(120),
+    email: z.string().trim().email().max(255),
+    phone: z.string().trim().min(8).max(30),
+    document: z.string().trim().min(11).max(20),
+    shipping_zip: z.string().trim().min(8).max(10),
+    shipping_street: z.string().trim().min(2).max(200),
+    shipping_number: z.string().trim().min(1).max(20),
+    shipping_complement: z.string().trim().max(120).optional().or(z.literal("")),
+    shipping_neighborhood: z.string().trim().min(2).max(120),
+    shipping_city: z.string().trim().min(2).max(120),
+    shipping_state: z.string().trim().length(2),
+  }),
+  items: z.array(z.object({ product_id: z.string().uuid(), quantity: z.number().int().min(1).max(1000) }))
+    .min(1).max(100),
+  paymentMethod: z.enum(["pix", "cartao", "boleto", "faturado_b2b"]),
+  idempotencyKey: z.string().uuid(),
+});
+const orderIdInputSchema = z.object({ orderId: z.string().uuid() });
+
 export const createStorefrontOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: StorefrontOrderInput) => input)
+  .inputValidator((input) => storefrontOrderSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: validatedItems, error: validationError } = await (supabaseAdmin as any).rpc(
+      "validate_cart_items",
+      { p_tenant_id: context.tenantId, p_items: data.items },
+    );
+    if (validationError) throw new Error(`Validação: ${validationError.message}`);
+    if (!Array.isArray(validatedItems) || validatedItems.length === 0) {
+      throw new Error("Nenhum item válido no carrinho");
+    }
     const { data: orderId, error } = await (supabaseAdmin as any).rpc(
       "internal_create_storefront_order",
       {
         p_user_id: context.userId,
         p_tenant_slug: context.tenantSlug,
         p_customer: data.customer,
-        p_items: data.items,
+        p_items: validatedItems.map((item: ValidatedCartItem) => ({
+          product_id: item.product_id,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+        })),
         p_payment_method: data.paymentMethod,
         p_idempotency_key: data.idempotencyKey,
       },
@@ -43,7 +87,7 @@ export const createStorefrontOrder = createServerFn({ method: "POST" })
 
 export const cancelOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string }) => input)
+  .inputValidator((input) => orderIdInputSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: status, error } = await (supabaseAdmin as any).rpc(
@@ -60,7 +104,7 @@ export const cancelOrder = createServerFn({ method: "POST" })
 
 export const confirmOrderPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string }) => input)
+  .inputValidator((input) => orderIdInputSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: status, error } = await (supabaseAdmin as any).rpc(
@@ -91,7 +135,7 @@ const operationalStatus = {
 
 export const getAdminOrderDetail = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string }) => input)
+  .inputValidator((input) => orderIdInputSchema.parse(input))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
     const { data: order, error: orderError } = await sb

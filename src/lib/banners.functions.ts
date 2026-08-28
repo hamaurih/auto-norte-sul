@@ -1,11 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
+import { assertStaff } from "@/lib/auth-guards";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-async function assertStaff(supabase: any, userId: string) {
-  const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-  const isStaff = (roles ?? []).some((r: { role: string }) => r.role === "admin" || r.role === "gerente");
-  if (!isStaff) throw new Error("Forbidden");
-}
 
 export type BannerInput = {
   id?: string | null;

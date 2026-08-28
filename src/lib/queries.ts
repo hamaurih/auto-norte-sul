@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeTerm } from "./normalize";
+import { sanitizeSearchTerm, sanitizeOrQuery } from "./sanitize";
 
 // Resolve termo → alias (categoria/marca/produto). Retorna o alias de maior peso ativo.
 export async function resolveAlias(term: string) {
@@ -81,6 +82,7 @@ export async function fetchFeatured(): Promise<ProductRow[]> {
     .from("products")
     .select(PRODUCT_LIST_SELECT)
     .eq("active", true)
+    .is("deleted_at", null)
     .eq("featured", true)
     .limit(12);
   if (curated.error) console.error("Erro ao carregar produtos em destaque", curated.error);
@@ -89,6 +91,7 @@ export async function fetchFeatured(): Promise<ProductRow[]> {
     .from("products")
     .select(PRODUCT_LIST_SELECT)
     .eq("active", true)
+    .is("deleted_at", null)
     .order("name")
     .limit(12);
   if (error) {
@@ -103,6 +106,7 @@ export async function fetchOffers(): Promise<ProductRow[]> {
     .from("products")
     .select(PRODUCT_LIST_SELECT)
     .eq("active", true)
+    .is("deleted_at", null)
     .or("is_offer.eq.true,sale_price_b2c.not.is.null")
     .order("sales_count", { ascending: false })
     .limit(12);
@@ -121,6 +125,7 @@ export async function fetchNewArrivals(): Promise<ProductRow[]> {
     .from("products")
     .select(PRODUCT_LIST_SELECT)
     .eq("active", true)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(12);
   if (error) {
@@ -135,6 +140,7 @@ export async function fetchBestSellers(): Promise<ProductRow[]> {
     .from("products")
     .select(PRODUCT_LIST_SELECT)
     .eq("active", true)
+    .is("deleted_at", null)
     .order("sales_count", { ascending: false })
     .order("name")
     .limit(12);
@@ -157,21 +163,24 @@ export interface CatalogFilters {
 }
 
 export async function fetchCatalog(f: CatalogFilters = {}): Promise<ProductRow[]> {
-  let q = supabase.from("products").select(PRODUCT_LIST_SELECT).eq("active", true);
+  let q = supabase.from("products").select(PRODUCT_LIST_SELECT).eq("active", true)
+    .is("deleted_at", null);
 
   let brandIdFromQuery: string | null = null;
   let categoryIdFromAlias: string | null = null;
   if (f.q) {
-    const term = f.q.trim().toLowerCase();
+    const rawTerm = f.q.trim().toLowerCase();
+    const term = sanitizeSearchTerm(f.q).toLowerCase();
+    const safe = sanitizeOrQuery(term);
 
     // 1) Marca por match de nome/slug
     if (term.length >= 2 && !f.brand) {
       const { data: brands } = await supabase
         .from("brands")
         .select("id, name, slug")
-        .or(`name.ilike.%${term}%,slug.ilike.%${term}%`)
+        .or(`name.ilike.%${safe}%,slug.ilike.%${safe}%`)
         .limit(3);
-      const exact = (brands ?? []).find((b) => b.name.toLowerCase() === term || b.slug.toLowerCase() === term);
+      const exact = (brands ?? []).find((b) => b.name.toLowerCase() === rawTerm || b.slug.toLowerCase() === rawTerm);
       const chosen = exact ?? brands?.[0] ?? null;
       if (chosen) brandIdFromQuery = chosen.id;
     }
@@ -194,7 +203,7 @@ export async function fetchCatalog(f: CatalogFilters = {}): Promise<ProductRow[]
 
     // 3) Se nada casou por marca/alias, busca textual normal
     if (!brandIdFromQuery && !categoryIdFromAlias) {
-      q = q.or(`name.ilike.%${f.q}%,sku.ilike.%${f.q}%,short_description.ilike.%${f.q}%`);
+      q = q.or(`name.ilike.%${safe}%,sku.ilike.%${safe}%,short_description.ilike.%${safe}%`);
     }
   }
   if (brandIdFromQuery) q = q.eq("brand_id", brandIdFromQuery);
@@ -241,6 +250,7 @@ export async function fetchProductBySlug(slug: string): Promise<ProductRow | nul
     .select(PRODUCT_SELECT)
     .eq("slug", slug)
     .eq("active", true)
+    .is("deleted_at", null)
     .maybeSingle();
   if (error) {
     console.error("Erro ao carregar produto", error);
@@ -258,7 +268,8 @@ export async function fetchProductApplications(productId: string) {
 }
 
 export async function fetchRelated(categorySlug: string | null, excludeId: string) {
-  let q = supabase.from("products").select(PRODUCT_LIST_SELECT).eq("active", true).neq("id", excludeId).limit(8);
+  let q = supabase.from("products").select(PRODUCT_LIST_SELECT).eq("active", true)
+    .is("deleted_at", null).neq("id", excludeId).limit(8);
   if (categorySlug) {
     const { data: cat } = await supabase.from("categories").select("id").eq("slug", categorySlug).maybeSingle();
     if (cat) q = q.eq("category_id", cat.id);
@@ -279,14 +290,14 @@ export interface SearchSuggestion {
 export async function fetchSearchSuggestions(term: string, limit = 8): Promise<SearchSuggestion[]> {
   const q = term.trim();
   if (q.length < 2) return [];
-  const safe = q.replace(/[,()]/g, " ");
+  const safe = sanitizeOrQuery(sanitizeSearchTerm(q));
   const lower = q.toLowerCase();
 
   // Se casar com marca, retornar top produtos da marca
   const { data: brands } = await supabase
     .from("brands")
     .select("id, name, slug")
-    .or(`name.ilike.%${lower}%,slug.ilike.%${lower}%`)
+    .or(`name.ilike.%${safe}%,slug.ilike.%${safe}%`)
     .limit(3);
   const brandMatch = (brands ?? []).find(
     (b) => b.name.toLowerCase() === lower || b.slug.toLowerCase() === lower,
@@ -295,7 +306,8 @@ export async function fetchSearchSuggestions(term: string, limit = 8): Promise<S
   let query = supabase
     .from("products")
     .select("id, sku, name, slug, price_b2c, images:product_images(url, is_primary, sort_order)")
-    .eq("active", true);
+    .eq("active", true)
+    .is("deleted_at", null);
   if (brandMatch) {
     query = query.eq("brand_id", brandMatch.id);
   } else {

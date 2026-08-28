@@ -1,11 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
+import { assertAdmin } from "@/lib/auth-guards";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-async function assertAdmin(supabase: any, userId: string) {
-  const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-  const isAdmin = (roles ?? []).some((r: { role: string }) => r.role === "admin");
-  if (!isAdmin) throw new Error("Forbidden");
-}
 
 export const integrationSetStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

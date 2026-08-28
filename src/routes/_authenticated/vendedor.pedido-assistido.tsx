@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState, useCallback } from "react";
 import { brl } from "@/lib/format";
 import { toast } from "sonner";
+import { searchProductsForAssist, createAssistOrder } from "@/lib/vendedor.functions";
+import { maskPhone, maskDocument } from "@/lib/format-input";
 
 export const Route = createFileRoute("/_authenticated/vendedor/pedido-assistido")({
   head: () => ({ meta: [{ title: "Pedido assistido · Vendedor" }] }),
@@ -13,124 +14,155 @@ export const Route = createFileRoute("/_authenticated/vendedor/pedido-assistido"
 interface Item { product_id: string; sku: string; name: string; price: number; qty: number }
 
 function PedidoAssistido() {
-  const [search, setSearch] = useState("");
-  const [items, setItems] = useState<Item[]>([]);
-  const [lead, setLead] = useState({ lead_name: "", lead_email: "", lead_phone: "", lead_cnpj: "", notes: "" });
-
-  const { data: results = [] } = useQuery({
-    queryKey: ["asst-search", search],
-    enabled: search.length >= 2,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("products")
-        .select("id, sku, name, price_b2c, price_b2b, stock")
-        .eq("active", true)
-        .or(`name.ilike.%${search}%,sku.ilike.%${search}%`)
-        .limit(10);
-      return data ?? [];
-    },
+  const [search, setSearch]  = useState("");
+  const [items, setItems]    = useState<Item[]>([]);
+  const [lead, setLead]      = useState({
+    lead_name: "", lead_email: "", lead_phone: "", lead_cnpj: "", notes: "",
   });
 
-  function addItem(p: any) {
-    const price = Number(p.price_b2b ?? p.price_b2c);
-    setItems((prev) => {
-      const found = prev.find((i) => i.product_id === p.id);
-      if (found) return prev.map((i) => (i.product_id === p.id ? { ...i, qty: i.qty + 1 } : i));
-      return [...prev, { product_id: p.id, sku: p.sku, name: p.name, price, qty: 1 }];
-    });
-  }
+  // SEC-04: usa server function com autenticação e filtro de tenant
+  const { data: results = [], isFetching } = useQuery({
+    queryKey: ["asst-search", search],
+    enabled:  search.length >= 2,
+    queryFn:  () => searchProductsForAssist({ data: { q: search, limit: 10 } }),
+  });
 
-  const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
-
-  async function save(status: "rascunho" | "enviado") {
-    const { data: userRes } = await supabase.auth.getUser();
-    const { data: rep } = await supabase.from("sales_reps").select("id").eq("user_id", userRes.user!.id).maybeSingle();
-    if (!rep) return toast.error("Perfil vendedor não encontrado");
-
-    const { error } = await supabase.from("sales_orders").insert({
-      rep_id: rep.id,
-      ...lead,
-      items: items as any,
-      subtotal,
-      total: subtotal,
-      status,
-    });
-    if (error) toast.error(error.message);
-    else {
+  const save = useMutation({
+    mutationFn: (status: "rascunho" | "enviado") =>
+      createAssistOrder({
+        data: { ...lead, items, status },
+      }),
+    onSuccess: (_, status) => {
       toast.success(status === "enviado" ? "Pedido enviado" : "Rascunho salvo");
       setItems([]);
       setLead({ lead_name: "", lead_email: "", lead_phone: "", lead_cnpj: "", notes: "" });
-    }
-  }
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
+  });
+
+  const addItem = useCallback((p: any) => {
+    const price = Number(p.price_b2b ?? p.price_b2c);
+    setItems((prev) => {
+      const found = prev.find((i) => i.product_id === p.id);
+      if (found) return prev.map((i) => i.product_id === p.id ? { ...i, qty: i.qty + 1 } : i);
+      return [...prev, { product_id: p.id, sku: p.sku, name: p.name, price, qty: 1 }];
+    });
+  }, []);
+
+  const removeItem = (product_id: string) =>
+    setItems((prev) => prev.filter((i) => i.product_id !== product_id));
+
+  const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-      <div className="space-y-4">
-        <div>
-          <input
-            placeholder="Buscar produto por nome ou SKU..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded border border-border bg-background p-2 text-sm"
-          />
-          {results.length > 0 && (
-            <div className="mt-2 max-h-64 overflow-y-auto rounded border border-border bg-card">
-              {results.map((p) => (
-                <button key={p.id} onClick={() => addItem(p)} className="flex w-full items-center justify-between border-b border-border p-2 text-left text-sm hover:bg-muted">
-                  <span>
-                    <b>{p.name}</b> <span className="text-xs text-muted-foreground">({p.sku}) · estoque {p.stock}</span>
-                  </span>
-                  <span className="price-tag">{brl(Number(p.price_b2b ?? p.price_b2c))}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+    <div className="p-4 space-y-6 max-w-3xl">
+      <h1 className="font-display text-2xl font-bold uppercase">Pedido assistido</h1>
 
-        <div className="rounded-lg border border-border bg-card">
-          <table className="w-full text-sm">
-            <thead className="bg-muted text-xs uppercase">
-              <tr><th className="p-2 text-left">Produto</th><th className="p-2 text-right">Qtd</th><th className="p-2 text-right">Preço</th><th className="p-2 text-right">Subtotal</th><th></th></tr>
-            </thead>
-            <tbody>
-              {items.length === 0 && <tr><td colSpan={5} className="p-4 text-center text-xs text-muted-foreground">Nenhum item</td></tr>}
-              {items.map((i, idx) => (
-                <tr key={i.product_id} className="border-t border-border">
-                  <td className="p-2">{i.name}</td>
-                  <td className="p-2 text-right">
-                    <input type="number" min={1} value={i.qty} onChange={(e) => {
-                      const q = Math.max(1, Number(e.target.value));
-                      setItems((prev) => prev.map((it, j) => (j === idx ? { ...it, qty: q } : it)));
-                    }} className="w-16 rounded border border-border bg-background p-1 text-right" />
-                  </td>
-                  <td className="p-2 text-right">{brl(i.price)}</td>
-                  <td className="p-2 text-right price-tag">{brl(i.price * i.qty)}</td>
-                  <td className="p-2 text-right">
-                    <button onClick={() => setItems((prev) => prev.filter((_, j) => j !== idx))} className="text-destructive">✕</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Dados do lead */}
+      <fieldset className="rounded-lg border border-border bg-card p-4 space-y-3">
+        <legend className="px-2 text-sm font-bold uppercase">Cliente / Lead</legend>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Fld label="Nome">
+            <input value={lead.lead_name} onChange={(e) => setLead((l) => ({ ...l, lead_name: e.target.value }))} className={inp} />
+          </Fld>
+          <Fld label="Email">
+            <input type="email" value={lead.lead_email} onChange={(e) => setLead((l) => ({ ...l, lead_email: e.target.value }))} className={inp} />
+          </Fld>
+          <Fld label="WhatsApp">
+            <input value={lead.lead_phone} onChange={(e) => setLead((l) => ({ ...l, lead_phone: maskPhone(e.target.value) }))} className={inp} placeholder="(00) 00000-0000" />
+          </Fld>
+          <Fld label="CPF / CNPJ">
+            <input value={lead.lead_cnpj} onChange={(e) => setLead((l) => ({ ...l, lead_cnpj: maskDocument(e.target.value) }))} className={inp} placeholder="000.000.000-00" />
+          </Fld>
+          <div className="sm:col-span-2">
+            <Fld label="Observações">
+              <textarea value={lead.notes} rows={2} onChange={(e) => setLead((l) => ({ ...l, notes: e.target.value }))} className={inp} />
+            </Fld>
+          </div>
         </div>
-      </div>
+      </fieldset>
 
-      <aside className="space-y-3 rounded-lg border border-border bg-card p-4">
-        <h3 className="font-display font-bold uppercase">Cliente</h3>
-        <input placeholder="Nome" value={lead.lead_name} onChange={(e) => setLead({ ...lead, lead_name: e.target.value })} className="w-full rounded border border-border bg-background p-2 text-sm" />
-        <input placeholder="E-mail" value={lead.lead_email} onChange={(e) => setLead({ ...lead, lead_email: e.target.value })} className="w-full rounded border border-border bg-background p-2 text-sm" />
-        <input placeholder="Telefone" value={lead.lead_phone} onChange={(e) => setLead({ ...lead, lead_phone: e.target.value })} className="w-full rounded border border-border bg-background p-2 text-sm" />
-        <input placeholder="CNPJ" value={lead.lead_cnpj} onChange={(e) => setLead({ ...lead, lead_cnpj: e.target.value })} className="w-full rounded border border-border bg-background p-2 text-sm" />
-        <textarea placeholder="Notas" rows={2} value={lead.notes} onChange={(e) => setLead({ ...lead, notes: e.target.value })} className="w-full rounded border border-border bg-background p-2 text-sm" />
+      {/* Busca de produtos */}
+      <fieldset className="rounded-lg border border-border bg-card p-4 space-y-3">
+        <legend className="px-2 text-sm font-bold uppercase">Adicionar produto</legend>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Nome ou SKU…"
+          className={inp}
+        />
+        {isFetching && <p className="text-xs text-muted-foreground">Buscando…</p>}
+        {results.length > 0 && (
+          <ul className="divide-y divide-border rounded-md border border-border text-sm">
+            {results.map((p: any) => (
+              <li key={p.id} className="flex items-center justify-between gap-2 px-3 py-2">
+                <span className="truncate">{p.sku} — {p.name}</span>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-xs text-muted-foreground">Est: {p.stock}</span>
+                  <span className="font-semibold">{brl(p.price_b2b ?? p.price_b2c)}</span>
+                  <button
+                    type="button"
+                    onClick={() => addItem(p)}
+                    disabled={p.stock === 0}
+                    className="rounded bg-primary px-2 py-1 text-xs font-bold text-primary-foreground disabled:opacity-40"
+                  >
+                    + Add
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </fieldset>
 
-        <div className="border-t border-border pt-3 text-sm">
-          <div className="flex justify-between"><span>Total</span><span className="price-tag text-lg">{brl(subtotal)}</span></div>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => save("rascunho")} className="flex-1 rounded border border-border px-3 py-2 text-xs font-bold uppercase hover:bg-muted">Salvar rascunho</button>
-          <button onClick={() => save("enviado")} disabled={items.length === 0 || !lead.lead_name} className="flex-1 rounded bg-primary px-3 py-2 text-xs font-bold uppercase text-primary-foreground disabled:opacity-50">Enviar pedido</button>
-        </div>
-      </aside>
+      {/* Itens adicionados */}
+      {items.length > 0 && (
+        <fieldset className="rounded-lg border border-border bg-card p-4 space-y-3">
+          <legend className="px-2 text-sm font-bold uppercase">Itens do pedido</legend>
+          <ul className="divide-y divide-border text-sm">
+            {items.map((i) => (
+              <li key={i.product_id} className="flex items-center gap-2 py-2">
+                <span className="flex-1 truncate">{i.qty}× {i.name}</span>
+                <span className="font-semibold">{brl(i.price * i.qty)}</span>
+                <button type="button" onClick={() => removeItem(i.product_id)} className="text-destructive text-xs hover:underline">remover</button>
+              </li>
+            ))}
+          </ul>
+          <div className="flex items-baseline justify-between border-t border-border pt-2 font-semibold">
+            <span>Total</span>
+            <span>{brl(subtotal)}</span>
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              disabled={save.isPending || items.length === 0}
+              onClick={() => save.mutate("rascunho")}
+              className="flex-1 rounded-md border border-border px-3 py-2 text-sm font-bold hover:bg-muted disabled:opacity-40"
+            >
+              {save.isPending ? "Salvando…" : "Salvar rascunho"}
+            </button>
+            <button
+              type="button"
+              disabled={save.isPending || items.length === 0}
+              onClick={() => save.mutate("enviado")}
+              className="flex-1 rounded-md bg-primary px-3 py-2 text-sm font-bold text-primary-foreground hover:brightness-110 disabled:opacity-40"
+            >
+              {save.isPending ? "Enviando…" : "Enviar pedido"}
+            </button>
+          </div>
+        </fieldset>
+      )}
     </div>
+  );
+}
+
+const inp = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary";
+function Fld({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-semibold uppercase text-muted-foreground">{label}</span>
+      {children}
+    </label>
   );
 }
