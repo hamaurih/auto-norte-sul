@@ -65,6 +65,15 @@ type TenantMembership = {
 };
 type ProfileRecord = { id: string; full_name: string | null; phone: string | null };
 
+function isMissingLegacyProfileRoleHelper(error: unknown): boolean {
+  const typed = error as { code?: string; message?: string } | null | undefined;
+  const message = String(typed?.message ?? error ?? "").toLowerCase();
+  return (
+    typed?.code === "42883" ||
+    (message.includes("public.has_role") && message.includes("does not exist"))
+  );
+}
+
 function isPermissionsTableMissing(error: unknown): boolean {
   const typed = error as { code?: string; message?: string } | null | undefined;
   const message = String(typed?.message ?? error ?? "").toLowerCase();
@@ -85,6 +94,27 @@ function permissionsFromAppMetadata(
   if (!byTenant || typeof byTenant !== "object" || Array.isArray(byTenant)) return null;
   const rows = (byTenant as Record<string, unknown>)[tenantId];
   return Array.isArray(rows) ? (rows as ModulePermission[]) : null;
+}
+
+async function saveProfileToAuthMetadata(
+  supabaseAdmin: TenantDb,
+  userId: string,
+  fullName: string,
+  phone: string | undefined,
+) {
+  const { data: current, error: currentError } = await supabaseAdmin.auth.admin.getUserById(userId);
+  if (currentError || !current.user) {
+    throw new Error(currentError?.message ?? "Usuário de autenticação não encontrado.");
+  }
+  const userMetadata = (current.user.user_metadata ?? {}) as Record<string, unknown>;
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+    user_metadata: {
+      ...userMetadata,
+      full_name: fullName,
+      ...(phone !== undefined ? { phone } : {}),
+    },
+  });
+  if (error) throw new Error(error.message);
 }
 
 async function savePermissionsToAppMetadata(
@@ -484,7 +514,17 @@ export const inviteTenantUser = createServerFn({ method: "POST" })
           { id: user.id, full_name: data.full_name.trim(), phone: data.phone?.trim() || null },
           { onConflict: "id" },
         );
-      if (profileError) throw new Error(profileError.message);
+      if (profileError) {
+        if (!isMissingLegacyProfileRoleHelper(profileError)) {
+          throw new Error(profileError.message);
+        }
+        await saveProfileToAuthMetadata(
+          supabaseAdmin,
+          user.id,
+          data.full_name.trim(),
+          data.phone?.trim(),
+        );
+      }
 
       const { data: membership, error: membershipError } = await supabaseAdmin
         .from("tenant_memberships")
@@ -624,7 +664,17 @@ export const updateTenantUserAccess = createServerFn({ method: "POST" })
           ...(data.phone !== undefined ? { phone: data.phone.trim() || null } : {}),
         })
         .eq("id", target.user_id);
-      if (error) throw new Error(error.message);
+      if (error) {
+        if (!isMissingLegacyProfileRoleHelper(error)) {
+          throw new Error(error.message);
+        }
+        await saveProfileToAuthMetadata(
+          supabaseAdmin,
+          target.user_id,
+          fullName || salesRepName,
+          data.phone?.trim(),
+        );
+      }
     }
 
     await syncLegacyRole(supabaseAdmin, target.user_id, nextRole, nextActive);
