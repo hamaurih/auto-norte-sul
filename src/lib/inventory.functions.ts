@@ -197,3 +197,24 @@ export const stockOverview = createServerFn({ method: "GET" })
     }
     return results;
   });
+
+export const listInventoryProducts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const membership = await requireTenantRole(
+      tdb(context.supabase),
+      context.userId,
+      context.tenantId,
+      ["owner", "admin", "manager", "stock"],
+    );
+    const { data, error } = await tdb(context.supabase)
+      .from("products")
+      .select("id, sku, name")
+      .eq("tenant_id", membership.tenant_id)
+      .eq("active", true)
+      .is("deleted_at", null)
+      .order("name")
+      .limit(2000);
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
