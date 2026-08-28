@@ -31,6 +31,16 @@ export interface SessionState {
   b2bStatus: B2BStatus;
 }
 
+function permissionsFromAppMetadata(
+  user: User,
+  tenantId: string,
+): ModulePermission[] | null {
+  const byTenant = user.app_metadata?.tenant_permissions;
+  if (!byTenant || typeof byTenant !== "object" || Array.isArray(byTenant)) return null;
+  const rows = (byTenant as Record<string, unknown>)[tenantId];
+  return Array.isArray(rows) ? (rows as ModulePermission[]) : null;
+}
+
 const empty: SessionState = {
   user: null,
   session: null,
@@ -123,7 +133,11 @@ export function useSession(): SessionState {
           .select("module_key, can_view, can_create, can_update, can_delete")
           .eq("tenant_id", tenantAccess.tenantId)
           .eq("user_id", session.user.id);
-        permissions = permissionMapFromRows(systemRole, (permissionRows ?? []) as ModulePermission[]);
+        const metadataRows = permissionsFromAppMetadata(session.user, tenantAccess.tenantId);
+        permissions = permissionMapFromRows(
+          systemRole,
+          ((permissionRows?.length ? permissionRows : metadataRows) ?? []) as ModulePermission[],
+        );
       }
 
       const isTenantStaff = Boolean(
