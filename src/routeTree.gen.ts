@@ -35,6 +35,7 @@ import { Route as AuthenticatedVendedorMeusPedidosRouteImport } from './routes/_
 import { Route as AuthenticatedVendedorClientesRouteImport } from './routes/_authenticated/vendedor.clientes'
 import { Route as AuthenticatedAdminVendedoresRouteImport } from './routes/_authenticated/admin.vendedores'
 import { Route as AuthenticatedAdminSuprimentosRouteImport } from './routes/_authenticated/admin.suprimentos'
+import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin.usuarios'
 import { Route as AuthenticatedAdminSaneamentoRouteImport } from './routes/_authenticated/admin.saneamento'
 import { Route as AuthenticatedAdminRevisaoCodigosRouteImport } from './routes/_authenticated/admin.revisao-codigos'
 import { Route as AuthenticatedAdminPromocoesRouteImport } from './routes/_authenticated/admin.promocoes'
@@ -205,6 +206,12 @@ const AuthenticatedAdminVendedoresRoute =
   AuthenticatedAdminVendedoresRouteImport.update({
     id: '/vendedores',
     path: '/vendedores',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminUsuariosRoute =
+  AuthenticatedAdminUsuariosRouteImport.update({
+    id: '/usuarios',
+    path: '/usuarios',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminSuprimentosRoute =
@@ -494,6 +501,7 @@ export interface FileRoutesByFullPath {
   '/admin/revisao-codigos': typeof AuthenticatedAdminRevisaoCodigosRoute
   '/admin/saneamento': typeof AuthenticatedAdminSaneamentoRouteWithChildren
   '/admin/suprimentos': typeof AuthenticatedAdminSuprimentosRoute
+  '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/admin/vendedores': typeof AuthenticatedAdminVendedoresRouteWithChildren
   '/vendedor/clientes': typeof AuthenticatedVendedorClientesRoute
   '/vendedor/meus-pedidos': typeof AuthenticatedVendedorMeusPedidosRoute
@@ -627,6 +635,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/revisao-codigos': typeof AuthenticatedAdminRevisaoCodigosRoute
   '/_authenticated/admin/saneamento': typeof AuthenticatedAdminSaneamentoRouteWithChildren
   '/_authenticated/admin/suprimentos': typeof AuthenticatedAdminSuprimentosRoute
+  '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/_authenticated/admin/vendedores': typeof AuthenticatedAdminVendedoresRouteWithChildren
   '/_authenticated/vendedor/clientes': typeof AuthenticatedVendedorClientesRoute
   '/_authenticated/vendedor/meus-pedidos': typeof AuthenticatedVendedorMeusPedidosRoute
@@ -696,6 +705,7 @@ export interface FileRouteTypes {
     | '/admin/revisao-codigos'
     | '/admin/saneamento'
     | '/admin/suprimentos'
+    | '/admin/usuarios'
     | '/admin/vendedores'
     | '/vendedor/clientes'
     | '/vendedor/meus-pedidos'
@@ -760,6 +770,7 @@ export interface FileRouteTypes {
     | '/admin/revisao-codigos'
     | '/admin/saneamento'
     | '/admin/suprimentos'
+    | '/admin/usuarios'
     | '/admin/vendedores'
     | '/vendedor/clientes'
     | '/vendedor/meus-pedidos'
@@ -1415,6 +1426,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminRevisaoCodigosRoute: typeof AuthenticatedAdminRevisaoCodigosRoute
   AuthenticatedAdminSaneamentoRoute: typeof AuthenticatedAdminSaneamentoRouteWithChildren
   AuthenticatedAdminSuprimentosRoute: typeof AuthenticatedAdminSuprimentosRoute
+  AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
   AuthenticatedAdminVendedoresRoute: typeof AuthenticatedAdminVendedoresRouteWithChildren
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminNfeImportacaoIdRoute: typeof AuthenticatedAdminNfeImportacaoIdRoute
@@ -1457,6 +1469,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminSaneamentoRoute:
     AuthenticatedAdminSaneamentoRouteWithChildren,
   AuthenticatedAdminSuprimentosRoute: AuthenticatedAdminSuprimentosRoute,
+  AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
   AuthenticatedAdminVendedoresRoute:
     AuthenticatedAdminVendedoresRouteWithChildren,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,

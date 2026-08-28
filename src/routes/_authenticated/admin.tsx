@@ -20,7 +20,8 @@ import {
 } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
 import { activeTenant, environmentLabel, fetchAccessContext, useAccessContext } from "@/lib/access";
-import { visibleModules } from "@/lib/admin-modules";
+import { canViewModule } from "@/lib/permissions";
+import { adminPermissionForPath, visibleModules } from "@/lib/admin-modules";
 import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -39,11 +40,11 @@ export const Route = createFileRoute("/_authenticated/admin")({
 });
 
 function AdminSidebar() {
-  const { isAdmin, isStaff } = useSession();
+  const { isAdmin, isStaff, permissions } = useSession();
   const { data: access } = useAccessContext();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const tenant = activeTenant(access);
-  const modules = visibleModules(isAdmin);
+  const modules = visibleModules(isAdmin, permissions);
   const isActive = (to: string) =>
     to === "/admin" ? pathname === "/admin" : pathname === to || pathname.startsWith(`${to}/`);
 
@@ -120,10 +121,12 @@ function AdminSidebar() {
 }
 
 function AdminLayout() {
-  const { isAdmin, isStaff, loading } = useSession();
+  const { isAdmin, isStaff, loading, permissions } = useSession();
   const { data: access } = useAccessContext();
   const [commandOpen, setCommandOpen] = useState(false);
   const tenant = activeTenant(access);
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const currentPermission = adminPermissionForPath(pathname);
 
   if (loading) return null;
   if (!isStaff) {
@@ -131,6 +134,15 @@ function AdminLayout() {
       <div className="container-x py-16 text-center">
         <ShieldAlert className="mx-auto h-10 w-10 text-destructive" />
         <p className="mt-2">Acesso restrito.</p>
+      </div>
+    );
+  }
+  if (currentPermission && !canViewModule(permissions, currentPermission)) {
+    return (
+      <div className="container-x py-16 text-center">
+        <ShieldAlert className="mx-auto h-10 w-10 text-destructive" />
+        <p className="mt-2 font-semibold">Você não tem permissão para acessar este módulo.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Peça ao administrador para liberar este acesso.</p>
       </div>
     );
   }
@@ -178,7 +190,7 @@ function AdminLayout() {
           <Outlet />
         </main>
       </SidebarInset>
-      <AdminCommandPalette open={commandOpen} onOpenChange={setCommandOpen} isAdmin={isAdmin} />
+      <AdminCommandPalette open={commandOpen} onOpenChange={setCommandOpen} isAdmin={isAdmin} permissions={permissions} />
     </SidebarProvider>
   );
 }

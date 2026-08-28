@@ -10,17 +10,20 @@ import {
 } from "@/components/ui/command";
 import { LayoutDashboard } from "lucide-react";
 import { visibleModules } from "@/lib/admin-modules";
+import type { PermissionMap } from "@/lib/permissions";
 
 export function AdminCommandPalette({
   open,
   onOpenChange,
   isAdmin,
+  permissions,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isAdmin: boolean;
+  permissions: PermissionMap;
 }) {
-  const modules = visibleModules(isAdmin);
+  const modules = visibleModules(isAdmin, permissions);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

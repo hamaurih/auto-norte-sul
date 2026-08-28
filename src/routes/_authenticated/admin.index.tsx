@@ -20,9 +20,10 @@ import {
 import { AdminAttention } from "@/components/admin/AdminAttention";
 import { AdminModuleCard } from "@/components/admin/AdminModuleCard";
 import { AdminStatCard } from "@/components/admin/AdminStatCard";
-import { adminQuickActions, visibleModules } from "@/lib/admin-modules";
+import { adminPermissionForPath, adminQuickActions, visibleModules } from "@/lib/admin-modules";
 import { useAdminOverview } from "@/lib/admin-overview";
 import { activeTenant, environmentLabel, useAccessContext } from "@/lib/access";
+import { canViewModule } from "@/lib/permissions";
 import { useSession } from "@/lib/session";
 
 const dailyFlow = [
@@ -97,12 +98,12 @@ export const Route = createFileRoute("/_authenticated/admin/")({
 });
 
 function AdminHome() {
-  const { isAdmin } = useSession();
+  const { isAdmin, permissions } = useSession();
   const { data: access } = useAccessContext();
   const { data, isLoading, isError, error, refetch } = useAdminOverview();
   const tenant = activeTenant(access);
-  const modules = visibleModules(isAdmin);
-  const flow = dailyFlow.filter((item) => !("adminOnly" in item) || !item.adminOnly || isAdmin);
+  const modules = visibleModules(isAdmin, permissions);
+  const flow = dailyFlow.filter((item) => (!("adminOnly" in item) || !item.adminOnly || isAdmin) && (!adminPermissionForPath(item.to) || canViewModule(permissions, adminPermissionForPath(item.to)!)));
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-7">

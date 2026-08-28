@@ -33,6 +33,7 @@ import {
   type LucideIcon,
   ClipboardList,
 } from "lucide-react";
+import { canViewModule, type PermissionMap, type PermissionModuleKey } from "@/lib/permissions";
 
 export type AdminShortcut = {
   /** Existing route path — audited against src/routes/_authenticated/*. */
@@ -41,6 +42,7 @@ export type AdminShortcut = {
   description?: string;
   icon: LucideIcon;
   adminOnly?: boolean;
+  permission?: PermissionModuleKey;
   /** External-to-admin link (storefront). */
   external?: boolean;
 };
@@ -160,6 +162,7 @@ export const adminModules: AdminModule[] = [
       { to: "/admin/saneamento/aliases", label: "Aliases", description: "Sinônimos de busca", icon: Tag, adminOnly: true },
       { to: "/admin/auditoria", label: "Auditoria", description: "Trilha de eventos", icon: ClipboardCheck, adminOnly: true },
       { to: "/admin/homologacao", label: "Homologação", description: "Checklist de release", icon: ClipboardCheck, adminOnly: true },
+      { to: "/admin/usuarios", label: "Usuários e permissões", description: "Contas, papéis e acessos da equipe", icon: UserCog, adminOnly: true, permission: "users" },
     ],
   },
 ];
@@ -173,12 +176,55 @@ export const adminQuickActions: AdminShortcut[] = [
   { to: "/admin/estoque", label: "Estoque", description: "Consultar e ajustar saldos", icon: Warehouse },
 ];
 
-export function visibleModules(isAdmin: boolean): AdminModule[] {
+const MODULE_PERMISSION_BY_ADMIN_MODULE: Record<string, PermissionModuleKey> = {
+  comercial: "sales",
+  produtos: "catalog",
+  estoque: "inventory",
+  suprimentos: "purchasing",
+  site: "marketing",
+  integracoes: "integrations",
+  sistema: "audit",
+};
+
+function permissionForShortcut(moduleKey: string, shortcut: AdminShortcut): PermissionModuleKey {
+  if (shortcut.permission) return shortcut.permission;
+  if (shortcut.to === "/admin/usuarios") return "users";
+  if (shortcut.to === "/admin/configuracoes") return "settings";
+  if (shortcut.to === "/admin/auditoria" || shortcut.to === "/admin/saneamento" || shortcut.to.startsWith("/admin/saneamento/")) return "audit";
+  if (shortcut.to === "/admin/fiscal" || shortcut.to === "/admin/fiscal-produtos" || shortcut.to === "/admin/homologacao") return "fiscal";
+  if (shortcut.to === "/admin/ia-aes-business") return "ai";
+  if (shortcut.to === "/admin/inteligencia-comercial") return "reports";
+  return MODULE_PERMISSION_BY_ADMIN_MODULE[moduleKey] ?? "dashboard";
+}
+
+export function adminPermissionForPath(pathname: string): PermissionModuleKey | null {
+  let best: { length: number; permission: PermissionModuleKey } | null = null;
+  for (const module of adminModules) {
+    for (const shortcut of module.shortcuts) {
+      if (shortcut.external) continue;
+      const matches = pathname === shortcut.to || pathname.startsWith(`${shortcut.to}/`);
+      if (matches && (!best || shortcut.to.length > best.length)) {
+        best = { length: shortcut.to.length, permission: permissionForShortcut(module.key, shortcut) };
+      }
+    }
+  }
+  return best?.permission ?? null;
+}
+
+export function visibleModules(
+  isAdmin: boolean,
+  permissions?: PermissionMap | null,
+): AdminModule[] {
+  const filterByPermissions = permissions !== undefined;
   return adminModules
     .filter((module) => !module.adminOnly || isAdmin)
     .map((module) => ({
       ...module,
-      shortcuts: module.shortcuts.filter((shortcut) => !shortcut.adminOnly || isAdmin),
+      shortcuts: module.shortcuts.filter(
+        (shortcut) =>
+          (!shortcut.adminOnly || isAdmin) &&
+          (!filterByPermissions || canViewModule(permissions, permissionForShortcut(module.key, shortcut))),
+      ),
     }))
     .filter((module) => module.shortcuts.length > 0);
 }
