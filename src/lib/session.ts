@@ -127,10 +127,12 @@ export function useSession(): SessionState {
       }
 
       const isTenantStaff = Boolean(
-        tenantAccess && ["admin", "gerente", "vendedor"].includes(systemRole),
+        tenantAccess &&
+          (["admin", "gerente", "vendedor"].includes(systemRole) ||
+            Object.values(permissions).some((permission) => permission.can_view)),
       );
       const isStaff = isTenantStaff || legacyIsStaff;
-      const isAdmin = (tenantAccess && tenantRole === "admin") || legacyIsAdmin;
+      const isAdmin = Boolean((tenantAccess && tenantRole === "admin") || legacyIsAdmin);
       const isSalesRep = legacyIsSalesRep || systemRole === "vendedor";
       const b2bGroup = ["revendedor", "oficina", "distribuidor"].includes(customerGroup);
       if (!cancelled)

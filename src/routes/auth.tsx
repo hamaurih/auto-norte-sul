@@ -25,6 +25,11 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
 
   async function redirectAfterAuth(userId: string) {
+    const { data: currentUser } = await supabase.auth.getUser();
+    if (currentUser.user?.app_metadata?.must_change_password === true) {
+      navigate({ to: "/primeiro-acesso" });
+      return;
+    }
     if (next) {
       navigate({ to: next as never });
       return;

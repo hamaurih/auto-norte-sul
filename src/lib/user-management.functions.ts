@@ -40,6 +40,7 @@ const inviteSchema = z.object({
   full_name: z.string().trim().min(2, "Informe o nome completo.").max(160),
   email: z.string().trim().toLowerCase().email("Informe um e-mail válido.").max(320),
   phone: z.string().trim().max(40).optional(),
+  temporary_password: z.string().min(8, "A senha provisória deve ter no mínimo 8 caracteres.").max(72),
   role: roleSchema,
   permissions: z.array(permissionSchema).min(1),
 });
@@ -293,7 +294,7 @@ export type ManagedUser = {
   phone: string | null;
   role: SystemRole;
   active: boolean;
-  invited: boolean;
+  must_change_password: boolean;
   created_at: string;
   last_sign_in_at: string | null;
   permissions: ModulePermission[];
@@ -361,7 +362,7 @@ export const listTenantUsers = createServerFn({ method: "GET" })
         phone: profile?.phone ?? null,
         role,
         active: Boolean(membership.active),
-        invited: !authUser?.email_confirmed_at,
+        must_change_password: authUser?.app_metadata?.must_change_password === true,
         created_at: membership.created_at,
         last_sign_in_at: authUser?.last_sign_in_at ?? null,
         permissions: permissionRowsFromMap(
@@ -379,17 +380,21 @@ export const inviteTenantUser = createServerFn({ method: "POST" })
     await requireTenantAdmin(supabaseAdmin, context.userId, context.tenantId, "create");
     const email = data.email.trim().toLowerCase();
     let user = await findUserByEmail(supabaseAdmin, email);
-    let invited = false;
+    let createdAccount = false;
 
     if (!user) {
-      const redirectTo = process.env.SITE_URL ? `${process.env.SITE_URL}/auth` : undefined;
-      const { data: invitedUser, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-        data: { full_name: data.full_name.trim() },
-        redirectTo,
+      const { data: createdUser, error } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password: data.temporary_password,
+        email_confirm: true,
+        user_metadata: { full_name: data.full_name.trim() },
+        app_metadata: { must_change_password: true },
       });
-      if (error) throw new Error(`Não foi possível enviar o convite: ${error.message}`);
-      user = invitedUser.user;
-      invited = true;
+      if (error || !createdUser.user) {
+        throw new Error(`Não foi possível criar o usuário: ${error?.message ?? "resposta inválida"}`);
+      }
+      user = createdUser.user;
+      createdAccount = true;
     }
 
     const { data: existingMembership, error: existingMembershipError } = await supabaseAdmin
@@ -400,7 +405,7 @@ export const inviteTenantUser = createServerFn({ method: "POST" })
       .maybeSingle();
     if (existingMembershipError) throw new Error(existingMembershipError.message);
     if (existingMembership?.active) {
-      if (invited) await supabaseAdmin.auth.admin.deleteUser(user.id);
+      if (createdAccount) await supabaseAdmin.auth.admin.deleteUser(user.id);
       throw new Error("Este e-mail já possui acesso ativo neste ambiente.");
     }
 
@@ -453,18 +458,20 @@ export const inviteTenantUser = createServerFn({ method: "POST" })
         user.id,
         {
           role: data.role,
-          invited,
+          created_account: createdAccount,
+          password_delivery: "manual",
         },
       );
 
       return {
         ok: true,
-        invited,
+        created_account: createdAccount,
+        temporary_password: createdAccount ? data.temporary_password : null,
         reactivated: Boolean(existingMembership),
         membership_id: membership.id,
       };
     } catch (error) {
-      if (invited) await supabaseAdmin.auth.admin.deleteUser(user.id);
+      if (createdAccount) await supabaseAdmin.auth.admin.deleteUser(user.id);
       throw error;
     }
   });

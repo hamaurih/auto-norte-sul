@@ -8,6 +8,9 @@ export const Route = createFileRoute("/_authenticated")({
     if (error || !data.user) {
       throw redirect({ to: "/auth" });
     }
+    if (data.user.app_metadata?.must_change_password === true) {
+      throw redirect({ to: "/primeiro-acesso" });
+    }
     return { user: data.user };
   },
   component: () => <Outlet />,

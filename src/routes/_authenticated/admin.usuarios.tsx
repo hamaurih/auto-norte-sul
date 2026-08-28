@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Check, Edit3, Mail, ShieldCheck, UserPlus, Users, X } from "lucide-react";
+import { Check, Copy, Edit3, Eye, EyeOff, KeyRound, RefreshCw, ShieldCheck, UserCheck, UserPlus, Users, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { activeTenant, fetchAccessContext } from "@/lib/access";
 import { useSession } from "@/lib/session";
@@ -66,6 +66,7 @@ type FormState = {
   phone: string;
   role: SystemRole;
   permissions: PermissionMap;
+  temporary_password: string;
 };
 
 const emptyForm = (): FormState => ({
@@ -74,7 +75,16 @@ const emptyForm = (): FormState => ({
   phone: "",
   role: "vendedor",
   permissions: defaultPermissionsForRole("vendedor"),
+  temporary_password: "",
 });
+
+const TEMP_PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+
+function generateTemporaryPassword(): string {
+  const values = new Uint32Array(14);
+  globalThis.crypto.getRandomValues(values);
+  return Array.from(values, (value) => TEMP_PASSWORD_ALPHABET[value % TEMP_PASSWORD_ALPHABET.length]).join("");
+}
 
 function UsersPage() {
   const { permissions } = useSession();
@@ -85,6 +95,8 @@ function UsersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ManagedUser | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [showTemporaryPassword, setShowTemporaryPassword] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string } | null>(null);
 
   const usersQuery = useQuery({
     queryKey: ["tenant-users"],
@@ -112,20 +124,30 @@ function UsersPage() {
           phone: form.phone,
           role: form.role,
           permissions,
+          temporary_password: form.temporary_password,
         },
       });
     },
     onSuccess: (result) => {
-      const response = result as { invited?: boolean; reactivated?: boolean };
-      toast.success(
-        editing
-          ? "Permissões atualizadas."
-          : response.reactivated
-            ? "Usuário reativado e permissões atualizadas."
-            : response.invited
-              ? "Convite enviado por e-mail."
+      const response = result as {
+        created_account?: boolean;
+        temporary_password?: string | null;
+        reactivated?: boolean;
+      };
+      if (!editing && response.created_account && response.temporary_password) {
+        setCreatedCredentials({
+          email: form.email.trim().toLowerCase(),
+          password: response.temporary_password,
+        });
+      } else {
+        toast.success(
+          editing
+            ? "Permissões atualizadas."
+            : response.reactivated
+              ? "Usuário reativado. A senha existente não foi alterada."
               : "Usuário vinculado ao ambiente.",
-      );
+        );
+      }
       setDialogOpen(false);
       setEditing(null);
       queryClient.invalidateQueries({ queryKey: ["tenant-users"] });
@@ -147,7 +169,8 @@ function UsersPage() {
 
   function openCreate() {
     setEditing(null);
-    setForm(emptyForm());
+    setShowTemporaryPassword(false);
+    setForm({ ...emptyForm(), temporary_password: generateTemporaryPassword() });
     setDialogOpen(true);
   }
 
@@ -162,7 +185,9 @@ function UsersPage() {
       phone: user.phone ?? "",
       role: user.role,
       permissions,
+      temporary_password: "",
     });
+    setShowTemporaryPassword(false);
     setDialogOpen(true);
   }
 
@@ -186,7 +211,7 @@ function UsersPage() {
 
   const users = (usersQuery.data ?? []) as ManagedUser[];
   const activeCount = users.filter((user) => user.active).length;
-  const invitedCount = users.filter((user) => user.invited).length;
+  const inactiveCount = users.filter((user) => !user.active).length;
   const canCreateUsers = hasPermission(permissions, "users", "can_create");
   const canUpdateUsers = hasPermission(permissions, "users", "can_update");
 
@@ -202,8 +227,8 @@ function UsersPage() {
           </div>
           <h1 className="mt-1 font-display text-3xl font-bold uppercase">Usuários e permissões</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Crie contas da equipe e escolha exatamente quais módulos cada pessoa pode consultar ou
-            alterar neste ambiente.
+            Crie contas da equipe com uma senha provisória e escolha exatamente quais módulos cada
+            pessoa pode consultar ou alterar neste ambiente. Nenhum e-mail será enviado.
           </p>
         </div>
         <Button onClick={openCreate} disabled={!canCreateUsers}>
@@ -214,7 +239,7 @@ function UsersPage() {
       <div className="grid gap-3 sm:grid-cols-3">
         <SummaryCard icon={Users} label="Usuários" value={users.length} />
         <SummaryCard icon={Check} label="Acessos ativos" value={activeCount} />
-        <SummaryCard icon={Mail} label="Aguardando convite" value={invitedCount} />
+        <SummaryCard icon={UserCheck} label="Acessos inativos" value={inactiveCount} />
       </div>
 
       <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -285,8 +310,8 @@ function UsersPage() {
                           {user.active ? "Ativo" : "Inativo"}
                         </span>
                       </div>
-                      {user.invited && user.active && (
-                        <div className="mt-1 text-[10px] text-amber-600">Convite pendente</div>
+                      {user.must_change_password && user.active && (
+                        <div className="mt-1 text-[10px] text-amber-600">Troca de senha obrigatória no primeiro acesso</div>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -314,7 +339,7 @@ function UsersPage() {
             <DialogDescription>
               {editing
                 ? "Altere o papel e os módulos disponíveis para esta pessoa. As mudanças valem somente para o ambiente atual."
-                : "O usuário receberá um e-mail para confirmar a conta e criar a senha."}
+                : "Defina uma senha provisória abaixo. Nenhum e-mail será enviado; entregue a senha por um canal seguro."}
             </DialogDescription>
           </DialogHeader>
 
@@ -349,6 +374,46 @@ function UsersPage() {
               />
             </Field>
           </div>
+
+          {!editing && (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/70 p-4">
+              <div className="flex items-center gap-2 text-sm font-bold text-amber-900">
+                <KeyRound className="h-4 w-4" /> Senha provisória do primeiro acesso
+              </div>
+              <p className="mt-1 text-xs text-amber-800">
+                A pessoa usará esta senha para entrar e será obrigada a criar uma nova senha. O sistema não enviará e-mail.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <Input
+                  type={showTemporaryPassword ? "text" : "password"}
+                  value={form.temporary_password}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, temporary_password: event.target.value }))
+                  }
+                  autoComplete="new-password"
+                  aria-label="Senha provisória"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setShowTemporaryPassword((current) => !current)}
+                  aria-label={showTemporaryPassword ? "Ocultar senha provisória" : "Mostrar senha provisória"}
+                >
+                  {showTemporaryPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    setForm((current) => ({ ...current, temporary_password: generateTemporaryPassword() }))
+                  }
+                >
+                  <RefreshCw className="h-4 w-4" /> Gerar
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="rounded-lg border border-border bg-muted/30 p-4">
             <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
@@ -453,11 +518,48 @@ function UsersPage() {
                 ? "Salvando…"
                 : editing
                   ? "Salvar permissões"
-                  : "Criar e enviar convite"}
+                  : "Criar usuário"}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
+      <Dialog open={Boolean(createdCredentials)} onOpenChange={(open) => !open && setCreatedCredentials(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Usuário criado com sucesso</DialogTitle>
+            <DialogDescription>
+              Entregue estes dados por um canal seguro. A senha será trocada obrigatoriamente no primeiro acesso.
+            </DialogDescription>
+          </DialogHeader>
+          {createdCredentials && (
+            <div className="space-y-3">
+              <div>
+                <span className="mb-1 block text-xs font-semibold uppercase text-muted-foreground">E-mail</span>
+                <Input readOnly value={createdCredentials.email} />
+              </div>
+              <div>
+                <span className="mb-1 block text-xs font-semibold uppercase text-muted-foreground">Senha provisória</span>
+                <Input readOnly value={createdCredentials.password} className="font-mono" />
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    void navigator.clipboard
+                      .writeText(`E-mail: ${createdCredentials.email}\nSenha provisória: ${createdCredentials.password}`)
+                      .then(() => toast.success("Dados copiados."))
+                      .catch(() => toast.error("Não foi possível copiar os dados."));
+                  }}
+                >
+                  <Copy className="h-4 w-4" /> Copiar dados
+                </Button>
+                <Button onClick={() => setCreatedCredentials(null)}>Concluído</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

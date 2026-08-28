@@ -17,6 +17,7 @@ import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as CatalogoRouteImport } from './routes/catalogo'
 import { Route as CarrinhoRouteImport } from './routes/carrinho'
 import { Route as B2bRouteImport } from './routes/b2b'
+import { Route as PrimeiroAcessoRouteImport } from './routes/primeiro-acesso'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AtivacaoRouteImport } from './routes/ativacao'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
@@ -115,6 +116,11 @@ const CarrinhoRoute = CarrinhoRouteImport.update({
 const B2bRoute = B2bRouteImport.update({
   id: '/b2b',
   path: '/b2b',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrimeiroAcessoRoute = PrimeiroAcessoRouteImport.update({
+  id: '/primeiro-acesso',
+  path: '/primeiro-acesso',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -462,6 +468,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ativacao': typeof AtivacaoRoute
   '/auth': typeof AuthRoute
+  '/primeiro-acesso': typeof PrimeiroAcessoRoute
   '/b2b': typeof B2bRoute
   '/carrinho': typeof CarrinhoRoute
   '/catalogo': typeof CatalogoRoute
@@ -530,6 +537,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ativacao': typeof AtivacaoRoute
   '/auth': typeof AuthRoute
+  '/primeiro-acesso': typeof PrimeiroAcessoRoute
   '/b2b': typeof B2bRoute
   '/carrinho': typeof CarrinhoRoute
   '/catalogo': typeof CatalogoRoute
@@ -596,6 +604,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/ativacao': typeof AtivacaoRoute
   '/auth': typeof AuthRoute
+  '/primeiro-acesso': typeof PrimeiroAcessoRoute
   '/b2b': typeof B2bRoute
   '/carrinho': typeof CarrinhoRoute
   '/catalogo': typeof CatalogoRoute
@@ -666,6 +675,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ativacao'
     | '/auth'
+    | '/primeiro-acesso'
     | '/b2b'
     | '/carrinho'
     | '/catalogo'
@@ -734,6 +744,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ativacao'
     | '/auth'
+    | '/primeiro-acesso'
     | '/b2b'
     | '/carrinho'
     | '/catalogo'
@@ -800,6 +811,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/ativacao'
     | '/auth'
+    | '/primeiro-acesso'
     | '/b2b'
     | '/carrinho'
     | '/catalogo'
@@ -869,6 +881,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AtivacaoRoute: typeof AtivacaoRoute
   AuthRoute: typeof AuthRoute
+  PrimeiroAcessoRoute: typeof PrimeiroAcessoRoute
   B2bRoute: typeof B2bRoute
   CarrinhoRoute: typeof CarrinhoRoute
   CatalogoRoute: typeof CatalogoRoute
@@ -947,6 +960,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/primeiro-acesso': {
+      id: '/primeiro-acesso'
+      path: '/primeiro-acesso'
+      fullPath: '/primeiro-acesso'
+      preLoaderRoute: typeof PrimeiroAcessoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ativacao': {
@@ -1538,6 +1558,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AtivacaoRoute: AtivacaoRoute,
   AuthRoute: AuthRoute,
+  PrimeiroAcessoRoute: PrimeiroAcessoRoute,
   B2bRoute: B2bRoute,
   CarrinhoRoute: CarrinhoRoute,
   CatalogoRoute: CatalogoRoute,
