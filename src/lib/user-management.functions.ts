@@ -68,10 +68,7 @@ type ProfileRecord = { id: string; full_name: string | null; phone: string | nul
 function isMissingLegacyProfileRoleHelper(error: unknown): boolean {
   const typed = error as { code?: string; message?: string } | null | undefined;
   const message = String(typed?.message ?? error ?? "").toLowerCase();
-  return (
-    typed?.code === "42883" ||
-    (message.includes("public.has_role") && message.includes("does not exist"))
-  );
+  return message.includes("public.has_role") && message.includes("does not exist");
 }
 
 function isPermissionsTableMissing(error: unknown): boolean {
