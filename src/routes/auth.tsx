@@ -6,7 +6,6 @@ import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
 import { authErrorMessage } from "@/lib/auth-errors";
 
-
 const search = z.object({ next: z.string().optional() });
 
 export const Route = createFileRoute("/auth")({
@@ -70,7 +69,6 @@ function AuthPage() {
         });
         if (error) throw error;
         if (data.session?.user) {
-          // Confirmação de e-mail desativada no backend: já existe sessão válida.
           toast.success("Conta criada! Você já está conectado(a).");
           await redirectAfterAuth(data.session.user.id);
         } else {
@@ -78,7 +76,24 @@ function AuthPage() {
           setMode("login");
         }
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        const response = await fetch("/api/public/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ email, password }),
+        });
+        const result = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          access_token?: string;
+          refresh_token?: string;
+        };
+        if (!response.ok || !result.access_token || !result.refresh_token) {
+          throw new Error(result.error || "Não foi possível autenticar.");
+        }
+        const { data, error } = await supabase.auth.setSession({
+          access_token: result.access_token,
+          refresh_token: result.refresh_token,
+        });
         if (error) throw error;
         toast.success("Bem-vindo(a) de volta!");
         if (data.user) await redirectAfterAuth(data.user.id);
@@ -90,8 +105,6 @@ function AuthPage() {
       setLoading(false);
     }
   }
-
-
 
   async function google() {
     try {
@@ -108,7 +121,6 @@ function AuthPage() {
 
   return (
     <div className="grid min-h-screen md:grid-cols-2">
-      {/* Left visual */}
       <div className="relative hidden bg-gradient-to-br from-secondary to-primary md:block">
         <div className="absolute inset-0 opacity-30" style={{ backgroundImage: "url(https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=1200&auto=format&fit=crop)", backgroundSize: "cover", backgroundPosition: "center" }} />
         <div className="relative z-10 flex h-full flex-col justify-between p-10 text-white">
@@ -126,7 +138,6 @@ function AuthPage() {
         </div>
       </div>
 
-      {/* Right form */}
       <div className="flex items-center justify-center bg-background p-6">
         <div className="w-full max-w-sm">
           <Link to="/" className="mb-6 flex items-center gap-2 md:hidden">
