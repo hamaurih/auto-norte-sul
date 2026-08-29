@@ -3,12 +3,10 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 import { tdb } from "@/integrations/supabase/tenant-db";
 
-type CreditEntry = {
+type SellerCreditEntry = {
   id: string;
   entry_type: string;
   amount: number;
-  gross_amount: number;
-  tax_amount: number;
   description: string;
   created_at: string;
 };
@@ -53,7 +51,7 @@ export const getMySellerCredit = createServerFn({ method: "GET" })
         enabled: false,
         availableBalance: 0,
         maxUpliftPct: 0,
-        recent: [] as CreditEntry[],
+        recent: [] as SellerCreditEntry[],
       };
     }
 
@@ -66,7 +64,7 @@ export const getMySellerCredit = createServerFn({ method: "GET" })
           .maybeSingle(),
         adminSb
           .from("seller_credit_ledger")
-          .select("id, entry_type, amount, gross_amount, tax_amount, description, created_at")
+          .select("id, entry_type, amount, description, created_at")
           .eq("tenant_id", context.tenantId)
           .eq("rep_id", rep.id)
           .order("created_at", { ascending: false })
@@ -85,8 +83,6 @@ export const getMySellerCredit = createServerFn({ method: "GET" })
         id: row.id,
         entry_type: row.entry_type,
         amount: Number(row.amount ?? 0),
-        gross_amount: Number(row.gross_amount ?? 0),
-        tax_amount: Number(row.tax_amount ?? 0),
         description: row.description,
         created_at: row.created_at,
       })),
