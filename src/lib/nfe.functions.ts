@@ -705,7 +705,6 @@ export const createReceiptFromNfe = createServerFn({ method: "POST" })
 
       return {
         tenant_id: context.tenantId,
-        goods_receipt_id: receipt.id,
         purchase_order_item_id: item.purchase_order_item_id ?? null,
         product_id: item.product_id,
         accepted_qty: round2((receivedPackageQty - rejectedPackageQty) * unitsPerPackage),
