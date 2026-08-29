@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
@@ -9,6 +8,7 @@ import { toast } from "sonner";
 import {
   integrationToggleActive,
   integrationTestConnection,
+  listIntegrations,
 } from "@/lib/integrations.functions";
 import {
   Boxes,
@@ -64,6 +64,7 @@ const iconBySlug: Record<string, LucideIcon> = {
 const categoryLabels: Record<string, string> = {
   erp: "ERP",
   marketplace: "Marketplace",
+  ecommerce: "E-commerce",
   logistics: "Logística",
   payment: "Pagamento",
   fiscal: "Fiscal",
@@ -89,15 +90,7 @@ function EcossistemaIndex() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["integrations"],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("integrations")
-        .select("id,name,slug,description,category,status,active,last_sync_at")
-        .order("category")
-        .order("name");
-      if (error) throw error;
-      return (data ?? []) as Integration[];
-    },
+    queryFn: () => useServerFn(listIntegrations)(),
   });
 
   const testFn = useServerFn(integrationTestConnection);
