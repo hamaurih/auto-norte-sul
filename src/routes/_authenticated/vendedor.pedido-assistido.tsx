@@ -101,8 +101,6 @@ function PedidoAssistido() {
   const removeItem = (product_id: string) =>
     setItems((prev) => prev.filter((i) => i.product_id !== product_id));
 
-  const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
-
   return (
     <div className="p-4 space-y-6 max-w-3xl">
       <div className="flex flex-wrap items-start justify-between gap-3">
