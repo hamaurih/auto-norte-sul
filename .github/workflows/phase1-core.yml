@@ -1,0 +1,29 @@
+name: Phase 1 ERP Core Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  phase1-core:
+    name: Single source, tenant and integration invariants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify Phase 1 invariants
+        run: node scripts/check-phase1-core.mjs
+      - name: Verify source-of-truth migration
+        run: |
+          test -f supabase/migrations/20260829173000_phase1_single_erp_core.sql
+          grep -F "products_source text NOT NULL DEFAULT 'erp'" supabase/migrations/20260829173000_phase1_single_erp_core.sql
+          grep -F "stock_source text NOT NULL DEFAULT 'product_stock'" supabase/migrations/20260829173000_phase1_single_erp_core.sql
+          grep -F "CREATE TABLE IF NOT EXISTS public.external_entity_mappings" supabase/migrations/20260829173000_phase1_single_erp_core.sql
+          grep -F "CREATE TABLE IF NOT EXISTS public.integration_events" supabase/migrations/20260829173000_phase1_single_erp_core.sql
