@@ -662,7 +662,7 @@ begin
     case when current_is_b2b then current_b2b_discount_pct else 0 end,
     0, 0, 0, 0, p_payment_method,
     nullif(trim(p_customer->>'name'), ''),
-    nullif(lower(trim(p_customer->>'email'), '')),
+    nullif(lower(trim(p_customer->>'email')), ''),
     nullif(trim(p_customer->>'phone'), ''),
     nullif(trim(p_customer->>'document'), ''),
     nullif(trim(p_customer->>'shipping_zip'), ''),
