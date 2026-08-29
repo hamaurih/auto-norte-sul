@@ -525,8 +525,12 @@ export const createGoodsReceipt = createServerFn({ method: "POST" })
       notes?: string | null;
       items: {
         purchase_order_item_id: string;
-        accepted_qty: number;
+        accepted_qty?: number;
         rejected_qty?: number;
+        received_package_qty?: number;
+        rejected_package_qty?: number;
+        units_per_package?: number;
+        package_unit?: string;
         unit_cost: number;
         notes?: string | null;
       }[];
@@ -562,14 +566,49 @@ export const createGoodsReceipt = createServerFn({ method: "POST" })
       const orderItem = byId.get(raw.purchase_order_item_id);
       if (!orderItem) throw new Error("Item informado não pertence a este pedido");
 
-      const accepted = Number(raw.accepted_qty ?? 0);
-      const rejected = Number(raw.rejected_qty ?? 0);
-      if (accepted < 0 || rejected < 0) throw new Error("Quantidades não podem ser negativas");
+      const hasPackagingInput =
+        raw.received_package_qty !== undefined ||
+        raw.rejected_package_qty !== undefined ||
+        raw.units_per_package !== undefined ||
+        raw.package_unit !== undefined;
+      const receivedPackageQty = hasPackagingInput
+        ? Number(raw.received_package_qty ?? 0)
+        : Number(raw.accepted_qty ?? 0) + Number(raw.rejected_qty ?? 0);
+      const rejectedPackageQty = hasPackagingInput
+        ? Number(raw.rejected_package_qty ?? 0)
+        : Number(raw.rejected_qty ?? 0);
+      const unitsPerPackage = hasPackagingInput ? Number(raw.units_per_package ?? 1) : 1;
+      const packageUnit = hasPackagingInput
+        ? String(raw.package_unit ?? "UN").trim().toUpperCase()
+        : "UN";
+
+      if (
+        !Number.isSafeInteger(receivedPackageQty) ||
+        receivedPackageQty < 0 ||
+        !Number.isSafeInteger(rejectedPackageQty) ||
+        rejectedPackageQty < 0 ||
+        !Number.isSafeInteger(unitsPerPackage) ||
+        unitsPerPackage <= 0
+      ) {
+        throw new Error("Quantidade de embalagem e fator devem ser inteiros válidos");
+      }
+      if (rejectedPackageQty > receivedPackageQty) {
+        throw new Error("A quantidade recusada não pode superar a quantidade recebida");
+      }
+      if (!/^[A-Z][A-Z0-9_]{0,9}$/.test(packageUnit)) {
+        throw new Error("Unidade da embalagem inválida");
+      }
+
+      const accepted = (receivedPackageQty - rejectedPackageQty) * unitsPerPackage;
+      const rejected = rejectedPackageQty * unitsPerPackage;
+      if (!Number.isSafeInteger(accepted) || !Number.isSafeInteger(rejected)) {
+        throw new Error("Quantidade convertida excede o limite permitido");
+      }
       if (accepted === 0 && rejected === 0) continue;
 
       const pending = Number(orderItem.ordered_qty) - Number(orderItem.received_qty);
       if (accepted > pending + 1e-6) {
-        throw new Error(`Quantidade aceita acima do saldo pendente (${pending}) do item`);
+        throw new Error(`Quantidade convertida acima do saldo pendente (${pending}) do item`);
       }
 
       const unitCost = Number(raw.unit_cost ?? orderItem.unit_cost ?? 0);
@@ -581,6 +620,10 @@ export const createGoodsReceipt = createServerFn({ method: "POST" })
         product_id: orderItem.product_id,
         accepted_qty: accepted,
         rejected_qty: rejected,
+        received_package_qty: receivedPackageQty,
+        rejected_package_qty: rejectedPackageQty,
+        units_per_package: unitsPerPackage,
+        package_unit: packageUnit,
         unit_cost: unitCost,
         notes: raw.notes?.trim() || null,
       });
