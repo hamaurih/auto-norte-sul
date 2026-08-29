@@ -60,7 +60,10 @@ export type AssistOrderInput = {
   notes:      string;
   items: Array<{ product_id: string; sku: string; name: string; price: number; qty: number }>;
   discount_pct: number;
+  uplift_pct: number;
+  credit_to_use: number;
   status: "rascunho" | "enviado";
+  idempotency_key?: string;
 };
 
 const assistOrderSchema = z.object({
@@ -74,8 +77,17 @@ const assistOrderSchema = z.object({
     qty: z.number().int().min(1).max(1000),
   }).passthrough()).min(1).max(100),
   discount_pct: z.number().min(0).max(100).default(0),
+  uplift_pct: z.number().min(0).max(100).default(0),
+  credit_to_use: z.number().min(0).max(999999999).default(0),
   status: z.enum(["rascunho", "enviado"]),
-});
+  idempotency_key: z.string().uuid().optional(),
+}).refine(
+  (value) => !(value.uplift_pct > 0 && value.discount_pct > 0),
+  "Não combine acréscimo para gerar crédito com desconto adicional",
+).refine(
+  (value) => !(value.uplift_pct > 0 && value.credit_to_use > 0),
+  "Não é possível gerar e usar crédito no mesmo pedido",
+);
 
 export const createAssistOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -86,6 +98,24 @@ export const createAssistOrder = createServerFn({ method: "POST" })
     if (!rep.can_sell_b2b) throw new Error("Este vendedor não está habilitado para vendas B2B");
     if (data.discount_pct > Number(rep.max_discount_pct ?? 0)) {
       throw new Error(`Desconto adicional acima do limite do vendedor (${Number(rep.max_discount_pct ?? 0).toFixed(2)}%)`);
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const adminSb = tdb(supabaseAdmin);
+    const { data: creditSettings, error: creditSettingsError } = await adminSb
+      .from("seller_credit_settings")
+      .select("enabled, max_uplift_pct")
+      .eq("tenant_id", context.tenantId)
+      .maybeSingle();
+    if (creditSettingsError) throw new Error(creditSettingsError.message);
+    if ((data.uplift_pct > 0 || data.credit_to_use > 0) && !creditSettings?.enabled) {
+      throw new Error("Crédito comercial está desativado para este ambiente");
+    }
+    if (data.uplift_pct > Number(creditSettings?.max_uplift_pct ?? 0)) {
+      throw new Error("Acréscimo acima do limite configurado pela gestão");
+    }
+    if (data.status === "rascunho" && (data.uplift_pct > 0 || data.credit_to_use > 0)) {
+      throw new Error("Crédito só pode ser gerado ou usado ao enviar o pedido");
     }
 
     const cnpjDigits = data.lead_cnpj.replace(/\D/g, "");
@@ -178,43 +208,57 @@ export const createAssistOrder = createServerFn({ method: "POST" })
         throw new Error(`Preço inválido para "${product.name}"`);
       }
       const tablePrice = Number((basePrice * (1 - tableDiscountPct / 100)).toFixed(2));
-      const price = Number((tablePrice * (1 - data.discount_pct / 100)).toFixed(2));
+      const price = Number((tablePrice * (1 + data.uplift_pct / 100) * (1 - data.discount_pct / 100)).toFixed(2));
       return {
         product_id: product.id,
         sku: product.sku,
         name: product.name,
         base_price: basePrice,
+        table_price: tablePrice,
         price_table: priceTable,
         table_discount_pct: tableDiscountPct,
         extra_discount_pct: data.discount_pct,
+        price_uplift_pct: data.uplift_pct,
         price,
         qty: item.qty,
       };
     });
 
     const subtotal = authoritativeItems.reduce(
-      (sum, item) => sum + Number(item.base_price) * item.qty * (1 - tableDiscountPct / 100),
+      (sum, item) => sum + item.table_price * item.qty,
       0,
     );
-    const total = authoritativeItems.reduce((sum, item) => sum + item.price * item.qty, 0);
-
-    const { error } = await sb.from("sales_orders").insert({
-      rep_id:     rep.id,
-      customer_id: customerId,
-      tenant_id:  context.tenantId,
-      lead_name:  data.lead_name,
-      lead_email: data.lead_email,
-      lead_phone: data.lead_phone,
-      lead_cnpj:  cnpjDigits || data.lead_cnpj,
-      notes:      data.notes,
-      items:      authoritativeItems,
-      subtotal:    Number(subtotal.toFixed(2)),
-      discount:   Number((subtotal - total).toFixed(2)),
-      total:       Number(total.toFixed(2)),
-      status:     data.status,
-    });
+    const totalBeforeCredit = authoritativeItems.reduce((sum, item) => sum + item.price * item.qty, 0);
+    const creditToUse = Number(data.credit_to_use.toFixed(2));
+    if (creditToUse > Number(totalBeforeCredit.toFixed(2))) {
+      throw new Error("O crédito não pode ser maior que o total da negociação");
+    }
+    const total = Number((totalBeforeCredit - creditToUse).toFixed(2));
+    const { data: orderId, error } = await (supabaseAdmin as any).rpc(
+      "create_assisted_order_with_credit",
+      {
+        p_tenant_id: context.tenantId,
+        p_rep_id: rep.id,
+        p_customer_id: customerId,
+        p_lead_name: data.lead_name,
+        p_lead_email: data.lead_email,
+        p_lead_phone: data.lead_phone,
+        p_lead_cnpj: cnpjDigits || data.lead_cnpj,
+        p_notes: data.notes,
+        p_items: authoritativeItems,
+        p_subtotal: Number(subtotal.toFixed(2)),
+        p_discount: Number((subtotal - total).toFixed(2)),
+        p_total: total,
+        p_status: data.status,
+        p_price_uplift_pct: data.uplift_pct,
+        p_credit_used: creditToUse,
+        p_actor_user_id: context.userId,
+        p_idempotency_key: data.idempotency_key ?? crypto.randomUUID(),
+      },
+    );
     if (error) throw new Error(error.message);
-    return { ok: true };
+    if (!orderId) throw new Error("O pedido não retornou um identificador");
+    return { ok: true, id: orderId as string };
   });
 
 // ─── Listagem de pedidos do vendedor ────────────────────────────────────────
