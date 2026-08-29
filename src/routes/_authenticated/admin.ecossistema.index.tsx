@@ -88,9 +88,10 @@ function formatDate(iso: string | null) {
 
 function EcossistemaIndex() {
   const qc = useQueryClient();
+  const listFn = useServerFn(listIntegrations);
   const { data, isLoading } = useQuery({
     queryKey: ["integrations"],
-    queryFn: () => useServerFn(listIntegrations)(),
+    queryFn: () => listFn(),
   });
 
   const testFn = useServerFn(integrationTestConnection);
