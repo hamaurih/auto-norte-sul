@@ -15,7 +15,7 @@ export const getSecureBlingAuthUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: { redirectUri: string }) => i)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.supabase, context.userId与新);
+    await assertAdmin(context.supabase, context.userId);
     const clientId = process.env.BLING_CLIENT_ID;
     if (!clientId) {
       throw new Error(
