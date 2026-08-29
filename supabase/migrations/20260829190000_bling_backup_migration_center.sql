@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS public.migration_batches (
   completed_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (id, tenant_id),
   UNIQUE (tenant_id, source_system, source_sha256)
 );
 
@@ -164,17 +165,14 @@ DROP TRIGGER IF EXISTS trg_migration_batches_updated_at ON public.migration_batc
 CREATE TRIGGER trg_migration_batches_updated_at
 BEFORE UPDATE ON public.migration_batches
 FOR EACH ROW EXECUTE FUNCTION private.migration_touch_updated_at();
-
 DROP TRIGGER IF EXISTS trg_migration_modules_updated_at ON public.migration_modules;
 CREATE TRIGGER trg_migration_modules_updated_at
 BEFORE UPDATE ON public.migration_modules
 FOR EACH ROW EXECUTE FUNCTION private.migration_touch_updated_at();
-
 DROP TRIGGER IF EXISTS trg_migration_records_updated_at ON public.migration_records;
 CREATE TRIGGER trg_migration_records_updated_at
 BEFORE UPDATE ON public.migration_records
 FOR EACH ROW EXECUTE FUNCTION private.migration_touch_updated_at();
-
 DROP TRIGGER IF EXISTS trg_migration_reconciliations_updated_at ON public.migration_reconciliations;
 CREATE TRIGGER trg_migration_reconciliations_updated_at
 BEFORE UPDATE ON public.migration_reconciliations
@@ -201,60 +199,45 @@ GRANT ALL ON public.migration_batches, public.migration_modules, public.migratio
   public.migration_reconciliations, public.migration_attempts TO service_role;
 
 DROP POLICY IF EXISTS "Migration batches tenant read" ON public.migration_batches;
-CREATE POLICY "Migration batches tenant read" ON public.migration_batches
-FOR SELECT TO authenticated
+CREATE POLICY "Migration batches tenant read" ON public.migration_batches FOR SELECT TO authenticated
 USING (private.has_tenant_role(tenant_id, ARRAY['owner','admin','manager','accountant']::text[]));
 DROP POLICY IF EXISTS "Migration batches admin manage" ON public.migration_batches;
-CREATE POLICY "Migration batches admin manage" ON public.migration_batches
-FOR ALL TO authenticated
+CREATE POLICY "Migration batches admin manage" ON public.migration_batches FOR ALL TO authenticated
 USING (private.has_tenant_role(tenant_id, ARRAY['owner','admin']::text[]))
 WITH CHECK (private.has_tenant_role(tenant_id, ARRAY['owner','admin']::text[]));
 
 DROP POLICY IF EXISTS "Migration modules tenant read" ON public.migration_modules;
-CREATE POLICY "Migration modules tenant read" ON public.migration_modules
-FOR SELECT TO authenticated
+CREATE POLICY "Migration modules tenant read" ON public.migration_modules FOR SELECT TO authenticated
 USING (private.has_tenant_role(tenant_id, ARRAY['owner','admin','manager','accountant']::text[]));
 DROP POLICY IF EXISTS "Migration modules admin manage" ON public.migration_modules;
-CREATE POLICY "Migration modules admin manage" ON public.migration_modules
-FOR ALL TO authenticated
+CREATE POLICY "Migration modules admin manage" ON public.migration_modules FOR ALL TO authenticated
 USING (private.has_tenant_role(tenant_id, ARRAY['owner','admin']::text[]))
 WITH CHECK (private.has_tenant_role(tenant_id, ARRAY['owner','admin']::text[]));
 
 DROP POLICY IF EXISTS "Migration records tenant read" ON public.migration_records;
-CREATE POLICY "Migration records tenant read" ON public.migration_records
-FOR SELECT TO authenticated
+CREATE POLICY "Migration records tenant read" ON public.migration_records FOR SELECT TO authenticated
 USING (private.has_tenant_role(tenant_id, ARRAY['owner','admin','manager','accountant']::text[]));
 DROP POLICY IF EXISTS "Migration records admin manage" ON public.migration_records;
-CREATE POLICY "Migration records admin manage" ON public.migration_records
-FOR ALL TO authenticated
+CREATE POLICY "Migration records admin manage" ON public.migration_records FOR ALL TO authenticated
 USING (private.has_tenant_role(tenant_id, ARRAY['owner','admin']::text[]))
 WITH CHECK (private.has_tenant_role(tenant_id, ARRAY['owner','admin']::text[]));
 
 DROP POLICY IF EXISTS "Migration reconciliations tenant read" ON public.migration_reconciliations;
-CREATE POLICY "Migration reconciliations tenant read" ON public.migration_reconciliations
-FOR SELECT TO authenticated
+CREATE POLICY "Migration reconciliations tenant read" ON public.migration_reconciliations FOR SELECT TO authenticated
 USING (private.has_tenant_role(tenant_id, ARRAY['owner','admin','manager','accountant']::text[]));
 DROP POLICY IF EXISTS "Migration reconciliations admin manage" ON public.migration_reconciliations;
-CREATE POLICY "Migration reconciliations admin manage" ON public.migration_reconciliations
-FOR ALL TO authenticated
+CREATE POLICY "Migration reconciliations admin manage" ON public.migration_reconciliations FOR ALL TO authenticated
 USING (private.has_tenant_role(tenant_id, ARRAY['owner','admin']::text[]))
 WITH CHECK (private.has_tenant_role(tenant_id, ARRAY['owner','admin']::text[]));
 
 DROP POLICY IF EXISTS "Migration attempts tenant read" ON public.migration_attempts;
-CREATE POLICY "Migration attempts tenant read" ON public.migration_attempts
-FOR SELECT TO authenticated
+CREATE POLICY "Migration attempts tenant read" ON public.migration_attempts FOR SELECT TO authenticated
 USING (private.has_tenant_role(tenant_id, ARRAY['owner','admin','manager','accountant']::text[]));
 DROP POLICY IF EXISTS "Migration attempts admin insert" ON public.migration_attempts;
-CREATE POLICY "Migration attempts admin insert" ON public.migration_attempts
-FOR INSERT TO authenticated
+CREATE POLICY "Migration attempts admin insert" ON public.migration_attempts FOR INSERT TO authenticated
 WITH CHECK (private.has_tenant_role(tenant_id, ARRAY['owner','admin']::text[]));
 
--- Retry is deliberately conservative: only failed/quarantined ledger rows are
--- returned to staging. The target ERP data is never deleted or rolled back here.
-CREATE OR REPLACE FUNCTION public.retry_migration_module(
-  p_batch_id uuid,
-  p_module_key text
-)
+CREATE OR REPLACE FUNCTION public.retry_migration_module(p_batch_id uuid, p_module_key text)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY INVOKER
@@ -265,40 +248,27 @@ DECLARE
   v_module_id uuid;
   v_reset bigint := 0;
 BEGIN
-  SELECT b.tenant_id, m.id
-    INTO v_tenant_id, v_module_id
+  SELECT b.tenant_id, m.id INTO v_tenant_id, v_module_id
   FROM public.migration_batches b
   JOIN public.migration_modules m ON m.batch_id = b.id AND m.tenant_id = b.tenant_id
   WHERE b.id = p_batch_id AND m.module_key = p_module_key;
-
   IF v_tenant_id IS NULL OR v_module_id IS NULL THEN
     RAISE EXCEPTION 'Migration batch/module not found';
   END IF;
-
   IF NOT private.has_tenant_role(v_tenant_id, ARRAY['owner','admin']::text[]) THEN
     RAISE EXCEPTION 'Insufficient tenant role';
   END IF;
-
   UPDATE public.migration_records
-  SET status = 'staged',
-      error_code = NULL,
-      error_message = NULL,
-      processed_at = NULL,
-      updated_at = now()
-  WHERE tenant_id = v_tenant_id
-    AND batch_id = p_batch_id
-    AND module_id = v_module_id
+  SET status = 'staged', error_code = NULL, error_message = NULL,
+      processed_at = NULL, updated_at = now()
+  WHERE tenant_id = v_tenant_id AND batch_id = p_batch_id AND module_id = v_module_id
     AND status IN ('error','quarantined');
   GET DIAGNOSTICS v_reset = ROW_COUNT;
-
   UPDATE public.migration_modules
   SET status = CASE WHEN v_reset > 0 THEN 'ready' ELSE status END,
       error_count = GREATEST(error_count - v_reset, 0),
-      quarantined_count = 0,
-      last_error = NULL,
-      updated_at = now()
+      quarantined_count = 0, last_error = NULL, updated_at = now()
   WHERE id = v_module_id AND tenant_id = v_tenant_id;
-
   INSERT INTO public.migration_attempts (
     batch_id, module_id, tenant_id, action, status, actor_user_id,
     processed_count, message, finished_at
@@ -306,11 +276,9 @@ BEGIN
     p_batch_id, v_module_id, v_tenant_id, 'retry', 'success', auth.uid(),
     v_reset, format('%s registros retornaram ao staging', v_reset), now()
   );
-
   RETURN jsonb_build_object('ok', true, 'reset_count', v_reset, 'module_key', p_module_key);
 END;
 $$;
-
 REVOKE ALL ON FUNCTION public.retry_migration_module(uuid, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.retry_migration_module(uuid, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.retry_migration_module(uuid, text) TO service_role;
