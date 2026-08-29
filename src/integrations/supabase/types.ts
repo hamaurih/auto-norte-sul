@@ -5153,6 +5153,7 @@ export type Database = {
           customer_id: string | null
           discount: number
           id: string
+          idempotency_key: string | null
           items: Json
           lead_cnpj: string | null
           lead_email: string | null
@@ -5160,7 +5161,12 @@ export type Database = {
           lead_phone: string | null
           notes: string | null
           order_id: string | null
+          price_uplift_pct: number
           rep_id: string
+          seller_credit_earned: number
+          seller_credit_gross_amount: number
+          seller_credit_tax_amount: number
+          seller_credit_used: number
           status: string
           subtotal: number
           tenant_id: string
@@ -5172,6 +5178,7 @@ export type Database = {
           customer_id?: string | null
           discount?: number
           id?: string
+          idempotency_key?: string | null
           items?: Json
           lead_cnpj?: string | null
           lead_email?: string | null
@@ -5179,7 +5186,12 @@ export type Database = {
           lead_phone?: string | null
           notes?: string | null
           order_id?: string | null
+          price_uplift_pct?: number
           rep_id: string
+          seller_credit_earned?: number
+          seller_credit_gross_amount?: number
+          seller_credit_tax_amount?: number
+          seller_credit_used?: number
           status?: string
           subtotal?: number
           tenant_id: string
@@ -5191,6 +5203,7 @@ export type Database = {
           customer_id?: string | null
           discount?: number
           id?: string
+          idempotency_key?: string | null
           items?: Json
           lead_cnpj?: string | null
           lead_email?: string | null
@@ -5198,7 +5211,12 @@ export type Database = {
           lead_phone?: string | null
           notes?: string | null
           order_id?: string | null
+          price_uplift_pct?: number
           rep_id?: string
+          seller_credit_earned?: number
+          seller_credit_gross_amount?: number
+          seller_credit_tax_amount?: number
+          seller_credit_used?: number
           status?: string
           subtotal?: number
           tenant_id?: string
@@ -5561,6 +5579,114 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "seller_commission_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seller_credit_ledger: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          description: string
+          entry_type: string
+          gross_amount: number
+          id: string
+          idempotency_key: string
+          rep_id: string
+          source_order_id: string | null
+          tax_amount: number
+          tenant_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          description: string
+          entry_type: string
+          gross_amount?: number
+          id?: string
+          idempotency_key?: string
+          rep_id: string
+          source_order_id?: string | null
+          tax_amount?: number
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          entry_type?: string
+          gross_amount?: number
+          id?: string
+          idempotency_key?: string
+          rep_id?: string
+          source_order_id?: string | null
+          tax_amount?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_credit_ledger_rep_id_fkey"
+            columns: ["rep_id"]
+            isOneToOne: false
+            referencedRelation: "sales_reps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seller_credit_ledger_source_order_id_fkey"
+            columns: ["source_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seller_credit_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seller_credit_settings: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          max_credit_use_pct: number
+          max_uplift_pct: number
+          tax_rate_pct: number
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          max_credit_use_pct?: number
+          max_uplift_pct?: number
+          tax_rate_pct?: number
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          max_credit_use_pct?: number
+          max_uplift_pct?: number
+          tax_rate_pct?: number
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_credit_settings_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: true
             referencedRelation: "tenants"
@@ -6708,6 +6834,28 @@ export type Database = {
         }
       }
       confirm_goods_receipt: { Args: { p_receipt_id: string }; Returns: Json }
+      create_assisted_order_with_credit: {
+        Args: {
+          p_actor_user_id?: string
+          p_credit_used?: number
+          p_customer_id: string
+          p_discount: number
+          p_idempotency_key?: string
+          p_items: Json
+          p_lead_cnpj: string
+          p_lead_email: string
+          p_lead_name: string
+          p_lead_phone: string
+          p_notes: string
+          p_price_uplift_pct?: number
+          p_rep_id: string
+          p_status: string
+          p_subtotal: number
+          p_tenant_id: string
+          p_total: number
+        }
+        Returns: string
+      }
       create_fiscal_draft_from_order: {
         Args: { p_model?: string; p_order_id: string }
         Returns: Json
