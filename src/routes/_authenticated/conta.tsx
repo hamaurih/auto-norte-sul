@@ -18,20 +18,30 @@ function Conta() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("profiles").select("full_name, phone").eq("id", user.id).maybeSingle().then(({ data }) => {
-      setName(data?.full_name ?? "");
-      setPhone(data?.phone ?? "");
-    });
+    (supabase as any)
+      .rpc("get_my_private_profile")
+      .then(({ data, error }: { data?: Array<{ full_name: string | null; phone: string | null }>; error?: { message?: string } | null }) => {
+        if (error) {
+          toast.error(error.message || "Não foi possível carregar o perfil.");
+          return;
+        }
+        const profile = data?.[0];
+        setName(profile?.full_name ?? "");
+        setPhone(profile?.phone ?? "");
+      });
   }, [user?.id]);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
     setSaving(true);
-    const { error } = await supabase.from("profiles").upsert({ id: user.id, full_name: name, phone });
+    const { error } = await (supabase as any).rpc("update_my_private_profile", {
+      p_full_name: name,
+      p_phone: phone,
+    });
     setSaving(false);
     if (error) toast.error(error.message);
-    else toast.success("Perfil atualizado");
+    else toast.success("Perfil atualizado com dados privados protegidos");
   }
 
   return (
