@@ -1,10 +1,12 @@
 const encoder = new TextEncoder();
 
 function requiredKey(): string {
-  const value = process.env.INTEGRATION_ENCRYPTION_KEY;
+  // Prefer a dedicated key. The service-role key is a server-only fallback so
+  // existing deployments can save credentials before the dedicated variable is added.
+  const value = process.env.INTEGRATION_ENCRYPTION_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!value || value.length < 32) {
     throw new Error(
-      "INTEGRATION_ENCRYPTION_KEY não configurada. Defina uma chave aleatória com pelo menos 32 caracteres no ambiente do servidor.",
+      "Nenhuma chave server-only disponível para proteger credenciais de integração.",
     );
   }
   return value;
