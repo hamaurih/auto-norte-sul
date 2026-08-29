@@ -2,6 +2,8 @@
 -- Fails hard if real/demo/no-association isolation regresses.
 
 begin;
+create extension if not exists pgtap with schema extensions;
+select plan(1);
 
 -- Stable synthetic identities used only inside this rolled-back test transaction.
 insert into auth.users (
@@ -87,9 +89,7 @@ values
 
 set local role authenticated;
 
--- ---------------------------------------------------------------------------
 -- Vendedor: can read its own real tenant, never demo; cannot modify demo.
--- ---------------------------------------------------------------------------
 select set_config(
   'request.jwt.claims',
   '{"sub":"10000000-0000-4000-8000-000000000001","role":"authenticated"}',
@@ -131,9 +131,7 @@ begin
 end
 $$;
 
--- ---------------------------------------------------------------------------
 -- Consulta/viewer: explicit read in real only; never reads or writes demo.
--- ---------------------------------------------------------------------------
 select set_config(
   'request.jwt.claims',
   '{"sub":"10000000-0000-4000-8000-000000000002","role":"authenticated"}',
@@ -175,9 +173,7 @@ begin
 end
 $$;
 
--- ---------------------------------------------------------------------------
 -- Demo manager: can read demo, never real.
--- ---------------------------------------------------------------------------
 select set_config(
   'request.jwt.claims',
   '{"sub":"10000000-0000-4000-8000-000000000003","role":"authenticated"}',
@@ -207,10 +203,8 @@ begin
 end
 $$;
 
--- ---------------------------------------------------------------------------
 -- External authenticated user with no membership: may see only the storefront
 -- explicitly selected by x-tenant-slug and cannot write either tenant.
--- ---------------------------------------------------------------------------
 select set_config(
   'request.jwt.claims',
   '{"sub":"10000000-0000-4000-8000-000000000004","role":"authenticated"}',
@@ -337,4 +331,6 @@ begin
 end
 $$;
 
+select pass('Phase 0: real/demo/external tenant isolation and sensitive access invariants hold');
+select * from finish();
 rollback;
