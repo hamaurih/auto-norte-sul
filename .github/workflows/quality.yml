@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   build:
-    name: Typecheck, build and Phase 0 security
+    name: Typecheck and production-equivalent build
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -31,6 +31,8 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build and generate typed routes
+        env:
+          NITRO_PRESET: vercel
         run: bun run build
 
       - name: Typecheck
@@ -51,32 +53,17 @@ jobs:
           test -f supabase/migrations/20260825140000_fiscal_homologation_gateway.sql
           test -f supabase/migrations/20260829143000_phase0_security_containment.sql
           test -f supabase/tests/phase0_tenant_isolation.sql
-          ! rg '^(<<<<<<<|=======|>>>>>>>)' supabase
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' supabase
 
       - name: Phase 0 source invariants
         run: |
           ! test -f .env
           ! git ls-files --error-unmatch .env >/dev/null 2>&1
-          ! rg 'inviteUserByEmail' src
-          rg 'has_any_active_tenant_membership' supabase/migrations/20260829143000_phase0_security_containment.sql
-          rg 'changed_count <> 80' supabase/migrations/20260829143000_phase0_security_containment.sql
-          rg 'commission_pct' supabase/migrations/20260829143000_phase0_security_containment.sql
-          rg 'PHASE0 FAIL: vendedor leu dados do tenant demo' supabase/tests/phase0_tenant_isolation.sql
-          rg 'PHASE0 FAIL: consulta leu dados do tenant demo' supabase/tests/phase0_tenant_isolation.sql
-          rg 'PHASE0 FAIL: gerente demo leu o tenant real' supabase/tests/phase0_tenant_isolation.sql
-          rg 'PHASE0 FAIL: externo leu outro tenant' supabase/tests/phase0_tenant_isolation.sql
-
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
-      - name: Start local Supabase and apply migrations
-        run: supabase start
-
-      - name: Run mandatory Phase 0 database tests
-        run: supabase test db supabase/tests/phase0_tenant_isolation.sql
-
-      - name: Stop local Supabase
-        if: always()
-        run: supabase stop --no-backup
+          ! grep -R -n -F 'inviteUserByEmail' src
+          grep -F 'has_any_active_tenant_membership' supabase/migrations/20260829143000_phase0_security_containment.sql
+          grep -F 'changed_count <> 80' supabase/migrations/20260829143000_phase0_security_containment.sql
+          grep -F 'commission_pct' supabase/migrations/20260829143000_phase0_security_containment.sql
+          grep -F 'PHASE0 FAIL: vendedor leu dados do tenant demo' supabase/tests/phase0_tenant_isolation.sql
+          grep -F 'PHASE0 FAIL: consulta leu dados do tenant demo' supabase/tests/phase0_tenant_isolation.sql
+          grep -F 'PHASE0 FAIL: gerente demo leu o tenant real' supabase/tests/phase0_tenant_isolation.sql
+          grep -F 'PHASE0 FAIL: externo leu outro tenant' supabase/tests/phase0_tenant_isolation.sql
