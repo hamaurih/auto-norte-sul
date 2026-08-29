@@ -5,21 +5,38 @@ import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { brl } from "@/lib/format";
-import { productDelete, productDuplicate, productToggle } from "@/lib/products.functions";
+import { generateMissingInternalCodes, productDelete, productDuplicate, productToggle } from "@/lib/products.functions";
 import { buildProductSearchFilter } from "@/lib/product-codes";
+import { code128Barcode } from "@/lib/code128";
 import { ProductCodeBadges } from "@/components/admin/ProductCodeBadges";
-import { Plus, Pencil, Copy, Trash2, Search, ChevronLeft, ChevronRight, ImageOff } from "lucide-react";
+import { Plus, Pencil, Copy, Trash2, Search, ChevronLeft, ChevronRight, ImageOff, Barcode, Printer } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/produtos/")({
   head: () => ({ meta: [{ title: "Produtos · Admin" }] }),
   component: ProductsList,
 });
 
+
+function Code128Label({ value }: { value: string }) {
+  const barcode = code128Barcode(value);
+  if (!barcode) return null;
+  return (
+    <svg className="mt-2 h-12 w-full" viewBox={\`0 0 \${barcode.width} 48\`} role="img" aria-label={\`Código de barras \${value}\`} preserveAspectRatio="none">
+      <rect width={barcode.width} height="48" fill="white" />
+      {barcode.bars.map((bar, index) => (
+        <rect key={index} x={bar.x} y="2" width={bar.width} height="38" fill="black" />
+      ))}
+    </svg>
+  );
+}
+
 function ProductsList() {
   const qc = useQueryClient();
   const del = useServerFn(productDelete);
   const dup = useServerFn(productDuplicate);
   const toggle = useServerFn(productToggle);
+  const generateCodes = useServerFn(generateMissingInternalCodes);
+  const [generatedCodes, setGeneratedCodes] = useState<any[]>([]);
   const [q, setQ] = useState("");
   const [filterCat, setFilterCat] = useState("");
   const [filterBrand, setFilterBrand] = useState("");
@@ -85,16 +102,32 @@ function ProductsList() {
     catch (e) { toast.error(e instanceof Error ? e.message : "Erro"); }
   }
 
+  async function handleGenerateCodes() {
+    try {
+      const result = await generateCodes({ data: { limit: 200 } });
+      setGeneratedCodes(result.rows ?? []);
+      toast.success(result.generated ? `${result.generated} código(s) interno(s) gerado(s)` : "Não há produtos sem código interno");
+      await qc.invalidateQueries({ queryKey: ["admin-products"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível gerar os códigos");
+    }
+  }
+
   return (
     <div>
-      <header className="admin-page-hero mb-5 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+      <header className="admin-page-hero mb-5 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between print:hidden">
         <div><p className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">Catálogo inteligente</p><h1 className="mt-1 font-display text-3xl font-bold">Produtos <span className="text-base text-muted-foreground">({total})</span></h1><p className="mt-1 text-sm text-muted-foreground">Cadastre, filtre e mantenha códigos, imagens, preços e estoque organizados.</p></div>
-        <Link to="/admin/produtos/novo" className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-violet-600 px-4 py-2 text-sm font-extrabold text-white shadow-lg shadow-blue-500/20 transition-transform hover:-translate-y-0.5">
-          <Plus className="h-4 w-4" /> Novo Produto
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={handleGenerateCodes} className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-violet-200 bg-white px-4 py-2 text-sm font-extrabold text-violet-700 shadow-sm hover:bg-violet-50">
+            <Barcode className="h-4 w-4" /> Gerar códigos internos
+          </button>
+          <Link to="/admin/produtos/novo" className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-violet-600 px-4 py-2 text-sm font-extrabold text-white shadow-lg shadow-blue-500/20 transition-transform hover:-translate-y-0.5">
+            <Plus className="h-4 w-4" /> Novo Produto
+          </Link>
+        </div>
       </header>
 
-      <div className="admin-filter-bar mb-4 grid gap-2 md:grid-cols-5">
+      <div className="admin-filter-bar mb-4 grid gap-2 md:grid-cols-5 print:hidden">
         <div className="relative md:col-span-2">
           <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nome, código interno, código do fabricante ou SKU" className="w-full rounded border border-border bg-background p-2 pl-8 text-sm" />
@@ -126,7 +159,7 @@ function ProductsList() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-3xl border border-border/70 bg-card shadow-sm">
+      <div className="overflow-x-auto rounded-3xl border border-border/70 bg-card shadow-sm print:hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted text-xs uppercase">
             <tr>
@@ -189,7 +222,7 @@ function ProductsList() {
       </div>
 
       {/* Pagination footer */}
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm print:hidden">
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground">Mostrar</span>
           <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="rounded border border-border bg-background p-1 text-sm">
@@ -223,6 +256,31 @@ function ProductsList() {
           </button>
         </div>
       </div>
+      {generatedCodes.length > 0 && (
+        <section className="mt-6 rounded-3xl border border-violet-200 bg-white p-5 shadow-sm print:mt-0 print:border-0 print:p-0 print:shadow-none">
+          <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-violet-700">Etiquetas geradas</p>
+              <h2 className="mt-1 font-display text-xl font-extrabold">Imprima e cole nos produtos</h2>
+              <p className="mt-1 text-sm text-muted-foreground">O leitor poderá bipar o código interno, SKU ou GTIN na conferência.</p>
+            </div>
+            <button type="button" onClick={() => window.print()} className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-violet-600 px-4 text-sm font-extrabold text-white hover:bg-violet-700">
+              <Printer className="h-4 w-4" /> Imprimir etiquetas
+            </button>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 print:mt-0 print:grid-cols-3">
+            {generatedCodes.map((product) => (
+              <article key={product.product_id} className="rounded-2xl border border-border bg-white p-3 print:break-inside-avoid">
+                <p className="truncate text-xs font-extrabold">{product.name}</p>
+                <p className="mt-1 truncate font-mono text-[10px] text-muted-foreground">SKU {product.sku}</p>
+                <Code128Label value={product.internal_code} />
+                <p className="mt-1 text-center font-mono text-sm font-extrabold tracking-widest">{product.internal_code}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
     </div>
   );
 }
