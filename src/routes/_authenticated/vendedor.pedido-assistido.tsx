@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { brl } from "@/lib/format";
 import { toast } from "sonner";
 import { searchProductsForAssist, createAssistOrder } from "@/lib/vendedor.functions";
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated/vendedor/pedido-assistido"
   component: PedidoAssistido,
 });
 
-interface Item { product_id: string; sku: string; name: string; price: number; qty: number }
+interface Item { product_id: string; sku: string; name: string; base_price: number; price: number; qty: number }
 
 function PedidoAssistido() {
   const [search, setSearch]  = useState("");
@@ -58,13 +58,21 @@ function PedidoAssistido() {
 
   const addItem = useCallback((p: any) => {
     const tableDiscountPct = Number(priceContextQuery.data?.discountPct ?? 0);
-    const basePrice = Number(p.price_b2b ?? p.price_b2c ?? 0);
+    const basePrice = Number(p.price_b2b ?? p.sale_price_b2c ?? p.price_b2c ?? 0);
     const price = Number((basePrice * (1 - tableDiscountPct / 100) * (1 - discountPct / 100)).toFixed(2));
     setItems((prev) => {
       const found = prev.find((i) => i.product_id === p.id);
       if (found) return prev.map((i) => i.product_id === p.id ? { ...i, qty: i.qty + 1 } : i);
-      return [...prev, { product_id: p.id, sku: p.sku, name: p.name, price, qty: 1 }];
+      return [...prev, { product_id: p.id, sku: p.sku, name: p.name, base_price: basePrice, price, qty: 1 }];
     });
+  }, [discountPct, priceContextQuery.data?.discountPct]);
+
+  useEffect(() => {
+    const tableDiscountPct = Number(priceContextQuery.data?.discountPct ?? 0);
+    setItems((prev) => prev.map((item) => ({
+      ...item,
+      price: Number((item.base_price * (1 - tableDiscountPct / 100) * (1 - discountPct / 100)).toFixed(2)),
+    })));
   }, [discountPct, priceContextQuery.data?.discountPct]);
 
   const removeItem = (product_id: string) =>
@@ -155,7 +163,7 @@ function PedidoAssistido() {
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="text-xs text-muted-foreground">Est: {p.stock}</span>
                   <span className="font-semibold">
-                    {brl(Number(((p.price_b2b ?? p.price_b2c ?? 0) * (1 - Number(priceContextQuery.data?.discountPct ?? 0) / 100) * (1 - discountPct / 100)).toFixed(2)))}
+                    {brl(Number(((p.price_b2b ?? p.sale_price_b2c ?? p.price_b2c ?? 0) * (1 - Number(priceContextQuery.data?.discountPct ?? 0) / 100) * (1 - discountPct / 100)).toFixed(2)))}
                   </span>
                   <button
                     type="button"
