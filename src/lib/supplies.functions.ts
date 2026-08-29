@@ -464,7 +464,7 @@ export const setPurchaseOrderStatus = createServerFn({ method: "POST" })
 // ===================== Recebimentos =====================
 
 const RECEIPT_SELECT =
-  "id, number, status, received_at, invoice_number, notes, warehouse_id, purchase_order_id, confirmed_at, reversed_at, reverse_reason, created_at, supplier:suppliers(id, legal_name, trade_name), warehouse:warehouses(id, name, code), purchase_order:purchase_orders(id, number, status)";
+  "id, number, status, received_at, invoice_number, notes, no_order_reason, warehouse_id, purchase_order_id, confirmed_at, reversed_at, reverse_reason, created_at, supplier:suppliers(id, legal_name, trade_name), warehouse:warehouses(id, name, code), purchase_order:purchase_orders(id, number, status)";
 
 export const listGoodsReceipts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
