@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 import { tdb } from "@/integrations/supabase/tenant-db";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export type PriceTable = "A" | "B" | "C";
 
@@ -108,7 +109,7 @@ export const getMyCommercialSettings = createServerFn({ method: "GET" })
 
     const { data: rep, error } = await sb
       .from("sales_reps")
-      .select("id, commission_pct, max_discount_pct, can_sell_b2b")
+      .select("id, max_discount_pct, can_sell_b2b")
       .eq("tenant_id", context.tenantId)
       .eq("user_id", context.userId)
       .eq("active", true)
@@ -118,7 +119,6 @@ export const getMyCommercialSettings = createServerFn({ method: "GET" })
     return {
       isSalesRep: Boolean(rep),
       repId: rep?.id ?? null,
-      commissionPct: Number(rep?.commission_pct ?? 0),
       maxDiscountPct: Number(rep?.max_discount_pct ?? 0),
       canSellB2B: Boolean(rep?.can_sell_b2b ?? false),
     };
@@ -176,6 +176,8 @@ export const getCommercialAdminData = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const sb = tdb(context.supabase);
     await requireManager(sb, context.userId, context.tenantId);
+    // Comissão é dado gerencial: esta leitura usa service role somente depois da checagem de gerente/admin.
+    const adminSb = tdb(supabaseAdmin);
 
     const [settingsResult, commissionSettingsResult, customersResult, assignmentsResult, repsResult, goalsResult, commissionsResult] =
       await Promise.all([
@@ -201,7 +203,7 @@ export const getCommercialAdminData = createServerFn({ method: "GET" })
           .select("customer_id, price_table")
           .eq("tenant_id", context.tenantId)
           .eq("active", true),
-        sb
+        adminSb
           .from("sales_reps")
           .select("id, full_name, email, commission_pct, max_discount_pct, active")
           .eq("tenant_id", context.tenantId)
