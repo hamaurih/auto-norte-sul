@@ -72,6 +72,32 @@ export function isOrganizationAdmin(context: AccessContext | undefined | null): 
   return Boolean(context?.organizations.some((org) => org.role === "owner" || org.role === "admin"));
 }
 
+function hasTenantAdminMembership(context: AccessContext | undefined | null): boolean {
+  return Boolean(context?.tenants.some((tenant) => tenant.role === "owner" || tenant.role === "admin"));
+}
+
+/**
+ * @deprecated Transitional name only. This function NEVER reads user_roles and
+ * grants access exclusively from canonical organization/tenant memberships.
+ * Kept temporarily while older routes are migrated to direct tenant checks.
+ */
+export async function isLegacyStaff(userId?: string | null): Promise<boolean> {
+  if (!userId) return false;
+  const context = await fetchAccessContext();
+  if (context.user_id !== userId) return false;
+  return isOrganizationAdmin(context) || hasTenantAdminMembership(context);
+}
+
+/** @deprecated See isLegacyStaff. Canonical authorization remains tenant membership only. */
+export function useIsLegacyStaff(userId?: string | null) {
+  return useQuery({
+    queryKey: ["tenant-admin-compat", userId],
+    queryFn: () => isLegacyStaff(userId),
+    enabled: Boolean(userId),
+    staleTime: 60_000,
+  });
+}
+
 export function activeTenant(context: AccessContext | undefined | null): AccessTenant | null {
   if (!context) return null;
   const slug = activeTenantSlug();
