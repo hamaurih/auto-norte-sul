@@ -2599,6 +2599,216 @@ export type Database = {
           },
         ]
       }
+      order_dispatch_items: {
+        Row: {
+          created_at: string
+          dispatch_id: string
+          expected_qty: number
+          id: string
+          last_scanned_at: string | null
+          order_item_id: string
+          product_id: string
+          scanned_qty: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dispatch_id: string
+          expected_qty: number
+          id?: string
+          last_scanned_at?: string | null
+          order_item_id: string
+          product_id: string
+          scanned_qty?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dispatch_id?: string
+          expected_qty?: number
+          id?: string
+          last_scanned_at?: string | null
+          order_item_id?: string
+          product_id?: string
+          scanned_qty?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_dispatch_items_dispatch_id_fkey"
+            columns: ["dispatch_id"]
+            isOneToOne: false
+            referencedRelation: "order_dispatches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_dispatch_items_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_dispatch_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_dispatch_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_available"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "order_dispatch_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_dispatch_scans: {
+        Row: {
+          created_at: string
+          dispatch_id: string
+          dispatch_item_id: string
+          id: string
+          product_id: string
+          quantity: number
+          scanned_code: string
+          scanner_name: string
+          scanner_user_id: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          dispatch_id: string
+          dispatch_item_id: string
+          id?: string
+          product_id: string
+          quantity?: number
+          scanned_code: string
+          scanner_name: string
+          scanner_user_id: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          dispatch_id?: string
+          dispatch_item_id?: string
+          id?: string
+          product_id?: string
+          quantity?: number
+          scanned_code?: string
+          scanner_name?: string
+          scanner_user_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_dispatch_scans_dispatch_id_fkey"
+            columns: ["dispatch_id"]
+            isOneToOne: false
+            referencedRelation: "order_dispatches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_dispatch_scans_dispatch_item_id_fkey"
+            columns: ["dispatch_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_dispatch_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_dispatch_scans_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_dispatch_scans_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_product_stock_available"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "order_dispatch_scans_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_dispatches: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          completed_by_name: string | null
+          created_at: string
+          id: string
+          order_id: string
+          started_at: string | null
+          started_by: string | null
+          started_by_name: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          completed_by_name?: string | null
+          created_at?: string
+          id?: string
+          order_id: string
+          started_at?: string | null
+          started_by?: string | null
+          started_by_name?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          completed_by_name?: string | null
+          created_at?: string
+          id?: string
+          order_id?: string
+          started_at?: string | null
+          started_by?: string | null
+          started_by_name?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_dispatches_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_dispatches_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           id: string
@@ -6293,6 +6503,10 @@ export type Database = {
         }
         Returns: string
       }
+      internal_complete_order_dispatch: {
+        Args: { p_actor_user_id: string; p_dispatch_id: string }
+        Returns: Json
+      }
       internal_create_payment_intent: {
         Args: {
           p_actor_user_id: string
@@ -6346,6 +6560,15 @@ export type Database = {
         }
         Returns: string
       }
+      internal_generate_product_internal_codes: {
+        Args: { p_actor_user_id: string; p_limit?: number; p_tenant_id: string }
+        Returns: {
+          internal_code: string
+          name: string
+          product_id: string
+          sku: string
+        }[]
+      }
       internal_operate_order: {
         Args: {
           p_actor_user_id: string
@@ -6354,6 +6577,19 @@ export type Database = {
           p_order_id: string
         }
         Returns: Database["public"]["Enums"]["order_status"]
+      }
+      internal_scan_order_dispatch: {
+        Args: {
+          p_actor_user_id?: string
+          p_code: string
+          p_dispatch_id: string
+          p_quantity?: number
+        }
+        Returns: Json
+      }
+      internal_start_order_dispatch: {
+        Args: { p_actor_user_id: string; p_order_id: string }
+        Returns: Json
       }
       internal_transition_order: {
         Args: { p_action: string; p_actor_user_id?: string; p_order_id: string }
