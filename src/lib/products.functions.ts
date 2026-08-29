@@ -177,3 +177,28 @@ export const checkInternalCodeDuplicate = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { duplicate: (rows ?? []).length > 0, products: rows ?? [] };
   });
+
+export const generateMissingInternalCodes = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { limit?: number }) => {
+    const limit = input?.limit ?? 200;
+    if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
+      throw new Error("A quantidade deve ficar entre 1 e 1.000");
+    }
+    return { limit };
+  })
+  .handler(async ({ data, context }) => {
+    await requireCatalogTenant(tdb(context.supabase), context.userId, context.tenantId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await (supabaseAdmin as any).rpc(
+      "internal_generate_product_internal_codes",
+      {
+        p_tenant_id: context.tenantId,
+        p_actor_user_id: context.userId,
+        p_limit: data.limit,
+      },
+    );
+    if (error) throw new Error(error.message);
+    return { rows: Array.isArray(rows) ? rows : [], generated: Array.isArray(rows) ? rows.length : 0 };
+  });
+
