@@ -625,6 +625,8 @@ export const createGoodsReceipt = createServerFn({ method: "POST" })
         units_per_package: unitsPerPackage,
         package_unit: packageUnit,
         unit_cost: unitCost,
+        base_unit_cost: unitCost,
+        acquisition_unit_cost: unitCost,
         notes: raw.notes?.trim() || null,
       });
     }
