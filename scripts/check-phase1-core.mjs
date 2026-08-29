@@ -62,7 +62,7 @@ if (!callback.includes("tenant_id") || !callback.includes("config_id")) {
 if (/from\(["']bling_config["']\)[\s\S]{0,300}\.limit\(1\)/.test(callback)) {
   failures.push("Bling OAuth callback: seleção global de bling_config por limit(1) proibida");
 }
-if (!callback.includes("used_at") || !callback.includes("expires_at") || !callback.includes("state_hash")) {
+if (!callback.includes("consumed_at") || !callback.includes("expires_at") || !callback.includes("state_hash")) {
   failures.push("Bling OAuth callback: hardening de state de uso único ausente");
 }
 
