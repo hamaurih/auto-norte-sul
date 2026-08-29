@@ -59,6 +59,17 @@ const iconBySlug: Record<string, LucideIcon> = {
   "ia-aes-business": Bot,
   fiscal: FileText,
   "mobile-app": Smartphone,
+  nuvemshop: Store,
+  shopify: ShoppingCart,
+  woocommerce: ShoppingCart,
+  tray: ShoppingBag,
+  "magalu-marketplace": Store,
+  olist: Store,
+  frenet: Truck,
+  kangu: Truck,
+  pagbank: CreditCard,
+  pagarme: CreditCard,
+  asaas: CreditCard,
 };
 
 const categoryLabels: Record<string, string> = {
