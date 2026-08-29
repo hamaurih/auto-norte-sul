@@ -3,9 +3,14 @@ import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-quer
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { brl } from "@/lib/format";
-import { generateMissingInternalCodes, productDelete, productDuplicate, productToggle } from "@/lib/products.functions";
+import {
+  generateMissingInternalCodes,
+  listAdminProducts,
+  productDelete,
+  productDuplicate,
+  productToggle,
+} from "@/lib/products.functions";
 import { buildProductSearchFilter } from "@/lib/product-codes";
 import { code128Barcode } from "@/lib/code128";
 import { ProductCodeBadges } from "@/components/admin/ProductCodeBadges";
@@ -49,31 +54,27 @@ function ProductsList() {
   // reset page when filters change
   useEffect(() => { setPage(1); }, [q, filterCat, filterBrand, filterActive, filterStock, filterPhoto, pageSize]);
 
-  const { data: brands = [] } = useQuery({ queryKey: ["brands-all"], queryFn: async () => (await supabase.from("brands").select("id,name").order("name")).data ?? [] });
-  const { data: cats = [] } = useQuery({ queryKey: ["categories-all"], queryFn: async () => (await supabase.from("categories").select("id,name,parent_id").order("name")).data ?? [] });
+  const listProducts = useServerFn(listAdminProducts);
 
-  const { data } = useQuery({
+  const { data: catalog } = useQuery({
     queryKey: ["admin-products", q, filterCat, filterBrand, filterActive, filterStock, pageSize, page],
     placeholderData: keepPreviousData,
-    queryFn: async () => {
-      let query = supabase
-        .from("products")
-        .select("id, sku, internal_code, manufacturer_code, name, stock, price_b2c, sale_price_b2c, active, featured, is_new, is_bestseller, brand_id, category_id, images:product_images(url, is_primary, sort_order)", { count: "exact" })
-        .order("name");
-      const orFilter = q ? buildProductSearchFilter(q) : null;
-      if (orFilter) query = query.or(orFilter);
-      if (filterCat) query = query.eq("category_id", filterCat);
-      if (filterBrand) query = query.eq("brand_id", filterBrand);
-      if (filterActive === "true") query = query.eq("active", true);
-      if (filterActive === "false") query = query.eq("active", false);
-      if (filterStock === "in") query = query.gt("stock", 0);
-      if (filterStock === "out") query = query.lte("stock", 0);
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-      const { data, count } = await query.range(from, to);
-      return { rows: data ?? [], total: count ?? 0 };
-    },
+    queryFn: () =>
+      listProducts({
+        data: {
+          search: q,
+          categoryId: filterCat || undefined,
+          brandId: filterBrand || undefined,
+          active: filterActive,
+          stock: filterStock,
+          page,
+          pageSize,
+        },
+      }),
   });
+  const brands = catalog?.brands ?? [];
+  const cats = catalog?.cats ?? [];
+  const data = catalog ?? { rows: [], total: 0 };
 
   const filteredRows = useMemo(() => {
     const rows = data?.rows ?? [];
