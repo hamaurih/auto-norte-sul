@@ -31,14 +31,25 @@ export interface SessionState {
   b2bStatus: B2BStatus;
 }
 
-function permissionsFromAppMetadata(
-  user: User,
-  tenantId: string,
-): ModulePermission[] | null {
+function permissionsFromAppMetadata(user: User, tenantId: string): ModulePermission[] | null {
   const byTenant = user.app_metadata?.tenant_permissions;
   if (!byTenant || typeof byTenant !== "object" || Array.isArray(byTenant)) return null;
   const rows = (byTenant as Record<string, unknown>)[tenantId];
   return Array.isArray(rows) ? (rows as ModulePermission[]) : null;
+}
+
+function systemRoleForTenantRole(role?: string | null): SystemRole {
+  if (role === "owner" || role === "admin") return "admin";
+  if (role === "manager") return "gerente";
+  if (role === "sales") return "vendedor";
+  return "consulta";
+}
+
+function appRolesForSystemRole(role: SystemRole): AppRole[] {
+  if (role === "admin") return ["admin"];
+  if (role === "gerente") return ["gerente"];
+  if (role === "vendedor") return ["vendedor"];
+  return ["cliente"];
 }
 
 const empty: SessionState = {
@@ -67,33 +78,26 @@ export function useSession(): SessionState {
       try {
         const db = tdb(supabase);
         const slug = activeTenantSlug();
-        const storefront = await db
+        const { data: storefront } = await db
           .from("tenant_storefronts")
           .select("tenant_id")
           .eq("slug", slug)
           .maybeSingle();
-        let tenantId = (storefront.data?.tenant_id as string | undefined) ?? null;
+        let tenantId = (storefront?.tenant_id as string | undefined) ?? null;
         if (!tenantId) {
-          const tenant = await db
-            .from("tenants")
-            .select("id")
-            .eq("slug", slug)
-            .maybeSingle();
-          tenantId = (tenant.data?.id as string | undefined) ?? null;
+          const { data: tenant } = await db.from("tenants").select("id").eq("slug", slug).maybeSingle();
+          tenantId = (tenant?.id as string | undefined) ?? null;
         }
         if (!tenantId) return null;
-        const membership = await db
+        const { data: membership } = await db
           .from("tenant_memberships")
           .select("tenant_id, role")
           .eq("tenant_id", tenantId)
           .eq("user_id", userId)
           .eq("active", true)
           .maybeSingle();
-        if (!membership.data?.tenant_id) return null;
-        return {
-          tenantId: membership.data.tenant_id as string,
-          role: String(membership.data.role ?? "viewer"),
-        };
+        if (!membership?.tenant_id) return null;
+        return { tenantId: membership.tenant_id as string, role: String(membership.role ?? "viewer") };
       } catch {
         return null;
       }
@@ -104,29 +108,21 @@ export function useSession(): SessionState {
         if (!cancelled) setState({ ...empty, loading: false });
         return;
       }
-      const [{ data: rolesData }, { data: profile }, tenantAccess] = await Promise.all([
-        supabase.from("user_roles").select("role").eq("user_id", session.user.id),
-        supabase.from("profiles").select("customer_group, b2b_status").eq("id", session.user.id).maybeSingle(),
+
+      const [{ data: profile }, tenantAccess] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("customer_group, b2b_status")
+          .eq("id", session.user.id)
+          .maybeSingle(),
         findActiveTenantAccess(session.user.id),
       ]);
-      const roles = ((rolesData ?? []).map((r) => r.role) as AppRole[]);
+
       const customerGroup = (profile?.customer_group ?? "b2c") as CustomerGroup;
       const b2bStatus = (profile?.b2b_status ?? "none") as B2BStatus;
-      const legacyIsStaff = roles.some((r) => r === "admin" || r === "gerente");
-      const legacyIsAdmin = roles.some((r) => r === "admin");
-      const legacyIsSalesRep = roles.some((r) => r === "vendedor");
-
-      const tenantRole: SystemRole =
-        tenantAccess?.role === "owner" || tenantAccess?.role === "admin"
-          ? "admin"
-          : tenantAccess?.role === "manager"
-            ? "gerente"
-            : tenantAccess?.role === "sales"
-              ? "vendedor"
-              : "consulta";
-      const systemRole: SystemRole =
-        tenantAccess ? tenantRole : legacyIsAdmin ? "admin" : roles.includes("gerente") ? "gerente" : legacyIsSalesRep ? "vendedor" : "consulta";
+      const systemRole = systemRoleForTenantRole(tenantAccess?.role);
       let permissions = defaultPermissionsForRole(systemRole);
+
       if (tenantAccess) {
         const { data: permissionRows } = await tdb(supabase)
           .from("tenant_user_permissions")
@@ -140,16 +136,17 @@ export function useSession(): SessionState {
         );
       }
 
-      const isTenantStaff = Boolean(
+      const isAdmin = Boolean(tenantAccess && systemRole === "admin");
+      const isSalesRep = Boolean(tenantAccess && systemRole === "vendedor");
+      const isStaff = Boolean(
         tenantAccess &&
           (["admin", "gerente", "vendedor"].includes(systemRole) ||
             Object.values(permissions).some((permission) => permission.can_view)),
       );
-      const isStaff = isTenantStaff || legacyIsStaff;
-      const isAdmin = Boolean((tenantAccess && tenantRole === "admin") || legacyIsAdmin);
-      const isSalesRep = legacyIsSalesRep || systemRole === "vendedor";
       const b2bGroup = ["revendedor", "oficina", "distribuidor"].includes(customerGroup);
-      if (!cancelled)
+      const roles = appRolesForSystemRole(systemRole);
+
+      if (!cancelled) {
         setState({
           user: session.user,
           session,
@@ -165,25 +162,18 @@ export function useSession(): SessionState {
           customerGroup,
           b2bStatus,
         });
+      }
     }
 
     supabase.auth
       .getSession()
-      .then(({ data }) => {
-        void hydrate(data.session);
-      })
+      .then(({ data }) => void hydrate(data.session))
       .catch(() => {
         if (!cancelled) setState({ ...empty, loading: false });
       });
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      // Do not return/await a Promise inside this callback. The auth client can
-      // hold its internal lock while dispatching auth events, and running table
-      // queries here directly can block every catalog query on authenticated
-      // page loads, leaving the home stuck in skeleton state.
-      window.setTimeout(() => {
-        void hydrate(session);
-      }, 0);
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      window.setTimeout(() => void hydrate(session), 0);
     });
 
     return () => {
