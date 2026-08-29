@@ -297,7 +297,16 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
 
       {tab === "estoque" && (
         <div className="grid gap-4 md:grid-cols-2">
-          <L label="Estoque"><input type="number" value={form.stock} onChange={(e) => update("stock", Number(e.target.value))} className={inp} /></L>
+          <L label="Estoque (somente leitura)">
+            <input
+              type="number"
+              value={form.stock ?? 0}
+              readOnly
+              disabled
+              title="Saldo gerido pelo estoque (product_stock). Ajuste pelo módulo de Estoque."
+              className={inp}
+            />
+          </L>
           <L label="Estoque mínimo (alerta)"><input type="number" value={form.min_stock ?? 0} onChange={(e) => update("min_stock", Number(e.target.value))} className={inp} /></L>
           <L label="Peso (kg)"><input type="number" step="0.001" value={form.weight_kg ?? ""} onChange={(e) => update("weight_kg", e.target.value ? Number(e.target.value) : null)} className={inp} /></L>
           <div className="md:col-span-2">

@@ -8,7 +8,6 @@ import {
   environmentLabel,
   fetchAccessContext,
   isOrganizationAdmin,
-  isLegacyStaff,
   useAccessContext,
 } from "@/lib/access";
 import { createInvitation, listInvitations, revokeInvitation } from "@/lib/access.functions";
@@ -21,13 +20,10 @@ export const Route = createFileRoute("/_authenticated/admin/homologacao")({
     // Owner/admin of the organization only. Membership decides, never metadata.
     const context = await fetchAccessContext();
     if (!context.user_id) throw redirect({ to: "/auth" });
-    const legacyStaff = await isLegacyStaff(context.user_id);
     if (context.organizations.length === 0 && context.tenants.length === 0) {
-      if (!legacyStaff) throw redirect({ to: "/ativacao" });
-      return;
+      throw redirect({ to: "/ativacao" });
     }
     const privileged =
-      legacyStaff ||
       isOrganizationAdmin(context) ||
       context.tenants.some((tenant: { role: string }) => tenant.role === "owner" || tenant.role === "admin");
     if (!privileged) throw redirect({ to: "/admin" });

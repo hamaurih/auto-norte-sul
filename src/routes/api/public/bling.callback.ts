@@ -69,16 +69,18 @@ export const Route = createFileRoute("/api/public/bling/callback")({
           .eq("provider", "bling")
           .is("consumed_at", null)
           .gt("expires_at", now)
-          .select("config_id,redirect_uri,actor_user_id")
+          .select("config_id,redirect_uri,actor_user_id,tenant_id")
           .maybeSingle();
 
-        if (stateError || !stateRow?.config_id || !stateRow?.redirect_uri) {
+        if (stateError || !stateRow?.config_id || !stateRow?.redirect_uri || !stateRow?.tenant_id) {
           return html(
             400,
             "Autorização expirada",
             "Esta autorização é inválida, já foi utilizada ou expirou. Inicie uma nova conexão pelo painel.",
           );
         }
+
+        const tenantId = stateRow.tenant_id as string;
 
         if (oauthError) {
           return html(400, "Autorização negada", `O Bling retornou o erro: ${oauthError}`);
@@ -97,10 +99,12 @@ export const Route = createFileRoute("/api/public/bling/callback")({
           .from("bling_config")
           .select("id")
           .eq("id", stateRow.config_id)
+          .eq("tenant_id", tenantId)
           .maybeSingle();
         if (cfgError || !cfg?.id) {
           return html(400, "Configuração inválida", "A configuração associada a esta autorização não existe mais.");
         }
+
 
         const basic = btoa(`${clientId}:${clientSecret}`);
         try {
@@ -120,6 +124,7 @@ export const Route = createFileRoute("/api/public/bling/callback")({
           const tokenPayload: any = await tokRes.json().catch(() => ({}));
           if (!tokRes.ok || !tokenPayload.access_token) {
             await (supabaseAdmin as any).from("bling_sync_logs").insert({
+              tenant_id: tenantId,
               entity: "produto",
               action: "oauth_callback",
               status: "erro",
@@ -146,10 +151,12 @@ export const Route = createFileRoute("/api/public/bling/callback")({
               last_test_status: "sucesso",
               updated_at: new Date().toISOString(),
             })
-            .eq("id", cfg.id);
+            .eq("id", cfg.id)
+            .eq("tenant_id", tenantId);
           if (updateError) throw updateError;
 
           await (supabaseAdmin as any).from("bling_sync_logs").insert({
+            tenant_id: tenantId,
             entity: "produto",
             action: "oauth_callback",
             status: "sucesso",
@@ -159,6 +166,7 @@ export const Route = createFileRoute("/api/public/bling/callback")({
           return html(200, "Conectado ao Bling", "Sua loja está autorizada. Você pode fechar esta aba.");
         } catch (error: any) {
           await (supabaseAdmin as any).from("bling_sync_logs").insert({
+            tenant_id: tenantId,
             entity: "produto",
             action: "oauth_callback",
             status: "erro",

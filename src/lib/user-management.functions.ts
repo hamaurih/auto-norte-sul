@@ -54,7 +54,6 @@ const updateSchema = z.object({
   permissions: z.array(permissionSchema).min(1).optional(),
 });
 
-const internalLegacyRoles = ["admin", "gerente", "vendedor"] as const;
 type TenantRole = "owner" | "admin" | "manager" | "sales" | "viewer";
 type TenantMembership = {
   id: string;
@@ -154,16 +153,6 @@ function tenantRoleForSystemRole(role: SystemRole): TenantRole {
   return roles[role];
 }
 
-function legacyRoleForSystemRole(role: SystemRole): "admin" | "gerente" | "vendedor" | "cliente" {
-  const roles: Record<SystemRole, "admin" | "gerente" | "vendedor" | "cliente"> = {
-    admin: "admin",
-    gerente: "gerente",
-    vendedor: "vendedor",
-    consulta: "cliente",
-  };
-  return roles[role];
-}
-
 function systemRoleForTenantRole(role: string): SystemRole {
   if (role === "owner" || role === "admin") return "admin";
   if (role === "manager") return "gerente";
@@ -249,51 +238,9 @@ async function requireTenantAdmin(
     return membership as TenantMembership;
   }
 
-  // Compatibility for the legacy admin created before tenant memberships were
-  // backfilled. It is upgraded to an admin membership once, on the server.
-  const { data: legacyRoles, error: roleError } = await supabaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId);
-  if (roleError) throw new Error(roleError.message);
-  if (!(legacyRoles ?? []).some((item: { role: string }) => item.role === "admin")) {
-    throw new Error("Somente administradores ativos podem gerenciar usuários.");
-  }
-
-  const { data: upgraded, error: upgradeError } = await supabaseAdmin
-    .from("tenant_memberships")
-    .upsert(
-      { tenant_id: tenantId, user_id: userId, role: "admin", active: true },
-      { onConflict: "tenant_id,user_id" },
-    )
-    .select("id, tenant_id, user_id, role, active")
-    .single();
-  if (upgradeError) throw new Error(upgradeError.message);
-  return upgraded as TenantMembership;
-}
-
-async function syncLegacyRole(
-  supabaseAdmin: TenantDb,
-  userId: string,
-  role: SystemRole,
-  active: boolean,
-) {
-  const { error: deleteError } = await supabaseAdmin
-    .from("user_roles")
-    .delete()
-    .eq("user_id", userId)
-    .in("role", [...internalLegacyRoles]);
-  if (deleteError) throw new Error(deleteError.message);
-
-  if (active) {
-    const { error } = await supabaseAdmin
-      .from("user_roles")
-      .upsert(
-        { user_id: userId, role: legacyRoleForSystemRole(role) },
-        { onConflict: "user_id,role" },
-      );
-    if (error) throw new Error(error.message);
-  }
+  // Fase 1: `public.user_roles` está descontinuada. Sem membership admin ativa
+  // no tenant não há upgrade automático — o acesso é simplesmente negado.
+  throw new Error("Somente administradores ativos podem gerenciar usuários.");
 }
 
 async function savePermissions(
@@ -538,7 +485,6 @@ export const inviteTenantUser = createServerFn({ method: "POST" })
         .single();
       if (membershipError) throw new Error(membershipError.message);
 
-      await syncLegacyRole(supabaseAdmin, user.id, data.role, true);
       await savePermissions(
         supabaseAdmin,
         context.tenantId,
@@ -674,7 +620,6 @@ export const updateTenantUserAccess = createServerFn({ method: "POST" })
       }
     }
 
-    await syncLegacyRole(supabaseAdmin, target.user_id, nextRole, nextActive);
     if (data.permissions || data.role) {
       await savePermissions(
         supabaseAdmin,

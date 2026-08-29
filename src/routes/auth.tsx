@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchTenantAccess, isTenantStaff } from "@/lib/tenant-access";
 import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
 import { authErrorMessage } from "@/lib/auth-errors";
@@ -33,12 +34,9 @@ function AuthPage() {
       navigate({ to: next as never });
       return;
     }
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-    const isStaff = (roles ?? []).some((r) => r.role === "admin" || r.role === "gerente");
-    const isVendedor = (roles ?? []).some((r) => r.role === "vendedor");
+    const access = await fetchTenantAccess(userId);
+    const isStaff = isTenantStaff(access);
+    const isVendedor = access?.role === "sales";
     if (isStaff) navigate({ to: "/admin" });
     else if (isVendedor) navigate({ to: "/vendedor" });
     else navigate({ to: "/" });

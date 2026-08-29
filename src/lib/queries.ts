@@ -1,6 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeTerm } from "./normalize";
 import { sanitizeSearchTerm, sanitizeOrQuery } from "./sanitize";
+import { resolveActiveTenantId } from "./tenant-access";
+import { tdb } from "@/integrations/supabase/tenant-db";
 
 // Resolve termo → alias (categoria/marca/produto). Retorna o alias de maior peso ativo.
 export async function resolveAlias(term: string) {
@@ -18,7 +20,10 @@ export async function resolveAlias(term: string) {
 
 async function logNoResult(term: string, origin: "site" | "mcp" | "ia" | "admin", matched?: { alias?: string | null; brand?: string | null; category?: string | null }) {
   try {
-    await supabase.from("search_no_result_logs").insert({
+    const tenantId = await resolveActiveTenantId();
+    if (!tenantId) return;
+    await tdb(supabase).from("search_no_result_logs").insert({
+      tenant_id: tenantId,
       term: term.slice(0, 200),
       normalized_term: normalizeTerm(term).slice(0, 200),
       origin,

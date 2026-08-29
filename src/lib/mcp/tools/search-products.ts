@@ -114,7 +114,13 @@ export default defineTool({
 
     // Registro best-effort de buscas sem resultado
     if (results.length === 0) {
+      const { data: storefront } = await supabase
+        .from("tenant_storefronts")
+        .select("tenant_id")
+        .eq("slug", process.env.PUBLIC_TENANT_SLUG ?? "norte-sul-real")
+        .maybeSingle();
       await supabase.from("search_no_result_logs").insert({
+        tenant_id: (storefront as { tenant_id?: string } | null)?.tenant_id ?? null,
         term: query.slice(0, 200),
         normalized_term: normalizeTerm(query).slice(0, 200),
         origin: "mcp",

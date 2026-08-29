@@ -36,7 +36,8 @@ export type ProductInput = {
   sale_price_b2c?: number | null;
   sale_starts_at?: string | null;
   sale_ends_at?: string | null;
-  stock: number;
+  /** @deprecated saldo é gerido por product_stock; ignorado no upsert. */
+  stock?: number;
   min_stock?: number;
   hide_when_out_of_stock?: boolean;
   active?: boolean;
@@ -121,7 +122,9 @@ export const productUpsert = createServerFn({ method: "POST" })
     const { supabase: rawSupabase, userId } = context;
     const supabase = tdb(rawSupabase);
     const membership = await requireCatalogTenant(supabase, userId, context.tenantId);
-    const { images, id, ...row } = data;
+    // Fase 1: `product_stock` é a fonte canônica de saldo. `products.stock` é
+    // apenas cache mantido pelo banco e nunca é escrito por este fluxo.
+    const { images, id, stock: _ignoredStock, ...row } = data;
     const name = normalizeName(row.name);
     if (!name) throw new Error("Nome do produto é obrigatório");
     const payload = {

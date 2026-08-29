@@ -89,22 +89,3 @@ export const environmentLabel: Record<string, string> = {
   demo: "Conta de teste",
   sandbox: "Sandbox",
 };
-
-/**
- * Fallback de compatibilidade: contas de equipe do modelo antigo (user_roles)
- * continuam com acesso administrativo enquanto a infraestrutura de
- * organizações/tenants não estiver provisionada neste banco.
- */
-export async function isLegacyStaff(userId: string): Promise<boolean> {
-  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-  return (data ?? []).some((r) => r.role === "admin" || r.role === "gerente");
-}
-
-export function useIsLegacyStaff(userId: string | null | undefined) {
-  return useQuery({
-    queryKey: ["legacy-staff", userId],
-    queryFn: () => (userId ? isLegacyStaff(userId) : Promise.resolve(false)),
-    enabled: Boolean(userId),
-    staleTime: 60_000,
-  });
-}

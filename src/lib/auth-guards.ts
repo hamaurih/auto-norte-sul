@@ -1,11 +1,12 @@
 /**
  * auth-guards.ts — Funções de autorização reutilizáveis para server functions.
  *
- * ARC-12: Antes havia 5+ cópias de assertAdmin/assertStaff espalhadas.
- * Este módulo é a fonte única de verdade para todos os guards de acesso.
+ * Fase 1: `public.user_roles` está descontinuada. `tenant_memberships`
+ * (+ `tenant_user_permissions`) é a ÚNICA fonte de autorização, e todo guard
+ * exige o `tenant_id` do contexto — nunca há fallback global que permita um
+ * admin do Tenant A operar o Tenant B.
  */
 
-export type LegacyRole = "admin" | "gerente" | "vendedor" | "staff";
 export type TenantRole =
   | "owner"
   | "admin"
@@ -19,34 +20,9 @@ export type TenantRole =
   | "viewer";
 
 // ─────────────────────────────────────────────────────────────
-// Guards legados (tabela user_roles — pré-SaaS)
+// Guards multi-tenant (tabela tenant_memberships)
 // ─────────────────────────────────────────────────────────────
 
-export async function assertAdmin(supabase: any, userId: string): Promise<void> {
-  const { data: roles, error } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId);
-  if (error) throw new Error(error.message);
-  const ok = (roles ?? []).some((r: { role: string }) => r.role === "admin");
-  if (!ok) throw new Error("Forbidden: requer papel admin");
-}
-
-export async function assertStaff(supabase: any, userId: string): Promise<void> {
-  const { data: roles, error } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId);
-  if (error) throw new Error(error.message);
-  const ok = (roles ?? []).some((r: { role: string }) =>
-    ["admin", "gerente"].includes(r.role),
-  );
-  if (!ok) throw new Error("Forbidden: requer papel admin ou gerente");
-}
-
-// ─────────────────────────────────────────────────────────────
-// Guards multi-tenant (tabela tenant_memberships — pós-SaaS)
-// ─────────────────────────────────────────────────────────────
 
 export async function requireTenantRole(
   sb: any,

@@ -235,10 +235,10 @@ export const getCommercialAdminData = createServerFn({ method: "GET" })
     const assignmentByCustomer = new Map(
       (assignmentsResult.data ?? []).map((row: { customer_id: string; price_table: string }) => [
         row.customer_id,
-        row.price_table === "A" || row.price_table === "B" || row.price_table === "C"
+        (row.price_table === "A" || row.price_table === "B" || row.price_table === "C"
           ? row.price_table
-          : null,
-      ]),
+          : null) as PriceTable | null,
+      ] as [string, PriceTable | null]),
     );
 
     return {

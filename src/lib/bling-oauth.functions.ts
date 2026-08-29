@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertAdmin } from "@/lib/auth-guards";
+import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
+import { requireTenantRole } from "@/lib/auth-guards";
+
 
 const BLING_AUTHORIZE_URL = "https://www.bling.com.br/Api/v3/oauth/authorize";
 const CALLBACK_PATH = "/api/public/bling/callback";
@@ -37,7 +38,10 @@ export const getSecureBlingAuthUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { redirectUri: string }) => input)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.supabase, context.userId);
+    await requireTenantRole(context.supabase, context.userId, context.tenantId, [
+      "owner",
+      "admin",
+    ]);
 
     const clientId = process.env.BLING_CLIENT_ID;
     if (!clientId) throw new Error("BLING_CLIENT_ID não configurado.");
@@ -46,17 +50,19 @@ export const getSecureBlingAuthUrl = createServerFn({ method: "POST" })
     const { data: cfg, error: cfgError } = await (context.supabase as any)
       .from("bling_config")
       .select("id")
-      .limit(1)
-      .single();
+      .eq("tenant_id", context.tenantId)
+      .maybeSingle();
     if (cfgError || !cfg?.id) {
-      throw new Error(cfgError?.message ?? "Configuração Bling não encontrada.");
+      throw new Error(cfgError?.message ?? "Configuração Bling não encontrada para este tenant.");
     }
 
     const { error: updateError } = await (context.supabase as any)
       .from("bling_config")
       .update({ redirect_uri: redirectUri, updated_at: new Date().toISOString() })
-      .eq("id", cfg.id);
+      .eq("id", cfg.id)
+      .eq("tenant_id", context.tenantId);
     if (updateError) throw new Error(updateError.message);
+
 
     const state = randomState();
     const stateHash = await hashState(state);
@@ -73,11 +79,13 @@ export const getSecureBlingAuthUrl = createServerFn({ method: "POST" })
       .insert({
         state_hash: stateHash,
         provider: "bling",
+        tenant_id: context.tenantId,
         actor_user_id: context.userId,
         config_id: cfg.id,
         redirect_uri: redirectUri,
         expires_at: expiresAt,
       });
+
     if (stateError) throw new Error(stateError.message);
 
     const params = new URLSearchParams({

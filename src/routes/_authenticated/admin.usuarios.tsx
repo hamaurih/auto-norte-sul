@@ -50,12 +50,7 @@ export const Route = createFileRoute("/_authenticated/admin/usuarios")({
     const context = await fetchAccessContext();
     const tenant = activeTenant(context);
     const tenantAdmin = Boolean(tenant && ["owner", "admin"].includes(tenant.role));
-    const legacyAdmin = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userRes.user.id)
-      .then(({ data }) => (data ?? []).some((item) => item.role === "admin"));
-    if (!tenantAdmin && !legacyAdmin) throw redirect({ to: "/admin" });
+    if (!tenantAdmin) throw redirect({ to: "/admin" });
   },
   component: UsersPage,
 });
