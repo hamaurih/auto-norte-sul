@@ -16,6 +16,7 @@ import {
   PackageCheck,
   Phone,
   ReceiptText,
+  ScanLine,
   Send,
   ShoppingBag,
   Truck,
@@ -24,6 +25,12 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { brl } from "@/lib/format";
+import {
+  completeOrderDispatch,
+  getOrderDispatch,
+  scanOrderDispatch,
+  startOrderDispatch,
+} from "@/lib/dispatch.functions";
 import {
   getAdminOrderDetail,
   updateAdminOrderOperation,
@@ -123,12 +130,22 @@ function OrderDetailPage() {
   const { id } = Route.useParams();
   const detailFn = useServerFn(getAdminOrderDetail);
   const operationFn = useServerFn(updateAdminOrderOperation);
+  const dispatchDetailFn = useServerFn(getOrderDispatch);
+  const startDispatchFn = useServerFn(startOrderDispatch);
+  const scanDispatchFn = useServerFn(scanOrderDispatch);
+  const completeDispatchFn = useServerFn(completeOrderDispatch);
   const queryClient = useQueryClient();
   const [note, setNote] = useState("");
+  const [scanCode, setScanCode] = useState("");
 
   const detail = useQuery({
     queryKey: ["admin-order-detail", id],
     queryFn: () => detailFn({ data: { orderId: id } }),
+  });
+
+  const dispatchDetail = useQuery({
+    queryKey: ["order-dispatch", id],
+    queryFn: () => dispatchDetailFn({ data: { orderId: id } }),
   });
 
   const operation = useMutation({
@@ -137,6 +154,32 @@ function OrderDetailPage() {
     onSuccess: async () => {
       setNote("");
       await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin-order-detail", id] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-orders"] }),
+      ]);
+    },
+  });
+
+  const startDispatch = useMutation({
+    mutationFn: () => startDispatchFn({ data: { orderId: id } }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["order-dispatch", id] });
+    },
+  });
+
+  const scanDispatch = useMutation({
+    mutationFn: (input: { dispatchId: string; code: string }) => scanDispatchFn({ data: input }),
+    onSuccess: async () => {
+      setScanCode("");
+      await queryClient.invalidateQueries({ queryKey: ["order-dispatch", id] });
+    },
+  });
+
+  const completeDispatch = useMutation({
+    mutationFn: (dispatchId: string) => completeDispatchFn({ data: { dispatchId } }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["order-dispatch", id] }),
         queryClient.invalidateQueries({ queryKey: ["admin-order-detail", id] }),
         queryClient.invalidateQueries({ queryKey: ["admin-orders"] }),
       ]);
@@ -165,6 +208,8 @@ function OrderDetailPage() {
   const ActionIcon = action?.icon;
   const currentFlowIndex = orderFlow.indexOf(order.status);
   const itemCount = items.reduce((sum: number, item: any) => sum + Number(item.quantity), 0);
+  const dispatchRecord = (dispatchDetail.data as any)?.dispatch ?? null;
+  const dispatchReady = dispatchRecord?.status === "conferred";
 
   function runOperation(nextOperation: OrderOperation) {
     const warning =
@@ -231,6 +276,18 @@ function OrderDetailPage() {
           </div>
         </section>
       )}
+
+      <DispatchConferenceCard
+        detail={dispatchDetail}
+        scanCode={scanCode}
+        setScanCode={setScanCode}
+        onStart={() => startDispatch.mutate()}
+        onScan={(code) => dispatchRecord && scanDispatch.mutate({ dispatchId: dispatchRecord.id, code })}
+        onComplete={() => dispatchRecord && completeDispatch.mutate(dispatchRecord.id)}
+        startMutation={startDispatch}
+        scanMutation={scanDispatch}
+        completeMutation={completeDispatch}
+      />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.75fr)]">
         <main className="space-y-6">
@@ -350,8 +407,13 @@ function OrderDetailPage() {
                   <span className="mb-1.5 block text-xs font-bold text-muted-foreground">Observação para o histórico</span>
                   <textarea value={note} onChange={(event) => setNote(event.target.value)} maxLength={500} rows={3} placeholder="Ex.: NF-e 123 emitida ou coleta realizada" className="w-full resize-none" />
                 </label>
-                <button type="button" onClick={() => runOperation(action.operation)} disabled={operation.isPending} className={`mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl px-4 text-sm font-extrabold shadow-sm transition disabled:cursor-wait disabled:opacity-60 ${action.tone}`}>
-                  <ActionIcon className="h-4 w-4" aria-hidden="true" /> {operation.isPending ? "Atualizando…" : action.label}
+                <button
+                  type="button"
+                  onClick={() => runOperation(action.operation)}
+                  disabled={operation.isPending || (action.operation === "invoice" && !dispatchReady)}
+                  className={`mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl px-4 text-sm font-extrabold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${action.tone}`}
+                >
+                  <ActionIcon className="h-4 w-4" aria-hidden="true" /> {operation.isPending ? "Atualizando…" : action.operation === "invoice" && !dispatchReady ? "Aguardando conferência" : action.label}
                 </button>
                 {order.status === "aguardando_pagamento" && (
                   <button type="button" onClick={() => runOperation("cancel")} disabled={operation.isPending} className="mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-white px-4 text-sm font-extrabold text-rose-700 hover:bg-rose-50 disabled:opacity-60">
@@ -374,6 +436,149 @@ function OrderDetailPage() {
         </aside>
       </div>
     </div>
+  );
+}
+
+
+function DispatchConferenceCard({
+  detail,
+  scanCode,
+  setScanCode,
+  onStart,
+  onScan,
+  onComplete,
+  startMutation,
+  scanMutation,
+  completeMutation,
+}: {
+  detail: any;
+  scanCode: string;
+  setScanCode: (value: string) => void;
+  onStart: () => void;
+  onScan: (code: string) => void;
+  onComplete: () => void;
+  startMutation: any;
+  scanMutation: any;
+  completeMutation: any;
+}) {
+  const dispatch = detail.data?.dispatch ?? null;
+  const items = detail.data?.items ?? [];
+  const expected = items.reduce((sum: number, item: any) => sum + Number(item.expected_qty ?? 0), 0);
+  const scanned = items.reduce((sum: number, item: any) => sum + Number(item.scanned_qty ?? 0), 0);
+  const complete = dispatch?.status === "conferred";
+  const allScanned = expected > 0 && scanned === expected;
+  const error = detail.error ?? startMutation.error ?? scanMutation.error ?? completeMutation.error;
+
+  return (
+    <section className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-cyan-50 p-5 shadow-sm">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3">
+          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-cyan-100 text-cyan-700"><ScanLine className="h-5 w-5" aria-hidden="true" /></span>
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-cyan-700">Controle de saída</p>
+            <h2 className="mt-1 font-display text-xl font-extrabold">Conferência por bipagem</h2>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Bipe cada produto separado. A NF e o faturamento ficam bloqueados até todos os itens serem conferidos.</p>
+          </div>
+        </div>
+        {dispatch && (
+          <span className={\`rounded-full px-3 py-1 text-xs font-extrabold \${complete ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}\`}>
+            {complete ? "Conferência concluída" : "Conferência em andamento"}
+          </span>
+        )}
+      </div>
+
+      {detail.isLoading ? (
+        <p className="mt-5 rounded-2xl bg-white/70 p-4 text-sm text-muted-foreground">Carregando conferência…</p>
+      ) : detail.isError ? (
+        <p role="alert" className="mt-5 rounded-2xl bg-rose-50 p-4 text-sm text-rose-800">{(detail.error as Error).message}</p>
+      ) : !dispatch ? (
+        <div className="mt-5 flex flex-col gap-3 rounded-2xl bg-white/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-extrabold">Nenhuma conferência iniciada</p>
+            <p className="mt-1 text-sm text-muted-foreground">Ao iniciar, o sistema cria a lista esperada e registra o usuário responsável.</p>
+          </div>
+          <button type="button" onClick={onStart} disabled={startMutation.isPending} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-cyan-600 px-4 text-sm font-extrabold text-white hover:bg-cyan-700 disabled:opacity-60">
+            <ScanLine className="h-4 w-4" /> {startMutation.isPending ? "Iniciando…" : "Iniciar conferência"}
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
+            <div>
+              <div className="flex items-center justify-between gap-3 text-sm font-extrabold">
+                <span>Progresso</span>
+                <span>{scanned} / {expected} unidades</span>
+              </div>
+              <div className="mt-2 h-3 overflow-hidden rounded-full bg-white/80">
+                <div className="h-full rounded-full bg-cyan-600 transition-all" style={{ width: \`\${expected ? Math.min(100, (scanned / expected) * 100) : 0}%\` }} />
+              </div>
+            </div>
+            <div className="text-right text-xs text-muted-foreground">
+              <p>Iniciado por <strong className="text-foreground">{dispatch.started_by_name || "Usuário da operação"}</strong></p>
+              {complete && <p className="mt-1">Concluído por <strong className="text-foreground">{dispatch.completed_by_name || "Usuário da operação"}</strong></p>}
+            </div>
+          </div>
+
+          <div className="mt-5 space-y-2">
+            {items.map((item: any) => {
+              const itemExpected = Number(item.expected_qty);
+              const itemScanned = Number(item.scanned_qty);
+              const done = itemExpected === itemScanned;
+              return (
+                <div key={item.id} className={\`flex flex-col gap-2 rounded-2xl border p-3 sm:flex-row sm:items-center sm:justify-between \${done ? "border-emerald-200 bg-emerald-50/80" : "border-white/80 bg-white/75"}\`}>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-extrabold">{item.name}</p>
+                    <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
+                      {item.internal_code ? \`Interno: \${item.internal_code} · \` : ""}SKU {item.sku}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className={\`rounded-full px-2.5 py-1 text-xs font-extrabold \${done ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}\`}>{itemScanned} / {itemExpected}</span>
+                    <span className="text-xs text-muted-foreground">{done ? "Conferido" : \`Faltam \${itemExpected - itemScanned}\`}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {!complete && (
+            <>
+              <form
+                className="mt-5 grid gap-2 sm:grid-cols-[1fr_auto]"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (scanCode.trim()) onScan(scanCode.trim());
+                }}
+              >
+                <input
+                  value={scanCode}
+                  onChange={(event) => setScanCode(event.target.value)}
+                  placeholder="Bipe ou digite o código interno e pressione Enter"
+                  autoComplete="off"
+                  autoFocus
+                  className="min-h-12 rounded-2xl border-cyan-300 bg-white text-base"
+                  disabled={scanMutation.isPending}
+                />
+                <button type="submit" disabled={!scanCode.trim() || scanMutation.isPending} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-cyan-600 px-5 text-sm font-extrabold text-white hover:bg-cyan-700 disabled:opacity-50">
+                  <ScanLine className="h-4 w-4" /> {scanMutation.isPending ? "Conferindo…" : "Conferir"}
+                </button>
+              </form>
+              <button type="button" onClick={onComplete} disabled={!allScanned || completeMutation.isPending} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-emerald-300 bg-emerald-50 px-4 text-sm font-extrabold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50">
+                <CheckCircle2 className="h-4 w-4" /> {completeMutation.isPending ? "Concluindo…" : "Concluir conferência e liberar NF"}
+              </button>
+            </>
+          )}
+
+          {complete && (
+            <p className="mt-5 rounded-2xl bg-emerald-100 p-4 text-sm font-bold text-emerald-900">
+              Conferência concluída por {dispatch.completed_by_name || "Usuário da operação"} em {formatDate(dispatch.completed_at)}. A emissão da NF está liberada.
+            </p>
+          )}
+        </>
+      )}
+
+      {error && !detail.isError && <p role="alert" className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm text-rose-800">{(error as Error).message}</p>}
+    </section>
   );
 }
 
