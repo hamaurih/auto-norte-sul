@@ -20,7 +20,7 @@ import {
 } from "@/lib/nfe.functions";
 import { listPurchaseOrders, listSupplyWarehouses, searchSupplyProducts } from "@/lib/supplies.functions";
 import { formatAccessKey, matchSourceLabel, nfeStatusClass, nfeStatusLabel } from "@/lib/nfe-ui";
-import { formatDate } from "@/lib/supplies-ui";
+import { formatDate, num } from "@/lib/supplies-ui";
 import { brl } from "@/lib/format";
 import { enqueueNfeItemEnrichment } from "@/lib/product-enrichment.functions";
 
@@ -35,6 +35,27 @@ export const Route = createFileRoute("/_authenticated/admin/nfe-importacao/$id")
 });
 
 const EDITABLE = ["importado", "em_conferencia", "divergente", "pronto"];
+
+type NfePackagingRow = {
+  receivedPackages: string;
+  rejectedPackages: string;
+  unitsPerPackage: string;
+  packageUnit: string;
+};
+
+function parseNfeQuantity(value: unknown): number {
+  const parsed = Number(String(value ?? "").replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function defaultNfePackaging(item: any): NfePackagingRow {
+  return {
+    receivedPackages: String(item.qty ?? ""),
+    rejectedPackages: "0",
+    unitsPerPackage: "1",
+    packageUnit: String(item.unit ?? "UN").trim().toUpperCase() || "UN",
+  };
+}
 
 function NfeDetail() {
   const { id } = Route.useParams();
@@ -74,6 +95,7 @@ function NfeDetail() {
   const [cancelReason, setCancelReason] = useState("");
   const [activeItem, setActiveItem] = useState<string | null>(null);
   const [term, setTerm] = useState("");
+  const [packaging, setPackaging] = useState<Record<string, NfePackagingRow>>({});
 
   const { data: results, isFetching: searching } = useQuery({
     queryKey: ["nfe-product-search", term],
@@ -117,7 +139,26 @@ function NfeDetail() {
   });
 
   const generateReceipt = useMutation({
-    mutationFn: () => createReceiptFn({ data: { importId: id } }),
+    mutationFn: () =>
+      createReceiptFn({
+        data: {
+          importId: id,
+          packaging: Object.fromEntries(
+            items.map((item) => {
+              const row = packaging[item.id] ?? defaultNfePackaging(item);
+              return [
+                item.id,
+                {
+                  receivedPackageQty: parseNfeQuantity(row.receivedPackages),
+                  rejectedPackageQty: parseNfeQuantity(row.rejectedPackages),
+                  unitsPerPackage: parseNfeQuantity(row.unitsPerPackage),
+                  packageUnit: row.packageUnit,
+                },
+              ];
+            }),
+          ),
+        },
+      }),
     onSuccess: (result: any) => {
       toast.success("Recebimento em rascunho criado. Confirme para atualizar estoque e custo.");
       invalidate();
@@ -148,6 +189,24 @@ function NfeDetail() {
   const divergent = useMemo(
     () => items.filter((item) => (item.divergences ?? []).length > 0).length,
     [items],
+  );
+  const conversionIssues = useMemo(
+    () =>
+      items.filter((item) => {
+        const row = packaging[item.id] ?? defaultNfePackaging(item);
+        const receivedPackages = parseNfeQuantity(row.receivedPackages);
+        const rejectedPackages = parseNfeQuantity(row.rejectedPackages);
+        const unitsPerPackage = parseNfeQuantity(row.unitsPerPackage);
+        const convertedTotal = receivedPackages * unitsPerPackage;
+        return (
+          receivedPackages <= 0 ||
+          rejectedPackages < 0 ||
+          unitsPerPackage <= 0 ||
+          rejectedPackages > receivedPackages ||
+          Math.abs(convertedTotal - num(item.qty)) > 0.01
+        );
+      }).length,
+    [items, packaging],
   );
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Carregando NF-e…</p>;
@@ -309,6 +368,19 @@ function NfeDetail() {
 
         {items.map((item) => {
           const divergences = (item.divergences ?? []) as { kind: string; message: string }[];
+          const packagingRow = packaging[item.id] ?? defaultNfePackaging(item);
+          const receivedPackages = parseNfeQuantity(packagingRow.receivedPackages);
+          const rejectedPackages = parseNfeQuantity(packagingRow.rejectedPackages);
+          const unitsPerPackage = parseNfeQuantity(packagingRow.unitsPerPackage);
+          const convertedTotal = receivedPackages * unitsPerPackage;
+          const acceptedUnits = Math.max(0, (receivedPackages - rejectedPackages) * unitsPerPackage);
+          const rejectedUnits = Math.max(0, rejectedPackages * unitsPerPackage);
+          const conversionMatches = Math.abs(convertedTotal - num(item.qty)) <= 0.01;
+          const updatePackaging = (patch: Partial<NfePackagingRow>) =>
+            setPackaging((current) => ({
+              ...current,
+              [item.id]: { ...packagingRow, ...patch },
+            }));
           return (
             <article key={item.id} className="rounded-lg border border-border bg-card p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -428,6 +500,87 @@ function NfeDetail() {
                 )}
               </div>
 
+              {editable && (
+                <div className="mt-3 rounded-md border border-blue-200 bg-blue-50/60 p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <h3 className="text-xs font-bold uppercase text-blue-950">Conversão de embalagem</h3>
+                      <p className="mt-1 text-xs text-blue-900/80">
+                        NF-e: {num(item.qty).toLocaleString("pt-BR")} {item.unit ?? "UN"} · exemplo: 100 CX x 10 UN = 1.000 UN.
+                      </p>
+                    </div>
+                    <span
+                      className={conversionMatches ? "rounded bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-800" : "rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800"}
+                    >
+                      {conversionMatches ? "Total confere" : "Ajuste necessário"}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-4">
+                    <label className="text-xs font-semibold text-blue-950">
+                      Embalagens recebidas
+                      <Input
+                        aria-label={"Embalagens recebidas da linha " + item.line_number}
+                        inputMode="decimal"
+                        min={0}
+                        step="0.01"
+                        value={packagingRow.receivedPackages}
+                        onChange={(event) => updatePackaging({ receivedPackages: event.target.value })}
+                      />
+                    </label>
+                    <label className="text-xs font-semibold text-blue-950">
+                      Recusadas
+                      <Input
+                        aria-label={"Embalagens recusadas da linha " + item.line_number}
+                        inputMode="decimal"
+                        min={0}
+                        step="0.01"
+                        value={packagingRow.rejectedPackages}
+                        onChange={(event) => updatePackaging({ rejectedPackages: event.target.value })}
+                      />
+                    </label>
+                    <label className="text-xs font-semibold text-blue-950">
+                      Unidades por embalagem
+                      <Input
+                        aria-label={"Unidades por embalagem da linha " + item.line_number}
+                        inputMode="numeric"
+                        min={1}
+                        step={1}
+                        value={packagingRow.unitsPerPackage}
+                        onChange={(event) => updatePackaging({ unitsPerPackage: event.target.value })}
+                      />
+                    </label>
+                    <label className="text-xs font-semibold text-blue-950">
+                      Unidade da embalagem
+                      <select
+                        aria-label={"Unidade da embalagem da linha " + item.line_number}
+                        className="mt-1 h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
+                        value={packagingRow.packageUnit}
+                        onChange={(event) => updatePackaging({ packageUnit: event.target.value })}
+                      >
+                        <option value="UN">UN</option>
+                        <option value="CX">CX</option>
+                        <option value="FD">FD</option>
+                        <option value="KIT">KIT</option>
+                        <option value="PCT">PCT</option>
+                        <option value="PAR">PAR</option>
+                        <option value="JOGO">JOGO</option>
+                        <option value="MIL">MIL</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="mt-2 grid gap-2 text-xs sm:grid-cols-3">
+                    <span>Recebido convertido: <strong>{acceptedUnits.toLocaleString("pt-BR")}</strong> UN</span>
+                    <span>Recusado convertido: <strong>{rejectedUnits.toLocaleString("pt-BR")}</strong> UN</span>
+                    <span>Total físico: <strong>{convertedTotal.toLocaleString("pt-BR")}</strong> UN</span>
+                  </div>
+                  {!conversionMatches && (
+                    <p className="mt-2 text-xs font-semibold text-amber-900">
+                      A conversão precisa totalizar {num(item.qty).toLocaleString("pt-BR")} unidades-base da NF-e antes de gerar o recebimento.
+                    </p>
+                  )}
+                </div>
+              )}
+
               {divergences.length > 0 && (
                 <ul className="mt-3 space-y-1">
                   {divergences.map((divergence, index) => (
@@ -465,7 +618,7 @@ function NfeDetail() {
             </p>
             <Button
               onClick={() => generateReceipt.mutate()}
-              disabled={!editable || pending > 0 || generateReceipt.isPending}
+              disabled={!editable || pending > 0 || conversionIssues > 0 || generateReceipt.isPending}
             >
               {generateReceipt.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
@@ -476,6 +629,11 @@ function NfeDetail() {
             </Button>
             {pending > 0 && (
               <p className="text-xs text-hot">Vincule todos os itens antes de gerar o recebimento.</p>
+            )}
+            {conversionIssues > 0 && (
+              <p className="text-xs text-hot">
+                Ajuste a conversão das linhas destacadas para que o total físico seja igual ao total da NF-e.
+              </p>
             )}
           </>
         )}
