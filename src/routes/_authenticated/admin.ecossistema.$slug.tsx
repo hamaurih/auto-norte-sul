@@ -2,7 +2,6 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -12,6 +11,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
+  getIntegrationBySlug,
+  listIntegrationLogs,
+  listIntegrationSettings,
   integrationRetryLog,
   integrationRunSync,
   integrationSaveSetting,
@@ -35,7 +37,7 @@ type Integration = {
   active: boolean;
   last_sync_at: string | null;
 };
-type Setting = { id: string; key: string; value_encrypted: string | null; is_secret: boolean };
+type Setting = { id: string; key: string; value_encrypted: string | null; is_secret: boolean; configured: boolean };
 type Log = {
   id: string;
   event_type: string;
@@ -196,15 +198,14 @@ function IntegrationDetail() {
   const qc = useQueryClient();
   const [tab, setTab] = useState("config");
 
+  const getIntegrationFn = useServerFn(getIntegrationBySlug);
+  const listSettingsFn = useServerFn(listIntegrationSettings);
+  const listLogsFn = useServerFn(listIntegrationLogs);
+
   const { data: integration, isLoading } = useQuery({
     queryKey: ["integration", slug],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("integrations")
-        .select("id,name,slug,description,category,status,active,last_sync_at")
-        .eq("slug", slug)
-        .maybeSingle();
-      if (error) throw error;
+      const data = await getIntegrationFn({ data: { slug } });
       if (!data) throw notFound();
       return data as Integration;
     },
@@ -213,29 +214,13 @@ function IntegrationDetail() {
   const { data: settings } = useQuery({
     queryKey: ["integration-settings", integration?.id],
     enabled: !!integration?.id,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("integration_settings")
-        .select("id,key,value_encrypted,is_secret")
-        .eq("integration_id", integration!.id);
-      if (error) throw error;
-      return (data ?? []) as Setting[];
-    },
+    queryFn: () => listSettingsFn({ data: { integration_id: integration!.id } }),
   });
 
   const { data: logs } = useQuery({
     queryKey: ["integration-logs", integration?.id],
     enabled: !!integration?.id,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("integration_logs")
-        .select("id,event_type,status,message,created_at")
-        .eq("integration_id", integration!.id)
-        .order("created_at", { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      return (data ?? []) as Log[];
-    },
+    queryFn: () => listLogsFn({ data: { integration_id: integration!.id } }),
   });
 
   const saveFn = useServerFn(integrationSaveSetting);
@@ -296,8 +281,9 @@ function IntegrationDetail() {
 
   const spec = specs[slug] ?? { fields: [] };
   const s = statusMeta[integration.status];
-  const valueFor = (key: string) => settings?.find((x) => x.key === key)?.value_encrypted ?? "";
-  const isSecretFilled = (key: string, is_secret?: boolean) => !!is_secret && !!valueFor(key);
+  const settingFor = (key: string) => settings?.find((x) => x.key === key);
+  const valueFor = (key: string) => settingFor(key)?.value_encrypted ?? "";
+  const isSecretFilled = (key: string, is_secret?: boolean) => !!is_secret && Boolean(settingFor(key)?.configured);
 
   return (
     <div className="space-y-4">
