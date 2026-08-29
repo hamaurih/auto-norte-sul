@@ -1,0 +1,58 @@
+name: Phase 0 Security Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase0-security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tenant-isolation:
+    name: Tenant isolation, RLS and sensitive access
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify security source invariants
+        run: |
+          test -f supabase/migrations/20260829143000_phase0_security_containment.sql
+          test -f supabase/tests/phase0_tenant_isolation.sql
+          ! test -f .env
+          ! git ls-files --error-unmatch .env >/dev/null 2>&1
+          ! rg 'inviteUserByEmail' src
+          rg 'changed_count <> 80' supabase/migrations/20260829143000_phase0_security_containment.sql
+          rg 'commission_pct' supabase/migrations/20260829143000_phase0_security_containment.sql
+          rg 'PHASE0 FAIL: vendedor leu dados do tenant demo' supabase/tests/phase0_tenant_isolation.sql
+          rg 'PHASE0 FAIL: consulta leu dados do tenant demo' supabase/tests/phase0_tenant_isolation.sql
+          rg 'PHASE0 FAIL: gerente demo leu o tenant real' supabase/tests/phase0_tenant_isolation.sql
+          rg 'PHASE0 FAIL: externo leu outro tenant' supabase/tests/phase0_tenant_isolation.sql
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase
+        run: supabase start
+
+      - name: Reset database from migrations
+        run: supabase db reset --local
+
+      - name: Run mandatory Phase 0 database tests
+        run: supabase test db supabase/tests/phase0_tenant_isolation.sql
+
+      - name: Stop local Supabase
+        if: always()
+        run: |
+          if command -v supabase >/dev/null 2>&1; then
+            supabase stop --no-backup || true
+          fi
