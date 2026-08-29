@@ -22,7 +22,13 @@ export const Route = createFileRoute("/_authenticated/admin/pedidos-compra/$id")
   component: GuardedPedidoCompraDetailPage,
 });
 
-type ReceiveRow = { accepted: string; rejected: string; cost: string };
+type ReceiveRow = {
+  receivedPackages: string;
+  rejectedPackages: string;
+  unitsPerPackage: string;
+  packageUnit: string;
+  cost: string;
+};
 
 function PedidoCompraDetailPage() {
   const { id } = Route.useParams();
@@ -80,14 +86,23 @@ function PedidoCompraDetailPage() {
           items: pendingItems
             .map((item) => {
               const row = rows[item.id];
+              const receivedPackages = num(row?.receivedPackages?.replace(",", "."));
+              const rejectedPackages = num(row?.rejectedPackages?.replace(",", "."));
+              const unitsPerPackage = num(row?.unitsPerPackage?.replace(",", "."));
+              const acceptedUnits = Math.max(0, (receivedPackages - rejectedPackages) * unitsPerPackage);
+              const rejectedUnits = Math.max(0, rejectedPackages * unitsPerPackage);
               return {
                 purchase_order_item_id: item.id as string,
-                accepted_qty: num(row?.accepted?.replace(",", ".")),
-                rejected_qty: num(row?.rejected?.replace(",", ".")),
+                accepted_qty: acceptedUnits,
+                rejected_qty: rejectedUnits,
+                received_package_qty: receivedPackages,
+                rejected_package_qty: rejectedPackages,
+                units_per_package: unitsPerPackage,
+                package_unit: row?.packageUnit?.trim().toUpperCase() || "UN",
                 unit_cost: row?.cost ? num(row.cost.replace(",", ".")) : num(item.unit_cost),
               };
             })
-            .filter((row) => row.accepted_qty > 0 || row.rejected_qty > 0),
+            .filter((row) => row.received_package_qty > 0 || row.rejected_package_qty > 0),
         },
       }),
     onSuccess: (result) => {
@@ -208,43 +223,105 @@ function PedidoCompraDetailPage() {
           </div>
 
           <div className="mt-3 space-y-2">
+            <div className="rounded-md border border-blue-200 bg-blue-50/60 p-3 text-xs text-blue-900">
+              Informe a quantidade física na embalagem. Exemplo: <strong>100 CX × 10 UN = 1.000 UN</strong>.
+              O estoque será atualizado apenas com a quantidade-base convertida.
+            </div>
             {pendingItems.map((item) => {
               const pending = num(item.ordered_qty) - num(item.received_qty);
-              const row = rows[item.id] ?? { accepted: "", rejected: "", cost: String(num(item.unit_cost)) };
+              const row = rows[item.id] ?? {
+                receivedPackages: "",
+                rejectedPackages: "",
+                unitsPerPackage: "1",
+                packageUnit: "UN",
+                cost: String(num(item.unit_cost)),
+              };
+              const receivedPackages = num(row.receivedPackages.replace(",", "."));
+              const rejectedPackages = num(row.rejectedPackages.replace(",", "."));
+              const unitsPerPackage = num(row.unitsPerPackage.replace(",", "."));
+              const acceptedUnits = Math.max(0, (receivedPackages - rejectedPackages) * unitsPerPackage);
               const update = (patch: Partial<ReceiveRow>) =>
                 setRows((current) => ({ ...current, [item.id]: { ...row, ...patch } }));
               return (
                 <div
                   key={item.id}
-                  className="grid grid-cols-[minmax(0,1fr)_90px_90px_110px] items-center gap-2"
+                  className="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-[minmax(0,1fr)_100px_100px_90px_78px_110px] sm:items-end"
                 >
                   <div className="min-w-0">
                     <div className="truncate text-sm font-semibold">{item.product?.name}</div>
                     <div className="text-xs text-muted-foreground">
-                      {item.product?.sku} · pendente {qty(pending)}
+                      {item.product?.sku} · pendente {qty(pending)} UN
                     </div>
                   </div>
-                  <Input
-                    aria-label={`Quantidade aceita de ${item.product?.sku}`}
-                    placeholder="Aceito"
-                    inputMode="decimal"
-                    value={row.accepted}
-                    onChange={(event) => update({ accepted: event.target.value })}
-                  />
-                  <Input
-                    aria-label={`Quantidade recusada de ${item.product?.sku}`}
-                    placeholder="Recusado"
-                    inputMode="decimal"
-                    value={row.rejected}
-                    onChange={(event) => update({ rejected: event.target.value })}
-                  />
-                  <Input
-                    aria-label={`Custo efetivo de ${item.product?.sku}`}
-                    placeholder="Custo"
-                    inputMode="decimal"
-                    value={row.cost}
-                    onChange={(event) => update({ cost: event.target.value })}
-                  />
+                  <label className="text-xs font-semibold">
+                    Recebidas
+                    <Input
+                      aria-label={`Embalagens recebidas de ${item.product?.sku}`}
+                      placeholder="Ex.: 100"
+                      inputMode="numeric"
+                      min={0}
+                      step={1}
+                      value={row.receivedPackages}
+                      onChange={(event) => update({ receivedPackages: event.target.value })}
+                    />
+                  </label>
+                  <label className="text-xs font-semibold">
+                    Recusadas
+                    <Input
+                      aria-label={`Embalagens recusadas de ${item.product?.sku}`}
+                      placeholder="Ex.: 0"
+                      inputMode="numeric"
+                      min={0}
+                      step={1}
+                      value={row.rejectedPackages}
+                      onChange={(event) => update({ rejectedPackages: event.target.value })}
+                    />
+                  </label>
+                  <label className="text-xs font-semibold">
+                    Por embalagem
+                    <Input
+                      aria-label={`Unidades por embalagem de ${item.product?.sku}`}
+                      inputMode="numeric"
+                      min={1}
+                      step={1}
+                      value={row.unitsPerPackage}
+                      onChange={(event) => update({ unitsPerPackage: event.target.value })}
+                    />
+                  </label>
+                  <label className="text-xs font-semibold">
+                    Unidade
+                    <select
+                      aria-label={`Unidade da embalagem de ${item.product?.sku}`}
+                      className="mt-1 h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
+                      value={row.packageUnit}
+                      onChange={(event) => update({ packageUnit: event.target.value })}
+                    >
+                      <option value="UN">UN</option>
+                      <option value="CX">CX</option>
+                      <option value="FD">FD</option>
+                      <option value="KIT">KIT</option>
+                      <option value="PCT">PCT</option>
+                      <option value="PAR">PAR</option>
+                      <option value="JOGO">JOGO</option>
+                      <option value="MIL">MIL</option>
+                    </select>
+                  </label>
+                  <div className="text-xs font-semibold">
+                    <span className="block">Aceito (UN)</span>
+                    <span className="mt-1 flex h-10 items-center rounded-md border border-emerald-200 bg-emerald-50 px-2 text-sm font-bold text-emerald-800">
+                      {acceptedUnits}
+                    </span>
+                  </div>
+                  <label className="text-xs font-semibold sm:col-span-2">
+                    Custo efetivo por unidade-base
+                    <Input
+                      aria-label={`Custo efetivo por unidade de ${item.product?.sku}`}
+                      placeholder="Custo"
+                      inputMode="decimal"
+                      value={row.cost}
+                      onChange={(event) => update({ cost: event.target.value })}
+                    />
+                  </label>
                 </div>
               );
             })}
