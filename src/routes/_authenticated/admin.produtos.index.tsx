@@ -21,7 +21,7 @@ function Code128Label({ value }: { value: string }) {
   const barcode = code128Barcode(value);
   if (!barcode) return null;
   return (
-    <svg className="mt-2 h-12 w-full" viewBox={`0 0 \${barcode.width} 48`} role="img" aria-label={`Código de barras \${value}`} preserveAspectRatio="none">
+    <svg className="mt-2 h-12 w-full" viewBox={`0 0 ${barcode.width} 48`} role="img" aria-label={`Código de barras ${value}`} preserveAspectRatio="none">
       <rect width={barcode.width} height="48" fill="white" />
       {barcode.bars.map((bar, index) => (
         <rect key={index} x={bar.x} y="2" width={bar.width} height="38" fill="black" />
