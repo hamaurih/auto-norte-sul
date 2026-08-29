@@ -20,9 +20,12 @@ jobs:
           node-version: 24
       - name: Verify API security invariants
         run: node scripts/check-api-security.mjs
-      - name: Verify RLS/PII migration is versioned
+      - name: Verify RLS/PII migrations are versioned
         run: |
           test -f supabase/migrations/20260829160000_auth_api_pii_hardening.sql
           grep -F 'auth_login_attempts_deny_clients' supabase/migrations/20260829160000_auth_api_pii_hardening.sql
           grep -F 'norte_sul_user_pii_master_key_v1' supabase/migrations/20260829160000_auth_api_pii_hardening.sql
           grep -F 'get_my_private_profile' supabase/migrations/20260829160000_auth_api_pii_hardening.sql
+          test -f supabase/migrations/20260829163000_secure_oauth_state_store.sql
+          grep -F 'oauth_authorization_states_deny_clients' supabase/migrations/20260829163000_secure_oauth_state_store.sql
+          grep -F 'consumed_at' supabase/migrations/20260829163000_secure_oauth_state_store.sql
