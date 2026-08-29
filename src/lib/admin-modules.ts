@@ -141,13 +141,14 @@ export const adminModules: AdminModule[] = [
   {
     key: "integracoes",
     title: "Integrações e Automação",
-    description: "Ecossistema conectado, Bling e assistente de IA.",
+    description: "Conectores externos, migrações controladas e assistente de IA.",
     icon: Network,
     accent: "bg-emerald-100 text-emerald-700",
     adminOnly: true,
     shortcuts: [
       { to: "/admin/ecossistema", label: "Ecossistema", description: "Conexões ativas", icon: Network, adminOnly: true },
-      { to: "/admin/ecossistema/bling", label: "Bling", description: "ERP e sincronização", icon: RefreshCcw, adminOnly: true },
+      { to: "/admin/ecossistema/bling", label: "Bling", description: "Conector externo e exportação", icon: RefreshCcw, adminOnly: true },
+      { to: "/admin/migracao-bling", label: "Migração Bling", description: "Backup, progresso, erros e reconciliação", icon: FileUp, adminOnly: true },
       { to: "/admin/ia-aes-business", label: "IA A&S Business", description: "Assistente interno", icon: Bot, adminOnly: true },
     ],
   },
