@@ -6939,6 +6939,17 @@ export type Database = {
           units_sold: number
         }[]
       }
+      get_seller_credit_balance: {
+        Args: { p_rep_id: string; p_tenant_id: string }
+        Returns: number
+      }
+      get_seller_credit_balances: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          balance: number
+          rep_id: string
+        }[]
+      }
       get_supplier_performance: {
         Args: { p_lookback_days?: number; p_tenant_id: string }
         Returns: Json
