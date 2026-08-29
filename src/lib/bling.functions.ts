@@ -161,7 +161,7 @@ export const revokeBlingConnection = createServerFn({ method: "POST" })
   });
 
 /* ================================================================== *
- * Config toggles (sem flags de "Bling é fonte")
+ * Config toggles do conector (sem flags de autoridade sobre dados)
  * ================================================================== */
 
 export const updateBlingConfig = createServerFn({ method: "POST" })
