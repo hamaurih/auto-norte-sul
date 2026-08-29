@@ -505,7 +505,7 @@ export const getGoodsReceipt = createServerFn({ method: "GET" })
     const { data: items, error: itemsError } = await sb
       .from("goods_receipt_items")
       .select(
-        "id, product_id, accepted_qty, rejected_qty, unit_cost, notes, purchase_order_item_id, product:products(id, sku, name, internal_code, manufacturer_code)",
+        "id, product_id, accepted_qty, rejected_qty, received_package_qty, rejected_package_qty, units_per_package, package_unit, unit_cost, notes, purchase_order_item_id, product:products(id, sku, name, internal_code, manufacturer_code)",
       )
       .eq("tenant_id", context.tenantId)
       .eq("goods_receipt_id", data.id)
