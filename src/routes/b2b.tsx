@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { z } from "zod";
 import { CheckCircle2, Clock, XCircle, Zap, Store, Wrench, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveActiveTenantId } from "@/lib/tenant-access";
+import { tdb } from "@/integrations/supabase/tenant-db";
 import { useSession } from "@/lib/session";
 import { toast } from "sonner";
 
@@ -61,7 +63,14 @@ function B2BPage() {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.from("b2b_registrations").insert({
+    const tenantId = await resolveActiveTenantId();
+    if (!tenantId) {
+      setLoading(false);
+      toast.error("Não foi possível identificar a loja ativa. Tente novamente.");
+      return;
+    }
+    const { error } = await tdb(supabase).from("b2b_registrations").insert({
+      tenant_id: tenantId,
       user_id: user.id,
       ...parsed.data,
       nome_fantasia: parsed.data.nome_fantasia || null,

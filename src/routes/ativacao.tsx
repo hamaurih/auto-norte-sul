@@ -5,7 +5,7 @@ import { ShieldCheck, MailCheck, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { tdb } from "@/integrations/supabase/tenant-db";
-import { hasAnyMembership, useAccessContext, useIsLegacyStaff } from "@/lib/access";
+import { hasAnyMembership, useAccessContext } from "@/lib/access";
 
 export const Route = createFileRoute("/ativacao")({
   ssr: false,
@@ -37,7 +37,6 @@ function ActivationPage() {
   const queryClient = useQueryClient();
   const { data: context, isLoading } = useAccessContext();
   const [token, setToken] = useState("");
-  const { data: legacyStaff } = useIsLegacyStaff(context?.user_id);
 
   useEffect(() => {
     if (!tokenFromUrl) return;
@@ -70,7 +69,7 @@ function ActivationPage() {
     return <p className="p-8 text-sm text-muted-foreground">Verificando seu acesso…</p>;
   }
 
-  const linked = hasAnyMembership(context) || legacyStaff === true;
+  const linked = hasAnyMembership(context);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-12">

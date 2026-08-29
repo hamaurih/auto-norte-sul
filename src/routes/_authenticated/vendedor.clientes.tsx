@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveActiveTenantId } from "@/lib/tenant-access";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/vendedor/clientes")({
@@ -26,7 +27,14 @@ function Clientes() {
   async function add(e: React.FormEvent) {
     e.preventDefault();
     if (!data?.rep_id) return;
-    const { error } = await supabase.from("sales_rep_customers").insert({ rep_id: data.rep_id, ...form });
+    const tenantId = await resolveActiveTenantId();
+    if (!tenantId) {
+      toast.error("Tenant ativo não encontrado.");
+      return;
+    }
+    const { error } = await supabase
+      .from("sales_rep_customers")
+      .insert({ rep_id: data.rep_id, tenant_id: tenantId, ...form });
     if (error) toast.error(error.message);
     else {
       toast.success("Cliente/lead adicionado");

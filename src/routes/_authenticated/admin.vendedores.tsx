@@ -18,6 +18,7 @@ import {
   saveSellerCreditSettings,
 } from "@/lib/seller-credit.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchTenantAccess, isTenantStaff } from "@/lib/tenant-access";
 import { brl } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/admin/vendedores")({
@@ -25,9 +26,8 @@ export const Route = createFileRoute("/_authenticated/admin/vendedores")({
   beforeLoad: async () => {
     const { data: userRes } = await supabase.auth.getUser();
     if (!userRes.user) throw redirect({ to: "/auth" });
-    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userRes.user.id);
-    const isStaff = (roles ?? []).some((r) => r.role === "admin" || r.role === "gerente");
-    if (!isStaff) throw redirect({ to: "/" });
+    const access = await fetchTenantAccess(userRes.user.id);
+    if (!isTenantStaff(access)) throw redirect({ to: "/" });
   },
   component: VendedoresList,
 });

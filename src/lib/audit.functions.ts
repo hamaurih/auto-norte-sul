@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
-import { assertStaff } from "@/lib/auth-guards";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireTenantRole } from "@/lib/auth-guards";
+import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
+import { tdb } from "@/integrations/supabase/tenant-db";
 
 
 async function count(sb: any, table: string, apply?: (q: any) => any) {
@@ -14,7 +15,7 @@ export const getCatalogAudit = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    await assertStaff(supabase, userId);
+    await requireTenantRole(supabase, userId, context.tenantId, ["owner", "admin", "manager"]);
     const sb = supabase;
 
     const total = await count(sb, "products");
@@ -57,24 +58,36 @@ export const getCatalogAudit = createServerFn({ method: "GET" })
 export const getBlingAudit = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertStaff(context.supabase, context.userId);
-    const sb = context.supabase;
-    const { data: cfg } = await sb.from("bling_config").select("access_token, active, updated_at").maybeSingle();
+    await requireTenantRole(context.supabase, context.userId, context.tenantId, ["owner", "admin", "manager"]);
+    const sb = tdb(context.supabase);
+    const tenantId = context.tenantId;
+    const { data: cfg } = await sb
+      .from("bling_config")
+      .select("access_token, active, updated_at")
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
     const { data: lastSync } = await sb
       .from("bling_sync_logs")
       .select("created_at")
+      .eq("tenant_id", tenantId)
       .eq("status", "sucesso")
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     const importados = await count(sb, "products", (q) => q.not("bling_id", "is", null));
-    const erros = await count(sb, "bling_sync_logs", (q) => q.eq("status", "erro"));
+    const erros = await count(sb, "bling_sync_logs", (q) =>
+      q.eq("tenant_id", tenantId).eq("status", "erro"),
+    );
     const sucesso24h = await count(sb, "bling_sync_logs", (q) =>
-      q.eq("status", "sucesso").gte("created_at", new Date(Date.now() - 86400000).toISOString())
+      q
+        .eq("tenant_id", tenantId)
+        .eq("status", "sucesso")
+        .gte("created_at", new Date(Date.now() - 86400000).toISOString()),
     );
     const { data: ultimosErros } = await sb
       .from("bling_sync_logs")
       .select("entity, action, message, created_at")
+      .eq("tenant_id", tenantId)
       .eq("status", "erro")
       .order("created_at", { ascending: false })
       .limit(10);
@@ -91,7 +104,7 @@ export const getBlingAudit = createServerFn({ method: "GET" })
 export const getAiAudit = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertStaff(context.supabase, context.userId);
+    await requireTenantRole(context.supabase, context.userId, context.tenantId, ["owner", "admin", "manager"]);
     const sb = context.supabase;
     const total = await count(sb, "ai_tool_logs");
     const semResultado = await count(sb, "ai_tool_logs", (q) => q.eq("result_count", 0));

@@ -32,9 +32,8 @@ export const Route = createFileRoute("/_authenticated/admin")({
     const context = await fetchAccessContext();
     if (context.organizations.length > 0 || context.tenants.length > 0) return;
 
-    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userRes.user.id);
-    const isStaff = (roles ?? []).some((role) => role.role === "admin" || role.role === "gerente");
-    if (!isStaff) throw redirect({ to: "/ativacao" });
+    // Fase 1: sem membership de organização/tenant não há acesso administrativo.
+    throw redirect({ to: "/ativacao" });
   },
   component: AdminLayout,
 });

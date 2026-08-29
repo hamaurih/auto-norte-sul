@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchTenantAccess, isTenantAdmin } from "@/lib/tenant-access";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -50,9 +51,8 @@ export const Route = createFileRoute("/_authenticated/admin/ecossistema/bling")(
   beforeLoad: async () => {
     const { data: userRes } = await supabase.auth.getUser();
     if (!userRes.user) throw redirect({ to: "/auth" });
-    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userRes.user.id);
-    const isAdmin = (roles ?? []).some((r) => r.role === "admin");
-    if (!isAdmin) throw redirect({ to: "/admin" });
+    const access = await fetchTenantAccess(userRes.user.id);
+    if (!isTenantAdmin(access)) throw redirect({ to: "/admin" });
   },
   component: BlingModule,
 });
@@ -214,15 +214,24 @@ function BlingModule() {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-bold uppercase">Bling ERP</h2>
+          <h2 className="font-display text-xl font-bold uppercase">Bling (conector externo)</h2>
           <p className="text-sm text-muted-foreground">
-            ERP operacional do negócio. O site permanece como camada comercial (B2B/B2C, vendedores, promoções, cupons, IA).
+            Conector externo de integração. Produtos, preços, estoque, pedidos e clientes são geridos no ERP Norte Sul.
           </p>
         </div>
         <Badge variant="outline" className={conn.cn}>
           {conn.label}
         </Badge>
       </div>
+
+      <Alert>
+        <ShieldAlert className="h-4 w-4" />
+        <AlertDescription className="text-xs">
+          <b>ERP Norte Sul = fonte oficial; Bling = conector externo.</b> A sincronização de entrada de
+          produtos, preços, estoque e clientes está desativada. Apenas o enriquecimento de imagens é
+          permitido, e o envio de pedidos é sempre ERP → Bling.
+        </AlertDescription>
+      </Alert>
 
       {(!s.clientIdConfigured || !s.clientSecretConfigured) && (
         <Alert>
@@ -289,14 +298,14 @@ function BlingModule() {
         <TabsContent value="produtos" className="mt-4">
           <SyncCard
             title="Produtos"
-            description="Importa o catálogo do Bling e mantém sincronizado."
+            description="Somente diagnóstico: o catálogo é mantido no ERP Norte Sul. Importação do Bling está desativada."
             lastSync={cfg?.updated_at}
             stats={[
               { label: "Total de logs", value: stats.data?.total ?? 0 },
               { label: "Com erro", value: stats.data?.errors ?? 0 },
               { label: "Pendentes", value: stats.data?.pending ?? 0 },
             ]}
-            actionLabel="Sincronizar produtos"
+            actionLabel="Verificar (somente leitura)"
             onSync={runSync(syncProducts, "Produtos")}
             pending={busy === "Produtos"}
           >
@@ -311,7 +320,7 @@ function BlingModule() {
         <TabsContent value="imagens" className="mt-4">
           <SyncCard
             title="Imagens"
-            description="Baixa imagens vinculadas aos produtos no Bling. Processa em lotes de ~120 produtos (rate-limit 3 req/s do Bling)."
+            description="Enriquecimento de mídia apenas: baixa imagens dos produtos no Bling sem alterar nome, SKU, preço, estoque ou situação. Lotes de ~120 produtos (rate-limit 3 req/s)."
             lastSync={null}
             actionLabel="Sincronizar 1 lote"
             onSync={runSync(() => syncImages({ data: { batchSize: 120, onlyMissing: true } }), "Imagens")}
@@ -370,9 +379,9 @@ function BlingModule() {
         <TabsContent value="estoque" className="mt-4">
           <SyncCard
             title="Estoque"
-            description="Atualiza saldos e status de disponibilidade."
+            description="Somente diagnóstico: saldos vêm do ERP Norte Sul (product_stock). Importação do Bling está desativada."
             lastSync={null}
-            actionLabel="Sincronizar estoque"
+            actionLabel="Verificar (somente leitura)"
             onSync={runSync(syncStock, "Estoque")}
             pending={busy === "Estoque"}
           >
@@ -397,18 +406,12 @@ function BlingModule() {
         <TabsContent value="precos" className="mt-4">
           <SyncCard
             title="Preços"
-            description="Bling controla preços B2C. Preço B2B e promoções continuam no site."
+            description="Somente diagnóstico: todos os preços são definidos no ERP Norte Sul. Importação do Bling está desativada."
             lastSync={null}
-            actionLabel="Sincronizar preços"
+            actionLabel="Verificar (somente leitura)"
             onSync={runSync(syncPrices, "Preços")}
             pending={busy === "Preços"}
           >
-            <Toggle
-              label="Bling controla preço B2C"
-              help="Preços vindos do Bling atualizam a vitrine B2C."
-              checked={!!cfg?.source_price_b2c}
-              onChange={(v) => configMut.mutate({ source_price_b2c: v })}
-            />
             <Toggle
               label="Preço manual do site pode sobrescrever preço do Bling"
               help="Quando ligado, alterações manuais no admin prevalecem até a próxima edição no Bling."
@@ -431,7 +434,7 @@ function BlingModule() {
         <TabsContent value="pedidos" className="mt-4">
           <SyncCard
             title="Pedidos"
-            description="Envia pedidos aprovados no site para o Bling."
+            description="Fluxo outbound ERP Norte Sul → Bling (fase futura)."
             lastSync={null}
             actionLabel="Enviar pedidos pendentes"
             onSync={runSync(sendOrders, "Pedidos")}
@@ -448,9 +451,9 @@ function BlingModule() {
         <TabsContent value="clientes" className="mt-4">
           <SyncCard
             title="Clientes"
-            description="Novos cadastros do site são enviados ao Bling; atualizações são propagadas."
+            description="Somente diagnóstico: clientes são geridos no ERP Norte Sul. Importação do Bling está desativada."
             lastSync={null}
-            actionLabel="Sincronizar clientes"
+            actionLabel="Verificar (somente leitura)"
             onSync={runSync(syncCustomers, "Clientes")}
             pending={busy === "Clientes"}
           >
@@ -562,16 +565,13 @@ function BlingModule() {
         <TabsContent value="configuracoes" className="mt-4">
           <Card>
             <CardHeader>
-              <p className="text-sm font-semibold">Regras estratégicas</p>
+              <p className="text-sm font-semibold">Configurações do conector</p>
               <p className="text-xs text-muted-foreground">
-                Define quais dados o Bling controla. B2B, promoções e cupons são sempre do site.
+                O ERP Norte Sul é a fonte oficial de todos os dados; o Bling não controla produtos, preços nem estoque.
               </p>
             </CardHeader>
             <CardContent className="space-y-3">
               <Toggle label="Integração ativa" checked={!!cfg?.active} onChange={(v) => configMut.mutate({ active: v })} />
-              <Toggle label="Bling é fonte principal de produtos" checked={!!cfg?.source_products} onChange={(v) => configMut.mutate({ source_products: v })} />
-              <Toggle label="Bling é fonte principal de estoque" checked={!!cfg?.source_stock} onChange={(v) => configMut.mutate({ source_stock: v })} />
-              <Toggle label="Bling é fonte principal de preço B2C" checked={!!cfg?.source_price_b2c} onChange={(v) => configMut.mutate({ source_price_b2c: v })} />
               <Toggle label="Sincronização automática" help="Se desligado, apenas sincronização manual." checked={!!cfg?.auto_sync} onChange={(v) => configMut.mutate({ auto_sync: v })} />
               <div className="flex items-center gap-3">
                 <Label className="min-w-[220px] text-sm">Intervalo (minutos)</Label>

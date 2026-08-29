@@ -1,6 +1,8 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { tdb } from "@/integrations/supabase/tenant-db";
+import { fetchTenantAccess, isTenantAdmin, resolveActiveTenantId } from "@/lib/tenant-access";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,9 +28,8 @@ export const Route = createFileRoute("/_authenticated/admin/ia-aes-business")({
   beforeLoad: async () => {
     const { data: userRes } = await supabase.auth.getUser();
     if (!userRes.user) throw redirect({ to: "/auth" });
-    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userRes.user.id);
-    const isAdmin = (roles ?? []).some((r) => r.role === "admin");
-    if (!isAdmin) throw redirect({ to: "/admin" });
+    const access = await fetchTenantAccess(userRes.user.id);
+    if (!isTenantAdmin(access)) throw redirect({ to: "/admin" });
   },
   component: IaAesBusiness,
 });
@@ -54,6 +55,7 @@ function IaAesBusiness() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [configId, setConfigId] = useState<string | null>(null);
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [apiUrl, setApiUrl] = useState("");
   const [active, setActive] = useState(true);
   const [lastStatus, setLastStatus] = useState<string | null>(null);
@@ -61,11 +63,11 @@ function IaAesBusiness() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
-        .from("ai_aes_config")
-        .select("*")
-        .limit(1)
-        .maybeSingle();
+      const tenantId = await resolveActiveTenantId();
+      setTenantId(tenantId);
+      const { data } = tenantId
+        ? await tdb(supabase).from("ai_aes_config").select("*").eq("tenant_id", tenantId).maybeSingle()
+        : { data: null as any };
       if (data) {
         setConfigId(data.id);
         setApiUrl(data.api_url ?? "");
@@ -80,10 +82,11 @@ function IaAesBusiness() {
   async function save() {
     if (!configId) return;
     setSaving(true);
-    const { error } = await supabase
+    const { error } = await tdb(supabase)
       .from("ai_aes_config")
       .update({ api_url: apiUrl || null, active })
-      .eq("id", configId);
+      .eq("id", configId)
+      .eq("tenant_id", tenantId ?? "");
     setSaving(false);
     if (error) toast.error(error.message);
     else toast.success("Configuração salva");
@@ -114,10 +117,11 @@ function IaAesBusiness() {
     setLastStatus(status);
     setLastTested(now);
     if (configId) {
-      await supabase
+      await tdb(supabase)
         .from("ai_aes_config")
         .update({ last_test_status: status, last_tested_at: now })
-        .eq("id", configId);
+        .eq("id", configId)
+        .eq("tenant_id", tenantId ?? "");
     }
     setTesting(false);
   }
