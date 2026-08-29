@@ -714,6 +714,8 @@ export const createReceiptFromNfe = createServerFn({ method: "POST" })
         units_per_package: unitsPerPackage,
         package_unit: packageUnit,
         unit_cost: effectiveUnitCost(item),
+        base_unit_cost: effectiveUnitCost(item),
+        acquisition_unit_cost: effectiveUnitCost(item),
         notes: `NF-e item ${item.line_number}`,
       };
     });
