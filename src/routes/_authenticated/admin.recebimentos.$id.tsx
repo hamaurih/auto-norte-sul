@@ -86,15 +86,21 @@ function RecebimentoDetailPage() {
             {receipt.supplier?.legal_name} · {receipt.warehouse?.name} · {formatDate(receipt.received_at)}
             {receipt.invoice_number ? ` · NF ${receipt.invoice_number}` : ""}
           </p>
-          <p className="mt-1 text-sm">
-            <Link
-              to="/admin/pedidos-compra/$id"
-              params={{ id: receipt.purchase_order_id }}
-              className="font-semibold text-primary hover:underline"
-            >
-              Pedido de compra #{receipt.purchase_order?.number}
-            </Link>
-          </p>
+          {receipt.purchase_order_id ? (
+            <p className="mt-1 text-sm">
+              <Link
+                to="/admin/pedidos-compra/$id"
+                params={{ id: receipt.purchase_order_id }}
+                className="font-semibold text-primary hover:underline"
+              >
+                Pedido de compra #{receipt.purchase_order?.number}
+              </Link>
+            </p>
+          ) : (
+            <p className="mt-1 text-sm text-muted-foreground">
+              Entrada sem pedido de compra{receipt.no_order_reason ? " · " + receipt.no_order_reason : ""}
+            </p>
+          )}
           {receipt.reverse_reason && (
             <p className="mt-1 text-sm text-destructive">Estornado: {receipt.reverse_reason}</p>
           )}
