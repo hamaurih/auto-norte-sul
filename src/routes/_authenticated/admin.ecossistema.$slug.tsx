@@ -166,6 +166,111 @@ const specs: Record<string, IntegrationSpec> = {
       { key: "certificado_senha", label: "Senha do certificado", type: "password", is_secret: true },
     ],
   },
+  nuvemshop: {
+    intro: "Conexão OAuth para catálogo, estoque e pedidos da loja Nuvemshop.",
+    fields: [
+      { key: "store_id", label: "ID da loja" },
+      { key: "access_token", label: "Access Token", type: "password", is_secret: true },
+    ],
+    syncActions: [
+      { scope: "produtos", label: "Sincronizar produtos" },
+      { scope: "estoque", label: "Sincronizar estoque" },
+      { scope: "pedidos", label: "Importar pedidos" },
+    ],
+  },
+  shopify: {
+    intro: "Conexão com a Admin API da loja Shopify para catálogo, estoque e pedidos.",
+    fields: [
+      { key: "shop_domain", label: "Domínio da loja", placeholder: "minha-loja.myshopify.com" },
+      { key: "admin_access_token", label: "Admin API Access Token", type: "password", is_secret: true },
+      { key: "api_version", label: "Versão da API", placeholder: "2026-01" },
+    ],
+    syncActions: [
+      { scope: "produtos", label: "Sincronizar produtos" },
+      { scope: "estoque", label: "Sincronizar estoque" },
+      { scope: "pedidos", label: "Importar pedidos" },
+    ],
+  },
+  woocommerce: {
+    fields: [
+      { key: "store_url", label: "URL da loja" },
+      { key: "consumer_key", label: "Consumer Key", type: "password", is_secret: true },
+      { key: "consumer_secret", label: "Consumer Secret", type: "password", is_secret: true },
+    ],
+    syncActions: [
+      { scope: "produtos", label: "Sincronizar produtos" },
+      { scope: "pedidos", label: "Importar pedidos" },
+    ],
+  },
+  tray: {
+    fields: [
+      { key: "store_id", label: "ID da loja" },
+      { key: "api_key", label: "API Key", type: "password", is_secret: true },
+      { key: "api_secret", label: "API Secret", type: "password", is_secret: true },
+    ],
+    syncActions: [
+      { scope: "produtos", label: "Sincronizar produtos" },
+      { scope: "pedidos", label: "Importar pedidos" },
+    ],
+  },
+  "magalu-marketplace": {
+    fields: [
+      { key: "seller_id", label: "Seller ID" },
+      { key: "client_id", label: "Client ID" },
+      { key: "client_secret", label: "Client Secret", type: "password", is_secret: true },
+    ],
+    syncActions: [
+      { scope: "anuncios", label: "Sincronizar anúncios" },
+      { scope: "pedidos", label: "Importar pedidos" },
+    ],
+  },
+  olist: {
+    fields: [
+      { key: "seller_id", label: "Seller ID" },
+      { key: "api_key", label: "API Key", type: "password", is_secret: true },
+    ],
+    syncActions: [
+      { scope: "produtos", label: "Sincronizar produtos" },
+      { scope: "pedidos", label: "Importar pedidos" },
+    ],
+  },
+  frenet: {
+    fields: [
+      { key: "token", label: "Token", type: "password", is_secret: true },
+      { key: "cep_origem", label: "CEP de origem" },
+    ],
+    syncActions: [{ scope: "cotacoes", label: "Testar cotação de frete" }],
+  },
+  kangu: {
+    fields: [
+      { key: "token", label: "Token", type: "password", is_secret: true },
+      { key: "cep_origem", label: "CEP de origem" },
+    ],
+    syncActions: [{ scope: "cotacoes", label: "Testar cotação de frete" }],
+  },
+  pagbank: {
+    intro: "Use OAuth/Connect do PagBank para autorização por ambiente.",
+    fields: [
+      { key: "client_id", label: "Client ID" },
+      { key: "client_secret", label: "Client Secret", type: "password", is_secret: true },
+      { key: "environment", label: "Ambiente", placeholder: "sandbox" },
+      { key: "webhook_url", label: "URL de Webhook" },
+    ],
+  },
+  pagarme: {
+    fields: [
+      { key: "secret_key", label: "Secret Key", type: "password", is_secret: true },
+      { key: "public_key", label: "Public Key" },
+      { key: "webhook_url", label: "URL de Webhook" },
+    ],
+  },
+  asaas: {
+    fields: [
+      { key: "api_key", label: "API Key", type: "password", is_secret: true },
+      { key: "environment", label: "Ambiente", placeholder: "sandbox" },
+      { key: "webhook_url", label: "URL de Webhook" },
+    ],
+  },
   "mobile-app": {
     fields: [
       { key: "api_base_url", label: "URL base da API mobile" },
