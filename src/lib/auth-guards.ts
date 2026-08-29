@@ -1,11 +1,7 @@
 /**
- * auth-guards.ts — Funções de autorização reutilizáveis para server functions.
- *
- * ARC-12: Antes havia 5+ cópias de assertAdmin/assertStaff espalhadas.
- * Este módulo é a fonte única de verdade para todos os guards de acesso.
+ * Tenant-scoped authorization guards for server functions.
+ * Authorization is exclusively tenant_memberships + tenant_user_permissions.
  */
-
-export type LegacyRole = "admin" | "gerente" | "vendedor" | "staff";
 export type TenantRole =
   | "owner"
   | "admin"
@@ -18,42 +14,13 @@ export type TenantRole =
   | "support"
   | "viewer";
 
-// ─────────────────────────────────────────────────────────────
-// Guards legados (tabela user_roles — pré-SaaS)
-// ─────────────────────────────────────────────────────────────
-
-export async function assertAdmin(supabase: any, userId: string): Promise<void> {
-  const { data: roles, error } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId);
-  if (error) throw new Error(error.message);
-  const ok = (roles ?? []).some((r: { role: string }) => r.role === "admin");
-  if (!ok) throw new Error("Forbidden: requer papel admin");
-}
-
-export async function assertStaff(supabase: any, userId: string): Promise<void> {
-  const { data: roles, error } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId);
-  if (error) throw new Error(error.message);
-  const ok = (roles ?? []).some((r: { role: string }) =>
-    ["admin", "gerente"].includes(r.role),
-  );
-  if (!ok) throw new Error("Forbidden: requer papel admin ou gerente");
-}
-
-// ─────────────────────────────────────────────────────────────
-// Guards multi-tenant (tabela tenant_memberships — pós-SaaS)
-// ─────────────────────────────────────────────────────────────
-
 export async function requireTenantRole(
   sb: any,
   userId: string,
   tenantId: string,
   roles: TenantRole[] = ["owner", "admin", "manager"],
 ): Promise<{ tenant_id: string; role: TenantRole }> {
+  if (!tenantId) throw new Error("Tenant obrigatório para autorização.");
   const { data, error } = await sb
     .from("tenant_memberships")
     .select("tenant_id, role")
@@ -61,14 +28,23 @@ export async function requireTenantRole(
     .eq("tenant_id", tenantId)
     .eq("active", true);
   if (error) throw new Error(error.message);
-  const membership = (data ?? []).find((item: { role: TenantRole }) =>
-    roles.includes(item.role),
-  );
-  if (!membership)
-    throw new Error(
-      `Usuário sem acesso ativo (requer: ${roles.join(", ")})`,
-    );
+  const membership = (data ?? []).find((item: { role: TenantRole }) => roles.includes(item.role));
+  if (!membership) {
+    throw new Error(`Usuário sem acesso ativo neste ambiente (requer: ${roles.join(", ")})`);
+  }
   return membership as { tenant_id: string; role: TenantRole };
+}
+
+/** Compatibility name for old call sites; never authorizes without tenant context. */
+export async function assertAdmin(sb: any, userId: string, tenantId?: string): Promise<void> {
+  if (!tenantId) throw new Error("Tenant obrigatório: use requireTenantRole para autorização administrativa.");
+  await requireTenantRole(sb, userId, tenantId, ["owner", "admin"]);
+}
+
+/** Compatibility name for old call sites; never authorizes without tenant context. */
+export async function assertStaff(sb: any, userId: string, tenantId?: string): Promise<void> {
+  if (!tenantId) throw new Error("Tenant obrigatório: use requireTenantRole para autorização de equipe.");
+  await requireTenantRole(sb, userId, tenantId, ["owner", "admin", "manager"]);
 }
 
 export async function requireTenantSalesRole(
@@ -76,12 +52,7 @@ export async function requireTenantSalesRole(
   userId: string,
   tenantId: string,
 ): Promise<{ tenant_id: string; role: TenantRole }> {
-  return requireTenantRole(sb, userId, tenantId, [
-    "owner",
-    "admin",
-    "manager",
-    "sales",
-  ]);
+  return requireTenantRole(sb, userId, tenantId, ["owner", "admin", "manager", "sales"]);
 }
 
 export async function requireTenantCatalogRole(
@@ -89,12 +60,7 @@ export async function requireTenantCatalogRole(
   userId: string,
   tenantId: string,
 ): Promise<{ tenant_id: string; role: TenantRole }> {
-  return requireTenantRole(sb, userId, tenantId, [
-    "owner",
-    "admin",
-    "manager",
-    "stock",
-  ]);
+  return requireTenantRole(sb, userId, tenantId, ["owner", "admin", "manager", "stock"]);
 }
 
 export const ALL_TENANT_ROLES: TenantRole[] = [
@@ -118,10 +84,6 @@ export async function requireAnyTenantRole(
   return requireTenantRole(sb, userId, tenantId, ALL_TENANT_ROLES);
 }
 
-// ─────────────────────────────────────────────────────────────
-// Guard para organização (convites, billing)
-// ─────────────────────────────────────────────────────────────
-
 export async function requireOrganizationAdmin(
   sb: any,
   userId: string,
@@ -135,7 +97,6 @@ export async function requireOrganizationAdmin(
   const membership = (data ?? []).find((item: { role: string }) =>
     ["owner", "admin"].includes(item.role),
   );
-  if (!membership)
-    throw new Error("Somente proprietário ou administrador da organização");
+  if (!membership) throw new Error("Somente proprietário ou administrador da organização");
   return membership as { organization_id: string; role: string };
 }
