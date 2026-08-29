@@ -130,9 +130,10 @@ function RecebimentoDetailPage() {
             <thead className="text-xs uppercase text-muted-foreground">
               <tr>
                 <th className="py-1 text-left">Produto</th>
-                <th className="py-1 text-right">Aceito</th>
-                <th className="py-1 text-right">Recusado</th>
-                <th className="py-1 text-right">Custo efetivo</th>
+                <th className="py-1 text-right">Entrada</th>
+                <th className="py-1 text-right">Aceito (UN)</th>
+                <th className="py-1 text-right">Recusado (UN)</th>
+                <th className="py-1 text-right">Custo/UN</th>
                 <th className="py-1 text-right">Total</th>
               </tr>
             </thead>
@@ -142,6 +143,10 @@ function RecebimentoDetailPage() {
                   <td className="py-1.5">
                     <div className="font-semibold">{item.product?.name}</div>
                     <div className="text-xs text-muted-foreground">{item.product?.sku}</div>
+                  </td>
+                  <td className="py-1.5 text-right text-xs">
+                    {qty(item.received_package_qty ?? (num(item.accepted_qty) + num(item.rejected_qty)))}{" "}
+                    {item.package_unit ?? "UN"} × {qty(item.units_per_package ?? 1)}
                   </td>
                   <td className="py-1.5 text-right">{qty(item.accepted_qty)}</td>
                   <td className="py-1.5 text-right">{qty(item.rejected_qty)}</td>
