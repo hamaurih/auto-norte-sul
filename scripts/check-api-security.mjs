@@ -35,6 +35,27 @@ if (!login.includes("ACCOUNT_MAX_FAILURES") || !login.includes("auth_login_attem
   failures.push("login: rate limit obrigatório ausente");
 }
 
+const blingCallback = readFileSync(join(root, "public", "bling.callback.ts"), "utf8");
+if (
+  !blingCallback.includes("oauth_authorization_states") ||
+  !blingCallback.includes("consumed_at") ||
+  !blingCallback.includes("expires_at") ||
+  !blingCallback.includes("state_hash")
+) {
+  failures.push("Bling OAuth callback: validação de state de uso único ausente");
+}
+
+const blingOauth = readFileSync(join(process.cwd(), "src", "lib", "bling-oauth.functions.ts"), "utf8");
+if (
+  !blingOauth.includes("requireSupabaseAuth") ||
+  !blingOauth.includes("assertAdmin") ||
+  !blingOauth.includes("oauth_authorization_states") ||
+  !blingOauth.includes("state_hash") ||
+  !blingOauth.includes("expires_at")
+) {
+  failures.push("Bling OAuth start: state persistido/autenticação obrigatória ausente");
+}
+
 if (failures.length) {
   console.error("API SECURITY GATE FAILED\n" + failures.map((f) => `- ${f}`).join("\n"));
   process.exit(1);
