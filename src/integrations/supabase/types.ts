@@ -306,6 +306,104 @@ export type Database = {
           },
         ]
       }
+      b2b_customer_price_tables: {
+        Row: {
+          active: boolean
+          cnpj_digits: string
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          price_table: string
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          active?: boolean
+          cnpj_digits: string
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          price_table?: string
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          active?: boolean
+          cnpj_digits?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          price_table?: string
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b2b_customer_price_tables_customer_tenant_fkey"
+            columns: ["customer_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "b2b_customer_price_tables_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      b2b_price_table_settings: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          id: string
+          table_a_discount_pct: number
+          table_b_discount_pct: number
+          table_c_discount_pct: number
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          table_a_discount_pct?: number
+          table_b_discount_pct?: number
+          table_c_discount_pct?: number
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          table_a_discount_pct?: number
+          table_b_discount_pct?: number
+          table_c_discount_pct?: number
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b2b_price_table_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       b2b_registrations: {
         Row: {
           admin_notes: string | null
@@ -2811,9 +2909,13 @@ export type Database = {
       }
       order_items: {
         Row: {
+          discount_amount: number
           id: string
+          list_price: number
           name: string
           order_id: string
+          price_discount_pct: number
+          price_table: string | null
           product_id: string | null
           quantity: number
           sku: string
@@ -2822,9 +2924,13 @@ export type Database = {
           unit_price: number
         }
         Insert: {
+          discount_amount?: number
           id?: string
+          list_price?: number
           name: string
           order_id: string
+          price_discount_pct?: number
+          price_table?: string | null
           product_id?: string | null
           quantity: number
           sku: string
@@ -2833,9 +2939,13 @@ export type Database = {
           unit_price: number
         }
         Update: {
+          discount_amount?: number
           id?: string
+          list_price?: number
           name?: string
           order_id?: string
+          price_discount_pct?: number
+          price_table?: string | null
           product_id?: string | null
           quantity?: number
           sku?: string
@@ -2924,6 +3034,8 @@ export type Database = {
       }
       orders: {
         Row: {
+          b2b_price_discount_pct: number
+          b2b_price_table: string | null
           bling_id: string | null
           bling_number: string | null
           created_at: string
@@ -2955,6 +3067,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          b2b_price_discount_pct?: number
+          b2b_price_table?: string | null
           bling_id?: string | null
           bling_number?: string | null
           created_at?: string
@@ -2986,6 +3100,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          b2b_price_discount_pct?: number
+          b2b_price_table?: string | null
           bling_id?: string | null
           bling_number?: string | null
           created_at?: string
@@ -5330,6 +5446,185 @@ export type Database = {
         }
         Relationships: []
       }
+      seller_commission_periods: {
+        Row: {
+          calculated_at: string
+          calculated_by: string | null
+          commission_amount: number
+          created_at: string
+          eligible_order_count: number
+          eligible_pos_count: number
+          eligible_sales: number
+          id: string
+          period_month: string
+          pos_sales_amount: number
+          previous_three_months_average: number
+          rate_pct: number
+          rep_id: string
+          sales_order_amount: number
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          calculated_at?: string
+          calculated_by?: string | null
+          commission_amount?: number
+          created_at?: string
+          eligible_order_count?: number
+          eligible_pos_count?: number
+          eligible_sales?: number
+          id?: string
+          period_month: string
+          pos_sales_amount?: number
+          previous_three_months_average?: number
+          rate_pct?: number
+          rep_id: string
+          sales_order_amount?: number
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          calculated_at?: string
+          calculated_by?: string | null
+          commission_amount?: number
+          created_at?: string
+          eligible_order_count?: number
+          eligible_pos_count?: number
+          eligible_sales?: number
+          id?: string
+          period_month?: string
+          pos_sales_amount?: number
+          previous_three_months_average?: number
+          rate_pct?: number
+          rep_id?: string
+          sales_order_amount?: number
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_commission_periods_rep_tenant_fkey"
+            columns: ["rep_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "sales_reps"
+            referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "seller_commission_periods_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seller_commission_settings: {
+        Row: {
+          average_months: number
+          baseline_rate_pct: number
+          created_at: string
+          created_by: string | null
+          enabled: boolean
+          id: string
+          outperform_rate_pct: number
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          average_months?: number
+          baseline_rate_pct?: number
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          id?: string
+          outperform_rate_pct?: number
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          average_months?: number
+          baseline_rate_pct?: number
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          id?: string
+          outperform_rate_pct?: number
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_commission_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seller_goals: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          period_month: string
+          rep_id: string
+          target_amount: number
+          target_units: number
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          period_month: string
+          rep_id: string
+          target_amount?: number
+          target_units?: number
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          period_month?: string
+          rep_id?: string
+          target_amount?: number
+          target_units?: number
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_goals_rep_tenant_fkey"
+            columns: ["rep_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "sales_reps"
+            referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "seller_goals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shipment_events: {
         Row: {
           actor_user_id: string | null
@@ -6366,6 +6661,15 @@ export type Database = {
       }
       approve_product_enrichment_candidate: {
         Args: { p_candidate_id: string }
+        Returns: Json
+      }
+      calculate_seller_commission: {
+        Args: {
+          p_actor_user_id: string
+          p_period_month: string
+          p_rep_id: string
+          p_tenant_id: string
+        }
         Returns: Json
       }
       cancel_pos_sale: {
