@@ -481,7 +481,7 @@ function DispatchConferenceCard({
           </div>
         </div>
         {dispatch && (
-          <span className={\`rounded-full px-3 py-1 text-xs font-extrabold \${complete ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}\`}>
+          <span className={`rounded-full px-3 py-1 text-xs font-extrabold \${complete ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
             {complete ? "Conferência concluída" : "Conferência em andamento"}
           </span>
         )}
@@ -510,7 +510,7 @@ function DispatchConferenceCard({
                 <span>{scanned} / {expected} unidades</span>
               </div>
               <div className="mt-2 h-3 overflow-hidden rounded-full bg-white/80">
-                <div className="h-full rounded-full bg-cyan-600 transition-all" style={{ width: \`\${expected ? Math.min(100, (scanned / expected) * 100) : 0}%\` }} />
+                <div className="h-full rounded-full bg-cyan-600 transition-all" style={{ width: `\${expected ? Math.min(100, (scanned / expected) * 100) : 0}%` }} />
               </div>
             </div>
             <div className="text-right text-xs text-muted-foreground">
@@ -525,16 +525,16 @@ function DispatchConferenceCard({
               const itemScanned = Number(item.scanned_qty);
               const done = itemExpected === itemScanned;
               return (
-                <div key={item.id} className={\`flex flex-col gap-2 rounded-2xl border p-3 sm:flex-row sm:items-center sm:justify-between \${done ? "border-emerald-200 bg-emerald-50/80" : "border-white/80 bg-white/75"}\`}>
+                <div key={item.id} className={`flex flex-col gap-2 rounded-2xl border p-3 sm:flex-row sm:items-center sm:justify-between \${done ? "border-emerald-200 bg-emerald-50/80" : "border-white/80 bg-white/75"}`}>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-extrabold">{item.name}</p>
                     <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
-                      {item.internal_code ? \`Interno: \${item.internal_code} · \` : ""}SKU {item.sku}
+                      {item.internal_code ? `Interno: \${item.internal_code} · ` : ""}SKU {item.sku}
                     </p>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
-                    <span className={\`rounded-full px-2.5 py-1 text-xs font-extrabold \${done ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}\`}>{itemScanned} / {itemExpected}</span>
-                    <span className="text-xs text-muted-foreground">{done ? "Conferido" : \`Faltam \${itemExpected - itemScanned}\`}</span>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold \${done ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>{itemScanned} / {itemExpected}</span>
+                    <span className="text-xs text-muted-foreground">{done ? "Conferido" : `Faltam \${itemExpected - itemScanned}`}</span>
                   </div>
                 </div>
               );
