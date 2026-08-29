@@ -38,11 +38,7 @@ export const emptyAccessContext: AccessContext = {
   tenants: [],
 };
 
-/**
- * Reads the membership context of the signed-in user through the
- * `my_access_context` security-definer function. Never grants anything by
- * itself — it only reports what memberships already exist.
- */
+/** Reports existing organization/tenant memberships; it grants nothing itself. */
 export async function fetchAccessContext(): Promise<AccessContext> {
   const { data: userRes } = await supabase.auth.getUser();
   if (!userRes.user) return emptyAccessContext;
@@ -79,9 +75,7 @@ export function isOrganizationAdmin(context: AccessContext | undefined | null): 
 export function activeTenant(context: AccessContext | undefined | null): AccessTenant | null {
   if (!context) return null;
   const slug = activeTenantSlug();
-  return (
-    context.tenants.find((tenant) => tenant.storefront_slug === slug || tenant.slug === slug) ?? null
-  );
+  return context.tenants.find((tenant) => tenant.storefront_slug === slug || tenant.slug === slug) ?? null;
 }
 
 export const environmentLabel: Record<string, string> = {
@@ -89,22 +83,3 @@ export const environmentLabel: Record<string, string> = {
   demo: "Conta de teste",
   sandbox: "Sandbox",
 };
-
-/**
- * Fallback de compatibilidade: contas de equipe do modelo antigo (user_roles)
- * continuam com acesso administrativo enquanto a infraestrutura de
- * organizações/tenants não estiver provisionada neste banco.
- */
-export async function isLegacyStaff(userId: string): Promise<boolean> {
-  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-  return (data ?? []).some((r) => r.role === "admin" || r.role === "gerente");
-}
-
-export function useIsLegacyStaff(userId: string | null | undefined) {
-  return useQuery({
-    queryKey: ["legacy-staff", userId],
-    queryFn: () => (userId ? isLegacyStaff(userId) : Promise.resolve(false)),
-    enabled: Boolean(userId),
-    staleTime: 60_000,
-  });
-}
