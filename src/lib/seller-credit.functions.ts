@@ -55,7 +55,7 @@ export const getMySellerCredit = createServerFn({ method: "GET" })
       };
     }
 
-    const [{ data: settings, error: settingsError }, { data: ledger, error: ledgerError }] =
+    const [{ data: settings, error: settingsError }, { data: ledger, error: ledgerError }, { data: balance, error: balanceError }] =
       await Promise.all([
         adminSb
           .from("seller_credit_settings")
@@ -69,15 +69,20 @@ export const getMySellerCredit = createServerFn({ method: "GET" })
           .eq("rep_id", rep.id)
           .order("created_at", { ascending: false })
           .limit(20),
+        (adminSb as any).rpc("get_seller_credit_balance", {
+          p_tenant_id: context.tenantId,
+          p_rep_id: rep.id,
+        }),
       ]);
 
     if (settingsError) throw new Error(settingsError.message);
     if (ledgerError) throw new Error(ledgerError.message);
+    if (balanceError) throw new Error(balanceError.message);
 
     return {
       isSalesRep: true,
       enabled: Boolean(settings?.enabled ?? false),
-      availableBalance: Number((ledger ?? []).reduce((sum: number, row: any) => sum + Number(row.amount ?? 0), 0)),
+      availableBalance: Number(balance ?? 0),
       maxUpliftPct: Number(settings?.max_uplift_pct ?? 0),
       recent: (ledger ?? []).map((row: any) => ({
         id: row.id,
@@ -102,7 +107,7 @@ export const getSellerCreditAdminData = createServerFn({ method: "GET" })
     await requireManager(tdb(context.supabase), context.userId, context.tenantId);
     const adminSb = await getAdminDb();
 
-    const [{ data: settings, error: settingsError }, { data: reps, error: repsError }, { data: ledger, error: ledgerError }] =
+    const [{ data: settings, error: settingsError }, { data: reps, error: repsError }, { data: ledger, error: ledgerError }, { data: balances, error: balancesError }] =
       await Promise.all([
         adminSb
           .from("seller_credit_settings")
@@ -120,11 +125,15 @@ export const getSellerCreditAdminData = createServerFn({ method: "GET" })
           .eq("tenant_id", context.tenantId)
           .order("created_at", { ascending: false })
           .limit(500),
+        (adminSb as any).rpc("get_seller_credit_balances", {
+          p_tenant_id: context.tenantId,
+        }),
       ]);
 
     if (settingsError) throw new Error(settingsError.message);
     if (repsError) throw new Error(repsError.message);
     if (ledgerError) throw new Error(ledgerError.message);
+    if (balancesError) throw new Error(balancesError.message);
 
     const entries = (ledger ?? []).map((row: any) => ({
       id: row.id,
@@ -136,10 +145,12 @@ export const getSellerCreditAdminData = createServerFn({ method: "GET" })
       description: row.description,
       created_at: row.created_at,
     }));
-    const balanceByRep = new Map<string, number>();
-    for (const entry of entries) {
-      balanceByRep.set(entry.rep_id, (balanceByRep.get(entry.rep_id) ?? 0) + entry.amount);
-    }
+    const balanceByRep = new Map<string, number>(
+      (balances ?? []).map((row: { rep_id: string; balance: number }) => [
+        row.rep_id,
+        Number(row.balance ?? 0),
+      ]),
+    );
 
     return {
       settings: {
