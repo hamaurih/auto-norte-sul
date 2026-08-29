@@ -599,9 +599,26 @@ export const cancelNfeImport = createServerFn({ method: "POST" })
  * conferida. Nenhum estoque ou custo é movimentado aqui: a movimentação é
  * exclusividade da função transacional `confirm_goods_receipt`.
  */
+type NfePackagingInput = {
+  receivedPackageQty?: number;
+  rejectedPackageQty?: number;
+  unitsPerPackage?: number;
+  packageUnit?: string | null;
+};
+
+/**
+ * Cria `goods_receipt` + `goods_receipt_items` em RASCUNHO a partir da NF-e
+ * conferida. A conversão de embalagem é validada no servidor e o estoque só
+ * é movimentado pela função transacional `confirm_goods_receipt`.
+ */
 export const createReceiptFromNfe = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { importId: string }) => input)
+  .inputValidator(
+    (input: {
+      importId: string;
+      packaging?: Record<string, NfePackagingInput>;
+    }) => input,
+  )
   .handler(async ({ data, context }) => {
     const sb = tdb(context.supabase);
     await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_WRITE_ROLES);
@@ -630,7 +647,7 @@ export const createReceiptFromNfe = createServerFn({ method: "POST" })
     const { data: items, error: itemsError } = await sb
       .from("nfe_import_items")
       .select(
-        "id, line_number, qty, unit_value, total_amount, discount_amount, freight_amount, other_amount, product_id, purchase_order_item_id",
+        "id, line_number, qty, unit, unit_value, total_amount, discount_amount, freight_amount, other_amount, product_id, purchase_order_item_id",
       )
       .eq("tenant_id", context.tenantId)
       .eq("nfe_import_id", data.importId)
@@ -645,6 +662,62 @@ export const createReceiptFromNfe = createServerFn({ method: "POST" })
         `Vincule os produtos das linhas ${unmatched.map((item: any) => item.line_number).join(", ")} antes de gerar o recebimento`,
       );
     }
+
+    const rows = list.map((item: any) => {
+      const xmlQty = round2(Number(item.qty));
+      const raw = data.packaging?.[item.id] ?? {};
+      const receivedPackageQty = round2(
+        raw.receivedPackageQty == null ? xmlQty : Number(raw.receivedPackageQty),
+      );
+      const rejectedPackageQty = round2(
+        raw.rejectedPackageQty == null ? 0 : Number(raw.rejectedPackageQty),
+      );
+      const unitsPerPackage = Number(raw.unitsPerPackage ?? 1);
+      const packageUnit = String(raw.packageUnit ?? item.unit ?? "UN").trim().toUpperCase() || "UN";
+
+      if (!Number.isFinite(xmlQty) || xmlQty <= 0) {
+        throw new Error(`Quantidade inválida na linha ${item.line_number} da NF-e`);
+      }
+      if (
+        !Number.isFinite(receivedPackageQty) ||
+        receivedPackageQty <= 0 ||
+        !Number.isFinite(rejectedPackageQty) ||
+        rejectedPackageQty < 0 ||
+        !Number.isSafeInteger(unitsPerPackage) ||
+        unitsPerPackage <= 0
+      ) {
+        throw new Error(`Conversão inválida na linha ${item.line_number} da NF-e`);
+      }
+      if (rejectedPackageQty > receivedPackageQty) {
+        throw new Error(`Recusadas acima das recebidas na linha ${item.line_number}`);
+      }
+      if (!/^[A-Z][A-Z0-9_]{0,9}$/.test(packageUnit)) {
+        throw new Error(`Unidade de embalagem inválida na linha ${item.line_number}`);
+      }
+
+      const convertedTotal = round2(receivedPackageQty * unitsPerPackage);
+      const expectedTotal = round2(xmlQty);
+      if (Math.abs(convertedTotal - expectedTotal) > 0.01) {
+        throw new Error(
+          `A conversão da linha ${item.line_number} deve totalizar ${expectedTotal} unidades-base (NF-e: ${expectedTotal})`,
+        );
+      }
+
+      return {
+        tenant_id: context.tenantId,
+        goods_receipt_id: receipt.id,
+        purchase_order_item_id: item.purchase_order_item_id ?? null,
+        product_id: item.product_id,
+        accepted_qty: round2((receivedPackageQty - rejectedPackageQty) * unitsPerPackage),
+        rejected_qty: round2(rejectedPackageQty * unitsPerPackage),
+        received_package_qty: receivedPackageQty,
+        rejected_package_qty: rejectedPackageQty,
+        units_per_package: unitsPerPackage,
+        package_unit: packageUnit,
+        unit_cost: effectiveUnitCost(item),
+        notes: `NF-e item ${item.line_number}`,
+      };
+    });
 
     const { data: receipt, error: receiptError } = await sb
       .from("goods_receipts")
@@ -664,18 +737,8 @@ export const createReceiptFromNfe = createServerFn({ method: "POST" })
       .single();
     if (receiptError) throw new Error(receiptError.message);
 
-    const rows = list.map((item: any) => ({
-      tenant_id: context.tenantId,
-      goods_receipt_id: receipt.id,
-      purchase_order_item_id: item.purchase_order_item_id ?? null,
-      product_id: item.product_id,
-      accepted_qty: round2(Number(item.qty)),
-      rejected_qty: 0,
-      unit_cost: effectiveUnitCost(item),
-      notes: `NF-e item ${item.line_number}`,
-    }));
-
-    const { error: insertError } = await sb.from("goods_receipt_items").insert(rows);
+    const rowsWithReceipt = rows.map((row) => ({ ...row, goods_receipt_id: receipt.id }));
+    const { error: insertError } = await sb.from("goods_receipt_items").insert(rowsWithReceipt);
     if (insertError) {
       await sb.from("goods_receipts").delete().eq("id", receipt.id).eq("tenant_id", context.tenantId);
       throw new Error(insertError.message);
@@ -686,7 +749,10 @@ export const createReceiptFromNfe = createServerFn({ method: "POST" })
       .update({ goods_receipt_id: receipt.id })
       .eq("id", data.importId)
       .eq("tenant_id", context.tenantId);
-    if (linkError) throw new Error(linkError.message);
+    if (linkError) {
+      await sb.from("goods_receipts").delete().eq("id", receipt.id).eq("tenant_id", context.tenantId);
+      throw new Error(linkError.message);
+    }
 
     return { ok: true, receiptId: receipt.id as string, receiptNumber: receipt.number as number, created: true };
   });
