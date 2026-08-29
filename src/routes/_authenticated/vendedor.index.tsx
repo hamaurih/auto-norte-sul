@@ -12,7 +12,7 @@ function VendedorHome() {
   const { data } = useQuery({
     queryKey: ["vendedor-stats"],
     queryFn: async () => {
-      const { data: rep } = await supabase.from("sales_reps").select("id, full_name, commission_pct").eq("user_id", (await supabase.auth.getUser()).data.user!.id).maybeSingle();
+      const { data: rep } = await supabase.from("sales_reps").select("id, full_name").eq("user_id", (await supabase.auth.getUser()).data.user!.id).maybeSingle();
       if (!rep) return null;
       const [{ count: customers }, { count: orders }, { data: recent }] = await Promise.all([
         supabase.from("sales_rep_customers").select("*", { count: "exact", head: true }).eq("rep_id", rep.id),
@@ -30,7 +30,6 @@ function VendedorHome() {
       <div className="rounded-lg border border-border bg-card p-4">
         <p className="text-xs uppercase text-muted-foreground">Bem-vindo</p>
         <p className="font-display text-2xl font-bold">{data.rep.full_name}</p>
-        <p className="text-xs">Comissão: <b>{Number(data.rep.commission_pct).toFixed(2)}%</b></p>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-lg border border-border bg-card p-4">
