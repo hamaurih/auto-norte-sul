@@ -1,7 +1,7 @@
 /**
  * Bling OAuth 2.0 callback.
  * Public by protocol, protected by a short-lived one-time OAuth state bound to
- * the exact configuration and redirect URI that initiated authorization.
+ * the exact tenant, configuration and redirect URI that initiated authorization.
  */
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -69,10 +69,15 @@ export const Route = createFileRoute("/api/public/bling/callback")({
           .eq("provider", "bling")
           .is("consumed_at", null)
           .gt("expires_at", now)
-          .select("config_id,redirect_uri,actor_user_id")
+          .select("tenant_id,config_id,redirect_uri,actor_user_id")
           .maybeSingle();
 
-        if (stateError || !stateRow?.config_id || !stateRow?.redirect_uri) {
+        if (
+          stateError ||
+          !stateRow?.tenant_id ||
+          !stateRow?.config_id ||
+          !stateRow?.redirect_uri
+        ) {
           return html(
             400,
             "Autorização expirada",
@@ -95,12 +100,23 @@ export const Route = createFileRoute("/api/public/bling/callback")({
 
         const { data: cfg, error: cfgError } = await (supabaseAdmin as any)
           .from("bling_config")
-          .select("id")
+          .select("id,tenant_id")
+          .eq("tenant_id", stateRow.tenant_id)
           .eq("id", stateRow.config_id)
           .maybeSingle();
         if (cfgError || !cfg?.id) {
           return html(400, "Configuração inválida", "A configuração associada a esta autorização não existe mais.");
         }
+
+        const log = async (status: "sucesso" | "erro", message: string) => {
+          await (supabaseAdmin as any).from("bling_sync_logs").insert({
+            tenant_id: stateRow.tenant_id,
+            entity: "produto",
+            action: "oauth_callback",
+            status,
+            message,
+          });
+        };
 
         const basic = btoa(`${clientId}:${clientSecret}`);
         try {
@@ -119,12 +135,7 @@ export const Route = createFileRoute("/api/public/bling/callback")({
           });
           const tokenPayload: any = await tokRes.json().catch(() => ({}));
           if (!tokRes.ok || !tokenPayload.access_token) {
-            await (supabaseAdmin as any).from("bling_sync_logs").insert({
-              entity: "produto",
-              action: "oauth_callback",
-              status: "erro",
-              message: `Falha ao trocar authorization_code (HTTP ${tokRes.status}).`,
-            });
+            await log("erro", `Falha ao trocar authorization_code (HTTP ${tokRes.status}).`);
             return html(
               502,
               "Falha na autorização",
@@ -146,24 +157,14 @@ export const Route = createFileRoute("/api/public/bling/callback")({
               last_test_status: "sucesso",
               updated_at: new Date().toISOString(),
             })
+            .eq("tenant_id", stateRow.tenant_id)
             .eq("id", cfg.id);
           if (updateError) throw updateError;
 
-          await (supabaseAdmin as any).from("bling_sync_logs").insert({
-            entity: "produto",
-            action: "oauth_callback",
-            status: "sucesso",
-            message: "Autorização OAuth 2.0 concluída com state de uso único.",
-          });
-
+          await log("sucesso", "Autorização OAuth 2.0 concluída com state tenant-aware de uso único.");
           return html(200, "Conectado ao Bling", "Sua loja está autorizada. Você pode fechar esta aba.");
         } catch (error: any) {
-          await (supabaseAdmin as any).from("bling_sync_logs").insert({
-            entity: "produto",
-            action: "oauth_callback",
-            status: "erro",
-            message: `Exceção no callback OAuth: ${String(error?.message ?? error).slice(0, 240)}`,
-          });
+          await log("erro", `Exceção no callback OAuth: ${String(error?.message ?? error).slice(0, 240)}`);
           return html(500, "Erro inesperado", "Não foi possível concluir a autorização. Inicie uma nova tentativa pelo painel.");
         }
       },
