@@ -8,7 +8,12 @@ import { tdb } from "@/integrations/supabase/tenant-db";
 
 export const inviteSalesRep = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { full_name: string; email: string; phone?: string; commission_pct?: number; notes?: string }) => input)
+  .inputValidator((input: { full_name: string; email: string; phone?: string; commission_pct?: number; max_discount_pct?: number; notes?: string }) => {
+    if (input.max_discount_pct !== undefined && (input.max_discount_pct < 0 || input.max_discount_pct > 100)) {
+      throw new Error("Limite de desconto deve estar entre 0% e 100%");
+    }
+    return input;
+  })
   .handler(async ({ data, context }) => {
     const { supabase: rawSupabase, userId } = context;
     const supabase = tdb(rawSupabase);
@@ -71,6 +76,7 @@ export const inviteSalesRep = createServerFn({ method: "POST" })
           email: data.email.toLowerCase(),
           phone: data.phone ?? null,
           commission_pct: data.commission_pct ?? 0,
+          max_discount_pct: data.max_discount_pct ?? 0,
           notes: data.notes ?? null,
           invited_by: userId,
         },
