@@ -11,18 +11,20 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
+import { Route as PrimeiroAcessoRouteImport } from './routes/primeiro-acesso'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as EsqueciSenhaRouteImport } from './routes/esqueci-senha'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as CatalogoRouteImport } from './routes/catalogo'
 import { Route as CarrinhoRouteImport } from './routes/carrinho'
 import { Route as B2bRouteImport } from './routes/b2b'
-import { Route as PrimeiroAcessoRouteImport } from './routes/primeiro-acesso'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AtivacaoRouteImport } from './routes/ativacao'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProdutoSlugRouteImport } from './routes/produto.$slug'
+import { Route as BrandSocialDotwebpRouteImport } from './routes/brand/social[.]webp'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as AuthenticatedVendedorRouteImport } from './routes/_authenticated/vendedor'
 import { Route as AuthenticatedPedidosRouteImport } from './routes/_authenticated/pedidos'
 import { Route as AuthenticatedContaRouteImport } from './routes/_authenticated/conta'
@@ -31,30 +33,39 @@ import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } fr
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as AuthenticatedVendedorIndexRouteImport } from './routes/_authenticated/vendedor.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as ApiPublicLoginRouteImport } from './routes/api/public/login'
 import { Route as AuthenticatedVendedorPedidoAssistidoRouteImport } from './routes/_authenticated/vendedor.pedido-assistido'
 import { Route as AuthenticatedVendedorMeusPedidosRouteImport } from './routes/_authenticated/vendedor.meus-pedidos'
 import { Route as AuthenticatedVendedorClientesRouteImport } from './routes/_authenticated/vendedor.clientes'
 import { Route as AuthenticatedAdminVendedoresRouteImport } from './routes/_authenticated/admin.vendedores'
-import { Route as AuthenticatedAdminSuprimentosRouteImport } from './routes/_authenticated/admin.suprimentos'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin.usuarios'
+import { Route as AuthenticatedAdminSuprimentosRouteImport } from './routes/_authenticated/admin.suprimentos'
+import { Route as AuthenticatedAdminSaneamentoCustosRouteImport } from './routes/_authenticated/admin.saneamento-custos'
 import { Route as AuthenticatedAdminSaneamentoRouteImport } from './routes/_authenticated/admin.saneamento'
 import { Route as AuthenticatedAdminRevisaoCodigosRouteImport } from './routes/_authenticated/admin.revisao-codigos'
+import { Route as AuthenticatedAdminReposicaoRouteImport } from './routes/_authenticated/admin.reposicao'
 import { Route as AuthenticatedAdminPromocoesRouteImport } from './routes/_authenticated/admin.promocoes'
 import { Route as AuthenticatedAdminPedidosRouteImport } from './routes/_authenticated/admin.pedidos'
 import { Route as AuthenticatedAdminPdvRouteImport } from './routes/_authenticated/admin.pdv'
 import { Route as AuthenticatedAdminOrcamentosRouteImport } from './routes/_authenticated/admin.orcamentos'
 import { Route as AuthenticatedAdminMarcasRouteImport } from './routes/_authenticated/admin.marcas'
+import { Route as AuthenticatedAdminInteligenciaComercialRouteImport } from './routes/_authenticated/admin.inteligencia-comercial'
 import { Route as AuthenticatedAdminIaAesBusinessRouteImport } from './routes/_authenticated/admin.ia-aes-business'
 import { Route as AuthenticatedAdminHomologacaoRouteImport } from './routes/_authenticated/admin.homologacao'
 import { Route as AuthenticatedAdminHistoricoCustosRouteImport } from './routes/_authenticated/admin.historico-custos'
 import { Route as AuthenticatedAdminFornecedoresRouteImport } from './routes/_authenticated/admin.fornecedores'
+import { Route as AuthenticatedAdminFiscalProdutosRouteImport } from './routes/_authenticated/admin.fiscal-produtos'
+import { Route as AuthenticatedAdminFiscalRouteImport } from './routes/_authenticated/admin.fiscal'
 import { Route as AuthenticatedAdminFiliaisRouteImport } from './routes/_authenticated/admin.filiais'
+import { Route as AuthenticatedAdminExpedicaoRouteImport } from './routes/_authenticated/admin.expedicao'
 import { Route as AuthenticatedAdminEstoqueRouteImport } from './routes/_authenticated/admin.estoque'
+import { Route as AuthenticatedAdminEnriquecimentoProdutosRouteImport } from './routes/_authenticated/admin.enriquecimento-produtos'
 import { Route as AuthenticatedAdminEcossistemaRouteImport } from './routes/_authenticated/admin.ecossistema'
 import { Route as AuthenticatedAdminCuponsRouteImport } from './routes/_authenticated/admin.cupons'
 import { Route as AuthenticatedAdminConfiguracoesRouteImport } from './routes/_authenticated/admin.configuracoes'
 import { Route as AuthenticatedAdminClientesRouteImport } from './routes/_authenticated/admin.clientes'
 import { Route as AuthenticatedAdminCategoriasRouteImport } from './routes/_authenticated/admin.categorias'
+import { Route as AuthenticatedAdminCatalogoFabricantesRouteImport } from './routes/_authenticated/admin.catalogo-fabricantes'
 import { Route as AuthenticatedAdminCadastrosB2bRouteImport } from './routes/_authenticated/admin.cadastros-b2b'
 import { Route as AuthenticatedAdminBlingRouteImport } from './routes/_authenticated/admin.bling'
 import { Route as AuthenticatedAdminBannersRouteImport } from './routes/_authenticated/admin.banners'
@@ -71,6 +82,7 @@ import { Route as AuthenticatedAdminSaneamentoAliasesRouteImport } from './route
 import { Route as AuthenticatedAdminRecebimentosIdRouteImport } from './routes/_authenticated/admin.recebimentos.$id'
 import { Route as AuthenticatedAdminProdutosNovoRouteImport } from './routes/_authenticated/admin.produtos.novo'
 import { Route as AuthenticatedAdminProdutosIdRouteImport } from './routes/_authenticated/admin.produtos.$id'
+import { Route as AuthenticatedAdminPedidosIdRouteImport } from './routes/_authenticated/admin.pedidos.$id'
 import { Route as AuthenticatedAdminPedidosCompraNovoRouteImport } from './routes/_authenticated/admin.pedidos-compra.novo'
 import { Route as AuthenticatedAdminPedidosCompraIdRouteImport } from './routes/_authenticated/admin.pedidos-compra.$id'
 import { Route as AuthenticatedAdminNfeImportacaoIdRouteImport } from './routes/_authenticated/admin.nfe-importacao.$id'
@@ -86,6 +98,11 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
 const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
   id: '/redefinir-senha',
   path: '/redefinir-senha',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrimeiroAcessoRoute = PrimeiroAcessoRouteImport.update({
+  id: '/primeiro-acesso',
+  path: '/primeiro-acesso',
   getParentRoute: () => rootRouteImport,
 } as any)
 const McpRoute = McpRouteImport.update({
@@ -118,11 +135,6 @@ const B2bRoute = B2bRouteImport.update({
   path: '/b2b',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PrimeiroAcessoRoute = PrimeiroAcessoRouteImport.update({
-  id: '/primeiro-acesso',
-  path: '/primeiro-acesso',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -145,6 +157,16 @@ const IndexRoute = IndexRouteImport.update({
 const ProdutoSlugRoute = ProdutoSlugRouteImport.update({
   id: '/produto/$slug',
   path: '/produto/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BrandSocialDotwebpRoute = BrandSocialDotwebpRouteImport.update({
+  id: '/brand/social.webp',
+  path: '/brand/social.webp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedVendedorRoute = AuthenticatedVendedorRouteImport.update({
@@ -190,6 +212,11 @@ const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const ApiPublicLoginRoute = ApiPublicLoginRouteImport.update({
+  id: '/api/public/login',
+  path: '/api/public/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedVendedorPedidoAssistidoRoute =
   AuthenticatedVendedorPedidoAssistidoRouteImport.update({
     id: '/pedido-assistido',
@@ -226,6 +253,12 @@ const AuthenticatedAdminSuprimentosRoute =
     path: '/suprimentos',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminSaneamentoCustosRoute =
+  AuthenticatedAdminSaneamentoCustosRouteImport.update({
+    id: '/saneamento-custos',
+    path: '/saneamento-custos',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminSaneamentoRoute =
   AuthenticatedAdminSaneamentoRouteImport.update({
     id: '/saneamento',
@@ -236,6 +269,12 @@ const AuthenticatedAdminRevisaoCodigosRoute =
   AuthenticatedAdminRevisaoCodigosRouteImport.update({
     id: '/revisao-codigos',
     path: '/revisao-codigos',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminReposicaoRoute =
+  AuthenticatedAdminReposicaoRouteImport.update({
+    id: '/reposicao',
+    path: '/reposicao',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminPromocoesRoute =
@@ -267,6 +306,12 @@ const AuthenticatedAdminMarcasRoute =
     path: '/marcas',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminInteligenciaComercialRoute =
+  AuthenticatedAdminInteligenciaComercialRouteImport.update({
+    id: '/inteligencia-comercial',
+    path: '/inteligencia-comercial',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminIaAesBusinessRoute =
   AuthenticatedAdminIaAesBusinessRouteImport.update({
     id: '/ia-aes-business',
@@ -291,16 +336,40 @@ const AuthenticatedAdminFornecedoresRoute =
     path: '/fornecedores',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminFiscalProdutosRoute =
+  AuthenticatedAdminFiscalProdutosRouteImport.update({
+    id: '/fiscal-produtos',
+    path: '/fiscal-produtos',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminFiscalRoute =
+  AuthenticatedAdminFiscalRouteImport.update({
+    id: '/fiscal',
+    path: '/fiscal',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminFiliaisRoute =
   AuthenticatedAdminFiliaisRouteImport.update({
     id: '/filiais',
     path: '/filiais',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminExpedicaoRoute =
+  AuthenticatedAdminExpedicaoRouteImport.update({
+    id: '/expedicao',
+    path: '/expedicao',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminEstoqueRoute =
   AuthenticatedAdminEstoqueRouteImport.update({
     id: '/estoque',
     path: '/estoque',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminEnriquecimentoProdutosRoute =
+  AuthenticatedAdminEnriquecimentoProdutosRouteImport.update({
+    id: '/enriquecimento-produtos',
+    path: '/enriquecimento-produtos',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminEcossistemaRoute =
@@ -331,6 +400,12 @@ const AuthenticatedAdminCategoriasRoute =
   AuthenticatedAdminCategoriasRouteImport.update({
     id: '/categorias',
     path: '/categorias',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminCatalogoFabricantesRoute =
+  AuthenticatedAdminCatalogoFabricantesRouteImport.update({
+    id: '/catalogo-fabricantes',
+    path: '/catalogo-fabricantes',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminCadastrosB2bRoute =
@@ -427,6 +502,12 @@ const AuthenticatedAdminProdutosIdRoute =
     path: '/produtos/$id',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminPedidosIdRoute =
+  AuthenticatedAdminPedidosIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedAdminPedidosRoute,
+  } as any)
 const AuthenticatedAdminPedidosCompraNovoRoute =
   AuthenticatedAdminPedidosCompraNovoRouteImport.update({
     id: '/pedidos-compra/novo',
@@ -468,13 +549,13 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ativacao': typeof AtivacaoRoute
   '/auth': typeof AuthRoute
-  '/primeiro-acesso': typeof PrimeiroAcessoRoute
   '/b2b': typeof B2bRoute
   '/carrinho': typeof CarrinhoRoute
   '/catalogo': typeof CatalogoRoute
   '/checkout': typeof CheckoutRoute
   '/esqueci-senha': typeof EsqueciSenhaRoute
   '/mcp': typeof McpRoute
+  '/primeiro-acesso': typeof PrimeiroAcessoRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -483,36 +564,47 @@ export interface FileRoutesByFullPath {
   '/conta': typeof AuthenticatedContaRoute
   '/pedidos': typeof AuthenticatedPedidosRoute
   '/vendedor': typeof AuthenticatedVendedorRouteWithChildren
+  '/api/health': typeof ApiHealthRoute
+  '/brand/social.webp': typeof BrandSocialDotwebpRoute
   '/produto/$slug': typeof ProdutoSlugRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/auditoria': typeof AuthenticatedAdminAuditoriaRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/bling': typeof AuthenticatedAdminBlingRoute
   '/admin/cadastros-b2b': typeof AuthenticatedAdminCadastrosB2bRoute
+  '/admin/catalogo-fabricantes': typeof AuthenticatedAdminCatalogoFabricantesRoute
   '/admin/categorias': typeof AuthenticatedAdminCategoriasRoute
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/admin/cupons': typeof AuthenticatedAdminCuponsRoute
   '/admin/ecossistema': typeof AuthenticatedAdminEcossistemaRouteWithChildren
+  '/admin/enriquecimento-produtos': typeof AuthenticatedAdminEnriquecimentoProdutosRoute
   '/admin/estoque': typeof AuthenticatedAdminEstoqueRoute
+  '/admin/expedicao': typeof AuthenticatedAdminExpedicaoRoute
   '/admin/filiais': typeof AuthenticatedAdminFiliaisRoute
+  '/admin/fiscal': typeof AuthenticatedAdminFiscalRoute
+  '/admin/fiscal-produtos': typeof AuthenticatedAdminFiscalProdutosRoute
   '/admin/fornecedores': typeof AuthenticatedAdminFornecedoresRoute
   '/admin/historico-custos': typeof AuthenticatedAdminHistoricoCustosRoute
   '/admin/homologacao': typeof AuthenticatedAdminHomologacaoRoute
   '/admin/ia-aes-business': typeof AuthenticatedAdminIaAesBusinessRoute
+  '/admin/inteligencia-comercial': typeof AuthenticatedAdminInteligenciaComercialRoute
   '/admin/marcas': typeof AuthenticatedAdminMarcasRoute
   '/admin/orcamentos': typeof AuthenticatedAdminOrcamentosRoute
   '/admin/pdv': typeof AuthenticatedAdminPdvRoute
-  '/admin/pedidos': typeof AuthenticatedAdminPedidosRoute
+  '/admin/pedidos': typeof AuthenticatedAdminPedidosRouteWithChildren
   '/admin/promocoes': typeof AuthenticatedAdminPromocoesRoute
+  '/admin/reposicao': typeof AuthenticatedAdminReposicaoRoute
   '/admin/revisao-codigos': typeof AuthenticatedAdminRevisaoCodigosRoute
   '/admin/saneamento': typeof AuthenticatedAdminSaneamentoRouteWithChildren
+  '/admin/saneamento-custos': typeof AuthenticatedAdminSaneamentoCustosRoute
   '/admin/suprimentos': typeof AuthenticatedAdminSuprimentosRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/admin/vendedores': typeof AuthenticatedAdminVendedoresRouteWithChildren
   '/vendedor/clientes': typeof AuthenticatedVendedorClientesRoute
   '/vendedor/meus-pedidos': typeof AuthenticatedVendedorMeusPedidosRoute
   '/vendedor/pedido-assistido': typeof AuthenticatedVendedorPedidoAssistidoRoute
+  '/api/public/login': typeof ApiPublicLoginRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/vendedor/': typeof AuthenticatedVendedorIndexRoute
   '/admin/ecossistema/$slug': typeof AuthenticatedAdminEcossistemaSlugRoute
@@ -520,6 +612,7 @@ export interface FileRoutesByFullPath {
   '/admin/nfe-importacao/$id': typeof AuthenticatedAdminNfeImportacaoIdRoute
   '/admin/pedidos-compra/$id': typeof AuthenticatedAdminPedidosCompraIdRoute
   '/admin/pedidos-compra/novo': typeof AuthenticatedAdminPedidosCompraNovoRoute
+  '/admin/pedidos/$id': typeof AuthenticatedAdminPedidosIdRoute
   '/admin/produtos/$id': typeof AuthenticatedAdminProdutosIdRoute
   '/admin/produtos/novo': typeof AuthenticatedAdminProdutosNovoRoute
   '/admin/recebimentos/$id': typeof AuthenticatedAdminRecebimentosIdRoute
@@ -537,47 +630,59 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ativacao': typeof AtivacaoRoute
   '/auth': typeof AuthRoute
-  '/primeiro-acesso': typeof PrimeiroAcessoRoute
   '/b2b': typeof B2bRoute
   '/carrinho': typeof CarrinhoRoute
   '/catalogo': typeof CatalogoRoute
   '/checkout': typeof CheckoutRoute
   '/esqueci-senha': typeof EsqueciSenhaRoute
   '/mcp': typeof McpRoute
+  '/primeiro-acesso': typeof PrimeiroAcessoRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/conta': typeof AuthenticatedContaRoute
   '/pedidos': typeof AuthenticatedPedidosRoute
+  '/api/health': typeof ApiHealthRoute
+  '/brand/social.webp': typeof BrandSocialDotwebpRoute
   '/produto/$slug': typeof ProdutoSlugRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/auditoria': typeof AuthenticatedAdminAuditoriaRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/bling': typeof AuthenticatedAdminBlingRoute
   '/admin/cadastros-b2b': typeof AuthenticatedAdminCadastrosB2bRoute
+  '/admin/catalogo-fabricantes': typeof AuthenticatedAdminCatalogoFabricantesRoute
   '/admin/categorias': typeof AuthenticatedAdminCategoriasRoute
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/admin/cupons': typeof AuthenticatedAdminCuponsRoute
+  '/admin/enriquecimento-produtos': typeof AuthenticatedAdminEnriquecimentoProdutosRoute
   '/admin/estoque': typeof AuthenticatedAdminEstoqueRoute
+  '/admin/expedicao': typeof AuthenticatedAdminExpedicaoRoute
   '/admin/filiais': typeof AuthenticatedAdminFiliaisRoute
+  '/admin/fiscal': typeof AuthenticatedAdminFiscalRoute
+  '/admin/fiscal-produtos': typeof AuthenticatedAdminFiscalProdutosRoute
   '/admin/fornecedores': typeof AuthenticatedAdminFornecedoresRoute
   '/admin/historico-custos': typeof AuthenticatedAdminHistoricoCustosRoute
   '/admin/homologacao': typeof AuthenticatedAdminHomologacaoRoute
   '/admin/ia-aes-business': typeof AuthenticatedAdminIaAesBusinessRoute
+  '/admin/inteligencia-comercial': typeof AuthenticatedAdminInteligenciaComercialRoute
   '/admin/marcas': typeof AuthenticatedAdminMarcasRoute
   '/admin/orcamentos': typeof AuthenticatedAdminOrcamentosRoute
   '/admin/pdv': typeof AuthenticatedAdminPdvRoute
-  '/admin/pedidos': typeof AuthenticatedAdminPedidosRoute
+  '/admin/pedidos': typeof AuthenticatedAdminPedidosRouteWithChildren
   '/admin/promocoes': typeof AuthenticatedAdminPromocoesRoute
+  '/admin/reposicao': typeof AuthenticatedAdminReposicaoRoute
   '/admin/revisao-codigos': typeof AuthenticatedAdminRevisaoCodigosRoute
   '/admin/saneamento': typeof AuthenticatedAdminSaneamentoRouteWithChildren
+  '/admin/saneamento-custos': typeof AuthenticatedAdminSaneamentoCustosRoute
   '/admin/suprimentos': typeof AuthenticatedAdminSuprimentosRoute
+  '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/admin/vendedores': typeof AuthenticatedAdminVendedoresRouteWithChildren
   '/vendedor/clientes': typeof AuthenticatedVendedorClientesRoute
   '/vendedor/meus-pedidos': typeof AuthenticatedVendedorMeusPedidosRoute
   '/vendedor/pedido-assistido': typeof AuthenticatedVendedorPedidoAssistidoRoute
+  '/api/public/login': typeof ApiPublicLoginRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/vendedor': typeof AuthenticatedVendedorIndexRoute
   '/admin/ecossistema/$slug': typeof AuthenticatedAdminEcossistemaSlugRoute
@@ -585,6 +690,7 @@ export interface FileRoutesByTo {
   '/admin/nfe-importacao/$id': typeof AuthenticatedAdminNfeImportacaoIdRoute
   '/admin/pedidos-compra/$id': typeof AuthenticatedAdminPedidosCompraIdRoute
   '/admin/pedidos-compra/novo': typeof AuthenticatedAdminPedidosCompraNovoRoute
+  '/admin/pedidos/$id': typeof AuthenticatedAdminPedidosIdRoute
   '/admin/produtos/$id': typeof AuthenticatedAdminProdutosIdRoute
   '/admin/produtos/novo': typeof AuthenticatedAdminProdutosNovoRoute
   '/admin/recebimentos/$id': typeof AuthenticatedAdminRecebimentosIdRoute
@@ -604,13 +710,13 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/ativacao': typeof AtivacaoRoute
   '/auth': typeof AuthRoute
-  '/primeiro-acesso': typeof PrimeiroAcessoRoute
   '/b2b': typeof B2bRoute
   '/carrinho': typeof CarrinhoRoute
   '/catalogo': typeof CatalogoRoute
   '/checkout': typeof CheckoutRoute
   '/esqueci-senha': typeof EsqueciSenhaRoute
   '/mcp': typeof McpRoute
+  '/primeiro-acesso': typeof PrimeiroAcessoRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -619,36 +725,47 @@ export interface FileRoutesById {
   '/_authenticated/conta': typeof AuthenticatedContaRoute
   '/_authenticated/pedidos': typeof AuthenticatedPedidosRoute
   '/_authenticated/vendedor': typeof AuthenticatedVendedorRouteWithChildren
+  '/api/health': typeof ApiHealthRoute
+  '/brand/social.webp': typeof BrandSocialDotwebpRoute
   '/produto/$slug': typeof ProdutoSlugRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/admin/auditoria': typeof AuthenticatedAdminAuditoriaRoute
   '/_authenticated/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/_authenticated/admin/bling': typeof AuthenticatedAdminBlingRoute
   '/_authenticated/admin/cadastros-b2b': typeof AuthenticatedAdminCadastrosB2bRoute
+  '/_authenticated/admin/catalogo-fabricantes': typeof AuthenticatedAdminCatalogoFabricantesRoute
   '/_authenticated/admin/categorias': typeof AuthenticatedAdminCategoriasRoute
   '/_authenticated/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/_authenticated/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/_authenticated/admin/cupons': typeof AuthenticatedAdminCuponsRoute
   '/_authenticated/admin/ecossistema': typeof AuthenticatedAdminEcossistemaRouteWithChildren
+  '/_authenticated/admin/enriquecimento-produtos': typeof AuthenticatedAdminEnriquecimentoProdutosRoute
   '/_authenticated/admin/estoque': typeof AuthenticatedAdminEstoqueRoute
+  '/_authenticated/admin/expedicao': typeof AuthenticatedAdminExpedicaoRoute
   '/_authenticated/admin/filiais': typeof AuthenticatedAdminFiliaisRoute
+  '/_authenticated/admin/fiscal': typeof AuthenticatedAdminFiscalRoute
+  '/_authenticated/admin/fiscal-produtos': typeof AuthenticatedAdminFiscalProdutosRoute
   '/_authenticated/admin/fornecedores': typeof AuthenticatedAdminFornecedoresRoute
   '/_authenticated/admin/historico-custos': typeof AuthenticatedAdminHistoricoCustosRoute
   '/_authenticated/admin/homologacao': typeof AuthenticatedAdminHomologacaoRoute
   '/_authenticated/admin/ia-aes-business': typeof AuthenticatedAdminIaAesBusinessRoute
+  '/_authenticated/admin/inteligencia-comercial': typeof AuthenticatedAdminInteligenciaComercialRoute
   '/_authenticated/admin/marcas': typeof AuthenticatedAdminMarcasRoute
   '/_authenticated/admin/orcamentos': typeof AuthenticatedAdminOrcamentosRoute
   '/_authenticated/admin/pdv': typeof AuthenticatedAdminPdvRoute
-  '/_authenticated/admin/pedidos': typeof AuthenticatedAdminPedidosRoute
+  '/_authenticated/admin/pedidos': typeof AuthenticatedAdminPedidosRouteWithChildren
   '/_authenticated/admin/promocoes': typeof AuthenticatedAdminPromocoesRoute
+  '/_authenticated/admin/reposicao': typeof AuthenticatedAdminReposicaoRoute
   '/_authenticated/admin/revisao-codigos': typeof AuthenticatedAdminRevisaoCodigosRoute
   '/_authenticated/admin/saneamento': typeof AuthenticatedAdminSaneamentoRouteWithChildren
+  '/_authenticated/admin/saneamento-custos': typeof AuthenticatedAdminSaneamentoCustosRoute
   '/_authenticated/admin/suprimentos': typeof AuthenticatedAdminSuprimentosRoute
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/_authenticated/admin/vendedores': typeof AuthenticatedAdminVendedoresRouteWithChildren
   '/_authenticated/vendedor/clientes': typeof AuthenticatedVendedorClientesRoute
   '/_authenticated/vendedor/meus-pedidos': typeof AuthenticatedVendedorMeusPedidosRoute
   '/_authenticated/vendedor/pedido-assistido': typeof AuthenticatedVendedorPedidoAssistidoRoute
+  '/api/public/login': typeof ApiPublicLoginRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/vendedor/': typeof AuthenticatedVendedorIndexRoute
   '/_authenticated/admin/ecossistema/$slug': typeof AuthenticatedAdminEcossistemaSlugRoute
@@ -656,6 +773,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/nfe-importacao/$id': typeof AuthenticatedAdminNfeImportacaoIdRoute
   '/_authenticated/admin/pedidos-compra/$id': typeof AuthenticatedAdminPedidosCompraIdRoute
   '/_authenticated/admin/pedidos-compra/novo': typeof AuthenticatedAdminPedidosCompraNovoRoute
+  '/_authenticated/admin/pedidos/$id': typeof AuthenticatedAdminPedidosIdRoute
   '/_authenticated/admin/produtos/$id': typeof AuthenticatedAdminProdutosIdRoute
   '/_authenticated/admin/produtos/novo': typeof AuthenticatedAdminProdutosNovoRoute
   '/_authenticated/admin/recebimentos/$id': typeof AuthenticatedAdminRecebimentosIdRoute
@@ -675,13 +793,13 @@ export interface FileRouteTypes {
     | '/'
     | '/ativacao'
     | '/auth'
-    | '/primeiro-acesso'
     | '/b2b'
     | '/carrinho'
     | '/catalogo'
     | '/checkout'
     | '/esqueci-senha'
     | '/mcp'
+    | '/primeiro-acesso'
     | '/redefinir-senha'
     | '/sitemap.xml'
     | '/.mcp/list-tools'
@@ -690,36 +808,47 @@ export interface FileRouteTypes {
     | '/conta'
     | '/pedidos'
     | '/vendedor'
+    | '/api/health'
+    | '/brand/social.webp'
     | '/produto/$slug'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/auditoria'
     | '/admin/banners'
     | '/admin/bling'
     | '/admin/cadastros-b2b'
+    | '/admin/catalogo-fabricantes'
     | '/admin/categorias'
     | '/admin/clientes'
     | '/admin/configuracoes'
     | '/admin/cupons'
     | '/admin/ecossistema'
+    | '/admin/enriquecimento-produtos'
     | '/admin/estoque'
+    | '/admin/expedicao'
     | '/admin/filiais'
+    | '/admin/fiscal'
+    | '/admin/fiscal-produtos'
     | '/admin/fornecedores'
     | '/admin/historico-custos'
     | '/admin/homologacao'
     | '/admin/ia-aes-business'
+    | '/admin/inteligencia-comercial'
     | '/admin/marcas'
     | '/admin/orcamentos'
     | '/admin/pdv'
     | '/admin/pedidos'
     | '/admin/promocoes'
+    | '/admin/reposicao'
     | '/admin/revisao-codigos'
     | '/admin/saneamento'
+    | '/admin/saneamento-custos'
     | '/admin/suprimentos'
     | '/admin/usuarios'
     | '/admin/vendedores'
     | '/vendedor/clientes'
     | '/vendedor/meus-pedidos'
     | '/vendedor/pedido-assistido'
+    | '/api/public/login'
     | '/admin/'
     | '/vendedor/'
     | '/admin/ecossistema/$slug'
@@ -727,6 +856,7 @@ export interface FileRouteTypes {
     | '/admin/nfe-importacao/$id'
     | '/admin/pedidos-compra/$id'
     | '/admin/pedidos-compra/novo'
+    | '/admin/pedidos/$id'
     | '/admin/produtos/$id'
     | '/admin/produtos/novo'
     | '/admin/recebimentos/$id'
@@ -744,48 +874,59 @@ export interface FileRouteTypes {
     | '/'
     | '/ativacao'
     | '/auth'
-    | '/primeiro-acesso'
     | '/b2b'
     | '/carrinho'
     | '/catalogo'
     | '/checkout'
     | '/esqueci-senha'
     | '/mcp'
+    | '/primeiro-acesso'
     | '/redefinir-senha'
     | '/sitemap.xml'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/conta'
     | '/pedidos'
+    | '/api/health'
+    | '/brand/social.webp'
     | '/produto/$slug'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/auditoria'
     | '/admin/banners'
     | '/admin/bling'
     | '/admin/cadastros-b2b'
+    | '/admin/catalogo-fabricantes'
     | '/admin/categorias'
     | '/admin/clientes'
     | '/admin/configuracoes'
     | '/admin/cupons'
+    | '/admin/enriquecimento-produtos'
     | '/admin/estoque'
+    | '/admin/expedicao'
     | '/admin/filiais'
+    | '/admin/fiscal'
+    | '/admin/fiscal-produtos'
     | '/admin/fornecedores'
     | '/admin/historico-custos'
     | '/admin/homologacao'
     | '/admin/ia-aes-business'
+    | '/admin/inteligencia-comercial'
     | '/admin/marcas'
     | '/admin/orcamentos'
     | '/admin/pdv'
     | '/admin/pedidos'
     | '/admin/promocoes'
+    | '/admin/reposicao'
     | '/admin/revisao-codigos'
     | '/admin/saneamento'
+    | '/admin/saneamento-custos'
     | '/admin/suprimentos'
     | '/admin/usuarios'
     | '/admin/vendedores'
     | '/vendedor/clientes'
     | '/vendedor/meus-pedidos'
     | '/vendedor/pedido-assistido'
+    | '/api/public/login'
     | '/admin'
     | '/vendedor'
     | '/admin/ecossistema/$slug'
@@ -793,6 +934,7 @@ export interface FileRouteTypes {
     | '/admin/nfe-importacao/$id'
     | '/admin/pedidos-compra/$id'
     | '/admin/pedidos-compra/novo'
+    | '/admin/pedidos/$id'
     | '/admin/produtos/$id'
     | '/admin/produtos/novo'
     | '/admin/recebimentos/$id'
@@ -811,13 +953,13 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/ativacao'
     | '/auth'
-    | '/primeiro-acesso'
     | '/b2b'
     | '/carrinho'
     | '/catalogo'
     | '/checkout'
     | '/esqueci-senha'
     | '/mcp'
+    | '/primeiro-acesso'
     | '/redefinir-senha'
     | '/sitemap.xml'
     | '/.mcp/list-tools'
@@ -826,35 +968,47 @@ export interface FileRouteTypes {
     | '/_authenticated/conta'
     | '/_authenticated/pedidos'
     | '/_authenticated/vendedor'
+    | '/api/health'
+    | '/brand/social.webp'
     | '/produto/$slug'
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/admin/auditoria'
     | '/_authenticated/admin/banners'
     | '/_authenticated/admin/bling'
     | '/_authenticated/admin/cadastros-b2b'
+    | '/_authenticated/admin/catalogo-fabricantes'
     | '/_authenticated/admin/categorias'
     | '/_authenticated/admin/clientes'
     | '/_authenticated/admin/configuracoes'
     | '/_authenticated/admin/cupons'
     | '/_authenticated/admin/ecossistema'
+    | '/_authenticated/admin/enriquecimento-produtos'
     | '/_authenticated/admin/estoque'
+    | '/_authenticated/admin/expedicao'
     | '/_authenticated/admin/filiais'
+    | '/_authenticated/admin/fiscal'
+    | '/_authenticated/admin/fiscal-produtos'
     | '/_authenticated/admin/fornecedores'
     | '/_authenticated/admin/historico-custos'
     | '/_authenticated/admin/homologacao'
     | '/_authenticated/admin/ia-aes-business'
+    | '/_authenticated/admin/inteligencia-comercial'
     | '/_authenticated/admin/marcas'
     | '/_authenticated/admin/orcamentos'
     | '/_authenticated/admin/pdv'
     | '/_authenticated/admin/pedidos'
     | '/_authenticated/admin/promocoes'
+    | '/_authenticated/admin/reposicao'
     | '/_authenticated/admin/revisao-codigos'
     | '/_authenticated/admin/saneamento'
+    | '/_authenticated/admin/saneamento-custos'
     | '/_authenticated/admin/suprimentos'
+    | '/_authenticated/admin/usuarios'
     | '/_authenticated/admin/vendedores'
     | '/_authenticated/vendedor/clientes'
     | '/_authenticated/vendedor/meus-pedidos'
     | '/_authenticated/vendedor/pedido-assistido'
+    | '/api/public/login'
     | '/_authenticated/admin/'
     | '/_authenticated/vendedor/'
     | '/_authenticated/admin/ecossistema/$slug'
@@ -862,6 +1016,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/nfe-importacao/$id'
     | '/_authenticated/admin/pedidos-compra/$id'
     | '/_authenticated/admin/pedidos-compra/novo'
+    | '/_authenticated/admin/pedidos/$id'
     | '/_authenticated/admin/produtos/$id'
     | '/_authenticated/admin/produtos/novo'
     | '/_authenticated/admin/recebimentos/$id'
@@ -881,19 +1036,22 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AtivacaoRoute: typeof AtivacaoRoute
   AuthRoute: typeof AuthRoute
-  PrimeiroAcessoRoute: typeof PrimeiroAcessoRoute
   B2bRoute: typeof B2bRoute
   CarrinhoRoute: typeof CarrinhoRoute
   CatalogoRoute: typeof CatalogoRoute
   CheckoutRoute: typeof CheckoutRoute
   EsqueciSenhaRoute: typeof EsqueciSenhaRoute
   McpRoute: typeof McpRoute
+  PrimeiroAcessoRoute: typeof PrimeiroAcessoRoute
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  ApiHealthRoute: typeof ApiHealthRoute
+  BrandSocialDotwebpRoute: typeof BrandSocialDotwebpRoute
   ProdutoSlugRoute: typeof ProdutoSlugRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicLoginRoute: typeof ApiPublicLoginRoute
   ApiPublicBlingCallbackRoute: typeof ApiPublicBlingCallbackRoute
 }
 
@@ -911,6 +1069,13 @@ declare module '@tanstack/react-router' {
       path: '/redefinir-senha'
       fullPath: '/redefinir-senha'
       preLoaderRoute: typeof RedefinirSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/primeiro-acesso': {
+      id: '/primeiro-acesso'
+      path: '/primeiro-acesso'
+      fullPath: '/primeiro-acesso'
+      preLoaderRoute: typeof PrimeiroAcessoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mcp': {
@@ -962,13 +1127,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/primeiro-acesso': {
-      id: '/primeiro-acesso'
-      path: '/primeiro-acesso'
-      fullPath: '/primeiro-acesso'
-      preLoaderRoute: typeof PrimeiroAcessoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/ativacao': {
       id: '/ativacao'
       path: '/ativacao'
@@ -995,6 +1153,20 @@ declare module '@tanstack/react-router' {
       path: '/produto/$slug'
       fullPath: '/produto/$slug'
       preLoaderRoute: typeof ProdutoSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/brand/social.webp': {
+      id: '/brand/social.webp'
+      path: '/brand/social.webp'
+      fullPath: '/brand/social.webp'
+      preLoaderRoute: typeof BrandSocialDotwebpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/vendedor': {
@@ -1053,6 +1225,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/api/public/login': {
+      id: '/api/public/login'
+      path: '/api/public/login'
+      fullPath: '/api/public/login'
+      preLoaderRoute: typeof ApiPublicLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/vendedor/pedido-assistido': {
       id: '/_authenticated/vendedor/pedido-assistido'
       path: '/pedido-assistido'
@@ -1081,11 +1260,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminVendedoresRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/usuarios': {
+      id: '/_authenticated/admin/usuarios'
+      path: '/usuarios'
+      fullPath: '/admin/usuarios'
+      preLoaderRoute: typeof AuthenticatedAdminUsuariosRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/suprimentos': {
       id: '/_authenticated/admin/suprimentos'
       path: '/suprimentos'
       fullPath: '/admin/suprimentos'
       preLoaderRoute: typeof AuthenticatedAdminSuprimentosRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/saneamento-custos': {
+      id: '/_authenticated/admin/saneamento-custos'
+      path: '/saneamento-custos'
+      fullPath: '/admin/saneamento-custos'
+      preLoaderRoute: typeof AuthenticatedAdminSaneamentoCustosRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/saneamento': {
@@ -1100,6 +1293,13 @@ declare module '@tanstack/react-router' {
       path: '/revisao-codigos'
       fullPath: '/admin/revisao-codigos'
       preLoaderRoute: typeof AuthenticatedAdminRevisaoCodigosRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/reposicao': {
+      id: '/_authenticated/admin/reposicao'
+      path: '/reposicao'
+      fullPath: '/admin/reposicao'
+      preLoaderRoute: typeof AuthenticatedAdminReposicaoRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/promocoes': {
@@ -1137,6 +1337,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminMarcasRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/inteligencia-comercial': {
+      id: '/_authenticated/admin/inteligencia-comercial'
+      path: '/inteligencia-comercial'
+      fullPath: '/admin/inteligencia-comercial'
+      preLoaderRoute: typeof AuthenticatedAdminInteligenciaComercialRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/ia-aes-business': {
       id: '/_authenticated/admin/ia-aes-business'
       path: '/ia-aes-business'
@@ -1165,6 +1372,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminFornecedoresRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/fiscal-produtos': {
+      id: '/_authenticated/admin/fiscal-produtos'
+      path: '/fiscal-produtos'
+      fullPath: '/admin/fiscal-produtos'
+      preLoaderRoute: typeof AuthenticatedAdminFiscalProdutosRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/fiscal': {
+      id: '/_authenticated/admin/fiscal'
+      path: '/fiscal'
+      fullPath: '/admin/fiscal'
+      preLoaderRoute: typeof AuthenticatedAdminFiscalRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/filiais': {
       id: '/_authenticated/admin/filiais'
       path: '/filiais'
@@ -1172,11 +1393,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminFiliaisRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/expedicao': {
+      id: '/_authenticated/admin/expedicao'
+      path: '/expedicao'
+      fullPath: '/admin/expedicao'
+      preLoaderRoute: typeof AuthenticatedAdminExpedicaoRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/estoque': {
       id: '/_authenticated/admin/estoque'
       path: '/estoque'
       fullPath: '/admin/estoque'
       preLoaderRoute: typeof AuthenticatedAdminEstoqueRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/enriquecimento-produtos': {
+      id: '/_authenticated/admin/enriquecimento-produtos'
+      path: '/enriquecimento-produtos'
+      fullPath: '/admin/enriquecimento-produtos'
+      preLoaderRoute: typeof AuthenticatedAdminEnriquecimentoProdutosRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/ecossistema': {
@@ -1212,6 +1447,13 @@ declare module '@tanstack/react-router' {
       path: '/categorias'
       fullPath: '/admin/categorias'
       preLoaderRoute: typeof AuthenticatedAdminCategoriasRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/catalogo-fabricantes': {
+      id: '/_authenticated/admin/catalogo-fabricantes'
+      path: '/catalogo-fabricantes'
+      fullPath: '/admin/catalogo-fabricantes'
+      preLoaderRoute: typeof AuthenticatedAdminCatalogoFabricantesRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/cadastros-b2b': {
@@ -1326,6 +1568,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminProdutosIdRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/pedidos/$id': {
+      id: '/_authenticated/admin/pedidos/$id'
+      path: '/$id'
+      fullPath: '/admin/pedidos/$id'
+      preLoaderRoute: typeof AuthenticatedAdminPedidosIdRouteImport
+      parentRoute: typeof AuthenticatedAdminPedidosRoute
+    }
     '/_authenticated/admin/pedidos-compra/novo': {
       id: '/_authenticated/admin/pedidos-compra/novo'
       path: '/pedidos-compra/novo'
@@ -1392,6 +1641,20 @@ const AuthenticatedAdminEcossistemaRouteWithChildren =
     AuthenticatedAdminEcossistemaRouteChildren,
   )
 
+interface AuthenticatedAdminPedidosRouteChildren {
+  AuthenticatedAdminPedidosIdRoute: typeof AuthenticatedAdminPedidosIdRoute
+}
+
+const AuthenticatedAdminPedidosRouteChildren: AuthenticatedAdminPedidosRouteChildren =
+  {
+    AuthenticatedAdminPedidosIdRoute: AuthenticatedAdminPedidosIdRoute,
+  }
+
+const AuthenticatedAdminPedidosRouteWithChildren =
+  AuthenticatedAdminPedidosRoute._addFileChildren(
+    AuthenticatedAdminPedidosRouteChildren,
+  )
+
 interface AuthenticatedAdminSaneamentoRouteChildren {
   AuthenticatedAdminSaneamentoAliasesRoute: typeof AuthenticatedAdminSaneamentoAliasesRoute
 }
@@ -1427,24 +1690,32 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminBannersRoute: typeof AuthenticatedAdminBannersRoute
   AuthenticatedAdminBlingRoute: typeof AuthenticatedAdminBlingRoute
   AuthenticatedAdminCadastrosB2bRoute: typeof AuthenticatedAdminCadastrosB2bRoute
+  AuthenticatedAdminCatalogoFabricantesRoute: typeof AuthenticatedAdminCatalogoFabricantesRoute
   AuthenticatedAdminCategoriasRoute: typeof AuthenticatedAdminCategoriasRoute
   AuthenticatedAdminClientesRoute: typeof AuthenticatedAdminClientesRoute
   AuthenticatedAdminConfiguracoesRoute: typeof AuthenticatedAdminConfiguracoesRoute
   AuthenticatedAdminCuponsRoute: typeof AuthenticatedAdminCuponsRoute
   AuthenticatedAdminEcossistemaRoute: typeof AuthenticatedAdminEcossistemaRouteWithChildren
+  AuthenticatedAdminEnriquecimentoProdutosRoute: typeof AuthenticatedAdminEnriquecimentoProdutosRoute
   AuthenticatedAdminEstoqueRoute: typeof AuthenticatedAdminEstoqueRoute
+  AuthenticatedAdminExpedicaoRoute: typeof AuthenticatedAdminExpedicaoRoute
   AuthenticatedAdminFiliaisRoute: typeof AuthenticatedAdminFiliaisRoute
+  AuthenticatedAdminFiscalRoute: typeof AuthenticatedAdminFiscalRoute
+  AuthenticatedAdminFiscalProdutosRoute: typeof AuthenticatedAdminFiscalProdutosRoute
   AuthenticatedAdminFornecedoresRoute: typeof AuthenticatedAdminFornecedoresRoute
   AuthenticatedAdminHistoricoCustosRoute: typeof AuthenticatedAdminHistoricoCustosRoute
   AuthenticatedAdminHomologacaoRoute: typeof AuthenticatedAdminHomologacaoRoute
   AuthenticatedAdminIaAesBusinessRoute: typeof AuthenticatedAdminIaAesBusinessRoute
+  AuthenticatedAdminInteligenciaComercialRoute: typeof AuthenticatedAdminInteligenciaComercialRoute
   AuthenticatedAdminMarcasRoute: typeof AuthenticatedAdminMarcasRoute
   AuthenticatedAdminOrcamentosRoute: typeof AuthenticatedAdminOrcamentosRoute
   AuthenticatedAdminPdvRoute: typeof AuthenticatedAdminPdvRoute
-  AuthenticatedAdminPedidosRoute: typeof AuthenticatedAdminPedidosRoute
+  AuthenticatedAdminPedidosRoute: typeof AuthenticatedAdminPedidosRouteWithChildren
   AuthenticatedAdminPromocoesRoute: typeof AuthenticatedAdminPromocoesRoute
+  AuthenticatedAdminReposicaoRoute: typeof AuthenticatedAdminReposicaoRoute
   AuthenticatedAdminRevisaoCodigosRoute: typeof AuthenticatedAdminRevisaoCodigosRoute
   AuthenticatedAdminSaneamentoRoute: typeof AuthenticatedAdminSaneamentoRouteWithChildren
+  AuthenticatedAdminSaneamentoCustosRoute: typeof AuthenticatedAdminSaneamentoCustosRoute
   AuthenticatedAdminSuprimentosRoute: typeof AuthenticatedAdminSuprimentosRoute
   AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
   AuthenticatedAdminVendedoresRoute: typeof AuthenticatedAdminVendedoresRouteWithChildren
@@ -1467,27 +1738,39 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminBannersRoute: AuthenticatedAdminBannersRoute,
   AuthenticatedAdminBlingRoute: AuthenticatedAdminBlingRoute,
   AuthenticatedAdminCadastrosB2bRoute: AuthenticatedAdminCadastrosB2bRoute,
+  AuthenticatedAdminCatalogoFabricantesRoute:
+    AuthenticatedAdminCatalogoFabricantesRoute,
   AuthenticatedAdminCategoriasRoute: AuthenticatedAdminCategoriasRoute,
   AuthenticatedAdminClientesRoute: AuthenticatedAdminClientesRoute,
   AuthenticatedAdminConfiguracoesRoute: AuthenticatedAdminConfiguracoesRoute,
   AuthenticatedAdminCuponsRoute: AuthenticatedAdminCuponsRoute,
   AuthenticatedAdminEcossistemaRoute:
     AuthenticatedAdminEcossistemaRouteWithChildren,
+  AuthenticatedAdminEnriquecimentoProdutosRoute:
+    AuthenticatedAdminEnriquecimentoProdutosRoute,
   AuthenticatedAdminEstoqueRoute: AuthenticatedAdminEstoqueRoute,
+  AuthenticatedAdminExpedicaoRoute: AuthenticatedAdminExpedicaoRoute,
   AuthenticatedAdminFiliaisRoute: AuthenticatedAdminFiliaisRoute,
+  AuthenticatedAdminFiscalRoute: AuthenticatedAdminFiscalRoute,
+  AuthenticatedAdminFiscalProdutosRoute: AuthenticatedAdminFiscalProdutosRoute,
   AuthenticatedAdminFornecedoresRoute: AuthenticatedAdminFornecedoresRoute,
   AuthenticatedAdminHistoricoCustosRoute:
     AuthenticatedAdminHistoricoCustosRoute,
   AuthenticatedAdminHomologacaoRoute: AuthenticatedAdminHomologacaoRoute,
   AuthenticatedAdminIaAesBusinessRoute: AuthenticatedAdminIaAesBusinessRoute,
+  AuthenticatedAdminInteligenciaComercialRoute:
+    AuthenticatedAdminInteligenciaComercialRoute,
   AuthenticatedAdminMarcasRoute: AuthenticatedAdminMarcasRoute,
   AuthenticatedAdminOrcamentosRoute: AuthenticatedAdminOrcamentosRoute,
   AuthenticatedAdminPdvRoute: AuthenticatedAdminPdvRoute,
-  AuthenticatedAdminPedidosRoute: AuthenticatedAdminPedidosRoute,
+  AuthenticatedAdminPedidosRoute: AuthenticatedAdminPedidosRouteWithChildren,
   AuthenticatedAdminPromocoesRoute: AuthenticatedAdminPromocoesRoute,
+  AuthenticatedAdminReposicaoRoute: AuthenticatedAdminReposicaoRoute,
   AuthenticatedAdminRevisaoCodigosRoute: AuthenticatedAdminRevisaoCodigosRoute,
   AuthenticatedAdminSaneamentoRoute:
     AuthenticatedAdminSaneamentoRouteWithChildren,
+  AuthenticatedAdminSaneamentoCustosRoute:
+    AuthenticatedAdminSaneamentoCustosRoute,
   AuthenticatedAdminSuprimentosRoute: AuthenticatedAdminSuprimentosRoute,
   AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
   AuthenticatedAdminVendedoresRoute:
@@ -1558,20 +1841,23 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AtivacaoRoute: AtivacaoRoute,
   AuthRoute: AuthRoute,
-  PrimeiroAcessoRoute: PrimeiroAcessoRoute,
   B2bRoute: B2bRoute,
   CarrinhoRoute: CarrinhoRoute,
   CatalogoRoute: CatalogoRoute,
   CheckoutRoute: CheckoutRoute,
   EsqueciSenhaRoute: EsqueciSenhaRoute,
   McpRoute: McpRoute,
+  PrimeiroAcessoRoute: PrimeiroAcessoRoute,
   RedefinirSenhaRoute: RedefinirSenhaRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  ApiHealthRoute: ApiHealthRoute,
+  BrandSocialDotwebpRoute: BrandSocialDotwebpRoute,
   ProdutoSlugRoute: ProdutoSlugRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicLoginRoute: ApiPublicLoginRoute,
   ApiPublicBlingCallbackRoute: ApiPublicBlingCallbackRoute,
 }
 export const routeTree = rootRouteImport

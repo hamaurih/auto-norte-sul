@@ -30,7 +30,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 import {
-  getBlingAuthUrl,
   getBlingStats,
   getBlingStatus,
   reprocessBlingLog,
@@ -44,6 +43,7 @@ import {
   testBlingConnection,
   updateBlingConfig,
 } from "@/lib/bling.functions";
+import { getSecureBlingAuthUrl } from "@/lib/bling-oauth.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/ecossistema/bling")({
   head: () => ({ meta: [{ title: "Bling · Ecossistema · Admin" }] }),
@@ -91,7 +91,7 @@ function BlingModule() {
 
   const statusFn = useServerFn(getBlingStatus);
   const statsFn = useServerFn(getBlingStats);
-  const authUrlFn = useServerFn(getBlingAuthUrl);
+  const authUrlFn = useServerFn(getSecureBlingAuthUrl);
   const testFn = useServerFn(testBlingConnection);
   const revokeFn = useServerFn(revokeBlingConnection);
   const updateFn = useServerFn(updateBlingConfig);
@@ -128,10 +128,8 @@ function BlingModule() {
 
   const connectMut = useMutation({
     mutationFn: async () => {
-      // Use o domínio publicado como origem do redirect — o Bling exige uma URL fixa
-      // cadastrada no app dele, e o preview do Lovable roda em subdomínios variáveis.
-      const publicOrigin = "https://norte-sul-auto-hub.lovable.app";
-      const redirectUri = `${publicOrigin}/api/public/bling/callback`;
+      // Domínio publicado fixo — é a Redirect URI cadastrada no app do Bling.
+      const redirectUri = "https://www.nortesulauto.com.br/api/public/bling/callback";
       return authUrlFn({ data: { redirectUri } });
     },
     onSuccess: (r) => {
@@ -234,7 +232,7 @@ function BlingModule() {
             configurações de backend. Peça esses valores no app <a className="underline" href="https://developer.bling.com.br" target="_blank" rel="noreferrer">developer.bling.com.br</a>.
             <br />
             Redirect URI a cadastrar no Bling:{" "}
-            <code>{typeof window !== "undefined" ? `${window.location.origin}/api/public/bling/callback` : "/api/public/bling/callback"}</code>
+            <code>https://www.nortesulauto.com.br/api/public/bling/callback</code>
           </AlertDescription>
         </Alert>
       )}

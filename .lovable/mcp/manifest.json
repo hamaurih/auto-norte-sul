@@ -60,7 +60,7 @@
       {
         "name": "get_product",
         "title": "Get product",
-        "description": "Fetch full details of a single active product by slug.",
+        "description": "Fetch full public details of a single active product by slug.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -73,6 +73,7 @@
             "slug": {
               "type": "string",
               "minLength": 1,
+              "maxLength": 160,
               "description": "Product slug (URL identifier)."
             }
           },
@@ -85,7 +86,7 @@
       {
         "name": "check_stock",
         "title": "Check stock",
-        "description": "Check current stock and price for one or more products by SKU or slug. Returns the effective available quantity considering multi-branch inventory (when configured) plus the legacy per-product stock. Use before quoting or committing to a sale.",
+        "description": "Check current stock and public price for one or more products by SKU or slug.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -102,7 +103,8 @@
               "type": "array",
               "items": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "maxLength": 120
               }
             },
             "slugs": {
@@ -112,7 +114,8 @@
               "type": "array",
               "items": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "maxLength": 120
               }
             }
           }
@@ -122,7 +125,7 @@
       {
         "name": "find_by_vehicle",
         "title": "Find products by vehicle",
-        "description": "Find products that fit a specific vehicle (make, model and optional year). Use when a customer describes their car, e.g. 'Onix 2020'. Combine with a category or query filter to narrow the result.",
+        "description": "Find active products that fit a vehicle make, model and optional year.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -135,23 +138,25 @@
             "make": {
               "type": "string",
               "minLength": 1,
-              "description": "Vehicle make, e.g. 'Chevrolet'."
+              "maxLength": 80,
+              "description": "Vehicle make, e.g. Chevrolet."
             },
             "model": {
-              "description": "Vehicle model, e.g. 'Onix'.",
+              "description": "Vehicle model, e.g. Onix.",
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 80
             },
             "year": {
-              "description": "Vehicle model year.",
               "type": "integer",
               "minimum": 1950,
               "maximum": 2100
             },
             "query": {
-              "description": "Optional text filter applied to product name/SKU (e.g. 'pastilha de freio').",
+              "description": "Optional product text filter.",
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 160
             },
             "limit": {
               "type": "integer",
@@ -168,7 +173,7 @@
       {
         "name": "list_categories",
         "title": "List categories",
-        "description": "List all active product categories with their slug. Use to help the customer navigate the catalog or to narrow searches.",
+        "description": "List active product categories with their slug.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -184,7 +189,7 @@
       {
         "name": "list_brands",
         "title": "List brands",
-        "description": "List all product brands with their slug. Use to filter searches or answer 'which brands do you carry'.",
+        "description": "List product brands with their slug.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
