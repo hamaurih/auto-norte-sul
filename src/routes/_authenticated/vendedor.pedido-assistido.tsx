@@ -161,6 +161,21 @@ function PedidoAssistido() {
           <p className="text-xs text-emerald-900/80">
             O crédito é calculado no envio, sobre o acréscimo autorizado e já considerando o imposto definido pela gestão. Não é possível gerar e usar crédito no mesmo pedido.
           </p>
+          {creditQuery.data.recent.length > 0 && (
+            <div className="border-t border-emerald-200 pt-3">
+              <p className="mb-2 text-xs font-bold uppercase text-emerald-950">Últimos lançamentos</p>
+              <ul className="space-y-1 text-xs text-emerald-900/80">
+                {creditQuery.data.recent.slice(0, 5).map((entry) => (
+                  <li key={entry.id} className="flex items-center justify-between gap-3">
+                    <span className="truncate">{entry.description}</span>
+                    <span className={entry.amount >= 0 ? "font-bold text-emerald-700" : "font-bold text-rose-700"}>
+                      {entry.amount >= 0 ? "+" : ""}{brl(entry.amount)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
       )}
 
