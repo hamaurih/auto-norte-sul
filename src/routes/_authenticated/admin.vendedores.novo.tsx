@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_authenticated/admin/vendedores/novo")({
 function NovoVendedor() {
   const navigate = useNavigate();
   const invite = useServerFn(inviteSalesRep);
-  const [form, setForm] = useState({ full_name: "", email: "", phone: "", commission_pct: 0, notes: "" });
+  const [form, setForm] = useState({ full_name: "", email: "", phone: "", commission_pct: 0, max_discount_pct: 0, notes: "" });
   const [loading, setLoading] = useState(false);
 
   async function submit(e: React.FormEvent) {
@@ -55,8 +55,12 @@ function NovoVendedor() {
             <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="mt-1 w-full rounded border border-border bg-background p-2" />
           </div>
           <div>
-            <label className="text-xs font-bold uppercase">Comissão (%)</label>
-            <input type="number" step="0.01" value={form.commission_pct} onChange={(e) => setForm({ ...form, commission_pct: Number(e.target.value) })} className="mt-1 w-full rounded border border-border bg-background p-2" />
+            <label className="text-xs font-bold uppercase">Comissão base (%)</label>
+            <input type="number" min="0" max="100" step="0.01" value={form.commission_pct} onChange={(e) => setForm({ ...form, commission_pct: Number(e.target.value) })} className="mt-1 w-full rounded border border-border bg-background p-2" />
+          </div>
+          <div>
+            <label className="text-xs font-bold uppercase">Limite de desconto (%)</label>
+            <input type="number" min="0" max="100" step="0.01" value={form.max_discount_pct} onChange={(e) => setForm({ ...form, max_discount_pct: Number(e.target.value) })} className="mt-1 w-full rounded border border-border bg-background p-2" />
           </div>
         </div>
         <div>
@@ -64,7 +68,7 @@ function NovoVendedor() {
           <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} className="mt-1 w-full rounded border border-border bg-background p-2" />
         </div>
         <p className="rounded bg-muted p-3 text-xs">
-          O vendedor receberá um e-mail para criar a senha e acessar <b>/vendedor</b>.
+          O vendedor receberá um e-mail para criar a senha e acessar <b>/vendedor</b>. O limite de desconto será aplicado no servidor.
         </p>
         <button disabled={loading} className="rounded-md bg-primary px-4 py-2 text-sm font-bold uppercase text-primary-foreground disabled:opacity-50">
           {loading ? "Enviando..." : "Convidar vendedor"}
