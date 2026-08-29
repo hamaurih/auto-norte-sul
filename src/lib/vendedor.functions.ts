@@ -39,7 +39,7 @@ export const searchProductsForAssist = createServerFn({ method: "GET" })
     const safe = sanitizeOrQuery(escapeLike(data.q));
     const { data: products, error } = await tdb(context.supabase)
       .from("products")
-      .select("id, sku, name, price_b2c, price_b2b, stock")
+      .select("id, sku, name, price_b2c, price_b2b, sale_price_b2c, stock")
       .eq("active", true)
       .is("deleted_at", null)
       .eq("tenant_id", context.tenantId)
