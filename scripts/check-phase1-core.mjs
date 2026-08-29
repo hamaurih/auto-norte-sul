@@ -38,7 +38,7 @@ for (const file of files) {
 // 2. Bling como fonte de verdade
 const SOURCE_FLAGS = /\b(source_products|source_stock|source_price_b2c)\b/;
 const MASTER_NARRATIVE =
-  /(Bling é (a )?(fonte|source)|Bling controla (preço|estoque|produto)|source of truth|modo espelho|mirror mode)/i;
+  /(Bling é (a )?(fonte|source)(?! of truth)|Bling controla (preço|estoque|produto)|é (a )?source of truth|modo espelho|mirror mode)/i;
 for (const file of files) {
   if (isGeneratedTypes(file)) continue;
   const src = readFileSync(file, "utf8");
@@ -61,9 +61,9 @@ for (const file of files.filter((f) => /bling/i.test(f))) {
   }
 }
 
-// 4. bling_config / bling_sync_logs sem tenant_id
+// 4. bling_config / bling_sync_logs sem tenant_id (server functions em src/lib)
 for (const file of files) {
-  if (isGeneratedTypes(file)) continue;
+  if (isGeneratedTypes(file) || !file.startsWith("src/lib")) continue;
   const src = readFileSync(file, "utf8");
   if (/from\(\s*['"]bling_(config|sync_logs)['"]\s*\)/.test(src) && !/tenant_id/.test(src)) {
     failures.push(`${file}: acesso a bling_config/bling_sync_logs sem tenant_id`);

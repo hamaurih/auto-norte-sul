@@ -2,8 +2,8 @@
  * Conector Bling — server functions (Fase 1).
  *
  * INVARIANTE ARQUITETURAL: o ERP Norte Sul é a ÚNICA fonte oficial de produtos,
- * preços, estoque, pedidos e clientes. O Bling é um adaptador externo
- * (conector), nunca source of truth. Portanto:
+ * preços, estoque, pedidos e clientes. O Bling é apenas um adaptador
+ * externo (conector), sem autoridade sobre dados. Portanto:
  *   - nenhuma sincronização de entrada escreve em products / product_stock /
  *     customers;
  *   - as antigas sincronizações de produtos/estoque/preços/clientes são
