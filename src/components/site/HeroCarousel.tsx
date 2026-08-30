@@ -10,29 +10,70 @@ interface Banner {
   cta_label: string | null;
 }
 
+function versionImageUrl(url: string, version: string) {
+  if (!url) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}ns_v=${encodeURIComponent(version)}`;
+}
+
 export function HeroCarousel({ banners }: { banners: Banner[] }) {
   const [i, setI] = useState(0);
+  // A per-page token forces the browser/CDN to revalidate the hero asset instead
+  // of painting bytes cached under a reused banner URL from an older site version.
+  const [pageImageVersion] = useState(() => Date.now().toString(36));
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (banners.length === 0) {
+      setI(0);
+      return;
+    }
+    setI((current) => Math.min(current, banners.length - 1));
+  }, [banners.length]);
+
   useEffect(() => {
     if (banners.length < 2) return;
     const t = setInterval(() => setI((v) => (v + 1) % banners.length), 6000);
     return () => clearInterval(t);
   }, [banners.length]);
-  if (banners.length === 0) return null;
-  const b = banners[i];
+
+  const b = banners[i] ?? banners[0];
+  const imageSrc = b ? versionImageUrl(b.image_url, `${b.id}-${pageImageVersion}`) : "";
+
+  useEffect(() => {
+    // Never leave the previous bitmap visible while the next/current source is
+    // loading. The gradient remains as a stable visual placeholder.
+    setLoadedSrc(null);
+  }, [imageSrc]);
+
+  if (!b) return null;
+
   return (
     <section className="relative overflow-hidden bg-secondary">
       <div className="container-x">
         <div className="relative aspect-[21/9] w-full overflow-hidden rounded-lg bg-gradient-to-br from-secondary via-black to-primary/60 md:aspect-[16/6]">
           <img
-            src={b.image_url}
+            key={imageSrc}
+            src={imageSrc}
             alt={b.title}
             loading="eager"
             decoding="async"
             fetchPriority="high"
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.display = "none";
+            onLoad={(e) => {
+              const img = e.currentTarget;
+              const reveal = () => setLoadedSrc(imageSrc);
+              if (typeof img.decode === "function") {
+                void img.decode().catch(() => undefined).finally(reveal);
+              } else {
+                reveal();
+              }
             }}
-            className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${
+              loadedSrc === imageSrc ? "opacity-100" : "opacity-0"
+            }`}
           />
           <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/30 to-transparent" />
           <div className="relative flex h-full flex-col justify-center gap-3 p-6 text-white md:p-12">
