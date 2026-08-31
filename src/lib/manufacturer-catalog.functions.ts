@@ -4,12 +4,22 @@ import { tdb } from "@/integrations/supabase/tenant-db";
 import { requireSupplyRole, SUPPLY_APPROVE_ROLES } from "./supplies.server";
 
 const SOURCE_KINDS = ["official_site", "official_catalog", "catalog_api", "supplier_feed", "manual"] as const;
+const SEARCH_TOKENS = ["{code}", "{code_raw}", "{code_normalized}"] as const;
 
 function httpsUrl(value: string) {
   let parsed: URL;
   try { parsed = new URL(value); } catch { throw new Error("URL inválida"); }
   if (parsed.protocol !== "https:") throw new Error("A fonte precisa usar HTTPS");
   return parsed;
+}
+
+function httpsTemplate(value?: string) {
+  const raw = value?.trim();
+  if (!raw) return null;
+  let sample = raw;
+  for (const token of SEARCH_TOKENS) sample = sample.replaceAll(token, "TESTE123");
+  const parsed = httpsUrl(sample);
+  return { raw, parsed };
 }
 
 export const listManufacturerCatalog = createServerFn({ method: "GET" })
@@ -30,17 +40,35 @@ export const listManufacturerCatalog = createServerFn({ method: "GET" })
 
 export const saveManufacturerSource = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { brandId: string; name: string; sourceKind: typeof SOURCE_KINDS[number]; baseUrl: string; priority?: number }) => input)
+  .inputValidator((input: {
+    brandId: string;
+    name: string;
+    sourceKind: typeof SOURCE_KINDS[number];
+    baseUrl: string;
+    searchUrlTemplate?: string;
+    priority?: number;
+  }) => input)
   .handler(async ({ data, context }) => {
     const sb = tdb(context.supabase);
     await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_APPROVE_ROLES);
     if (!SOURCE_KINDS.includes(data.sourceKind)) throw new Error("Tipo de fonte inválido");
     const parsed = httpsUrl(data.baseUrl);
+    const search = httpsTemplate(data.searchUrlTemplate);
+    const allowedDomains = [...new Set([
+      parsed.hostname.toLowerCase(),
+      search?.parsed.hostname.toLowerCase(),
+    ].filter(Boolean) as string[])];
+
     const { error } = await sb.from("manufacturer_catalog_sources").insert({
-      tenant_id: context.tenantId, brand_id: data.brandId, name: data.name.trim(),
-      source_kind: data.sourceKind, base_url: parsed.origin,
-      allowed_domains: [parsed.hostname.toLowerCase()], priority: Math.max(1, Math.min(100, Number(data.priority ?? 50))),
-      created_by: context.userId, last_verified_at: new Date().toISOString(),
+      tenant_id: context.tenantId,
+      brand_id: data.brandId,
+      name: data.name.trim(),
+      source_kind: data.sourceKind,
+      base_url: parsed.origin,
+      search_url_template: search?.raw ?? null,
+      allowed_domains: allowedDomains,
+      priority: Math.max(1, Math.min(100, Number(data.priority ?? 50))),
+      created_by: context.userId,
     });
     if (error) throw new Error(error.message);
     return { ok: true };
