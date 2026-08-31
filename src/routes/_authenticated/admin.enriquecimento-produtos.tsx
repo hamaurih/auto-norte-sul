@@ -11,6 +11,7 @@ import {
   addProductEnrichmentCandidate, approveProductEnrichmentCandidate, copyProductEnrichmentImage,
   enqueueMissingProductEnrichment, listProductEnrichmentJobs, processManufacturerEnrichment, rejectProductEnrichmentCandidate,
 } from "@/lib/product-enrichment.functions";
+import { setProductEnrichmentItemSelection, type EnrichmentSelectionKind } from "@/lib/product-enrichment-selection.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/enriquecimento-produtos")({
   head: () => ({ meta: [
@@ -32,6 +33,7 @@ function EnrichmentPage() {
   const copyFn = useServerFn(copyProductEnrichmentImage);
   const approveFn = useServerFn(approveProductEnrichmentCandidate);
   const rejectFn = useServerFn(rejectProductEnrichmentCandidate);
+  const selectionFn = useServerFn(setProductEnrichmentItemSelection);
   const [status, setStatus] = useState("all");
   const [editing, setEditing] = useState<any | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -65,9 +67,14 @@ function EnrichmentPage() {
     onSuccess: () => { toast.success("Sugestão registrada"); setEditing(null); setForm(emptyForm); refresh(); },
     onError: (e: Error) => toast.error(e.message),
   });
+  const selection = useMutation({
+    mutationFn: (input: { candidateId: string; kind: EnrichmentSelectionKind; itemIds?: string[]; selected: boolean }) => selectionFn({ data: input }),
+    onSuccess: (r) => { toast.success(`${r.selected} de ${r.total} ${r.kind === "image" ? "foto(s)" : "aplicação(ões)"} selecionada(s)`); refresh(); },
+    onError: (e: Error) => { toast.error(e.message); refresh(); },
+  });
   const copy = useMutation({
     mutationFn: (id: string) => copyFn({ data: { candidateId: id } }),
-    onSuccess: (r) => { toast.success(r.total > 1 ? `Galeria copiada (${r.total} imagens)` : "Imagem copiada para o armazenamento próprio"); refresh(); },
+    onSuccess: (r) => { toast.success(r.total > 1 ? `Galeria selecionada copiada (${r.total} imagens)` : r.total === 1 ? "Imagem selecionada copiada" : "Nenhuma imagem selecionada"); refresh(); },
     onError: (e: Error) => { toast.error(e.message); refresh(); },
   });
   const approve = useMutation({
@@ -85,83 +92,81 @@ function EnrichmentPage() {
   return <div className="mx-auto max-w-7xl space-y-6">
     <header className="flex flex-wrap items-end justify-between gap-3">
       <div><h1 className="font-display text-2xl font-bold uppercase">Enriquecimento de produtos</h1>
-        <p className="mt-1 max-w-3xl text-sm text-muted-foreground">Fila independente do Bling para localizar, conferir e aprovar galerias, aplicações por veículo, descrições, GTIN e códigos. Nenhuma sugestão altera o catálogo sem aprovação.</p></div>
+        <p className="mt-1 max-w-3xl text-sm text-muted-foreground">Localize, confira e aprove galerias, aplicações por veículo, descrições, GTIN e códigos. Fotos e aplicações podem ser escolhidas individualmente antes da aprovação.</p></div>
       <div className="flex flex-wrap gap-2"><Button variant="outline" disabled={process.isPending} onClick={() => process.mutate()}><Search className="mr-2 h-4 w-4" />{process.isPending ? "Consultando fontes…" : "Processar fabricantes"}</Button><Button disabled={enqueue.isPending} onClick={() => enqueue.mutate()}><Search className="mr-2 h-4 w-4" />{enqueue.isPending ? "Preparando…" : "Enfileirar incompletos"}</Button></div>
     </header>
     <div className="flex flex-wrap gap-2">
-      {["all", "queued", "review", "approved", "failed"].map((value) => <button key={value} onClick={() => setStatus(value)}
-        className={`rounded-md border px-3 py-2 text-xs font-bold uppercase ${status === value ? "border-primary bg-primary/10 text-primary" : "border-border"}`}>
+      {["all", "queued", "review", "approved", "failed"].map((value) => <button key={value} onClick={() => setStatus(value)} className={`rounded-md border px-3 py-2 text-xs font-bold uppercase ${status === value ? "border-primary bg-primary/10 text-primary" : "border-border"}`}>
         {({ all: "Todos", queued: "Na fila", review: "Revisão", approved: "Aprovados", failed: "Falhas" } as any)[value]}</button>)}
     </div>
-    <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-sm"><strong>Busca segura:</strong> código do fabricante e fonte oficial são a referência. Galerias são copiadas para nosso Storage e aplicações veiculares só entram no catálogo junto com a aprovação da sugestão.</div>
+    <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-sm"><strong>Revisão seletiva:</strong> desmarque qualquer foto ou aplicação incorreta. Somente os itens marcados serão copiados e promovidos para o catálogo; os demais permanecem registrados na sugestão para auditoria.</div>
     {isLoading && <p className="text-sm text-muted-foreground">Carregando fila…</p>}
     {isError && <div role="alert" className="rounded-lg border border-destructive p-4 text-sm">{(error as Error).message}</div>}
     <div className="space-y-4">{rows.map((job) => <article key={job.id} className="rounded-lg border border-border bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div><div className="font-semibold">{job.product?.name}</div><div className="text-xs text-muted-foreground">SKU {job.product?.sku} · GTIN {job.product?.gtin || "não informado"} · Fabricante {job.product?.manufacturer_code || "não informado"}</div>
           <div className="mt-1 text-xs">Busca sugerida: <code>{job.search_query}</code></div>{job.last_error && <div className="mt-1 text-xs text-destructive">{job.last_error}</div>}</div>
-        <div className="flex flex-wrap gap-2"><Status value={job.status} /><a href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(job.search_query || job.product?.name || "")}`} target="_blank" rel="noreferrer"
-          className="inline-flex items-center rounded-md border px-3 py-2 text-xs font-semibold">Pesquisar <ExternalLink className="ml-1 h-3 w-3" /></a>
+        <div className="flex flex-wrap gap-2"><Status value={job.status} /><a href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(job.search_query || job.product?.name || "")}`} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-md border px-3 py-2 text-xs font-semibold">Pesquisar <ExternalLink className="ml-1 h-3 w-3" /></a>
           <Button size="sm" variant="outline" onClick={() => { setEditing(job); setForm({ ...emptyForm, suggestedName: job.product?.name || "", gtin: job.product?.gtin || "", manufacturerCode: job.product?.manufacturer_code || "" }); }}><Plus className="mr-1 h-3 w-3" />Sugestão</Button></div>
       </div>
-      {(job.candidates ?? []).length > 0 && <div className="mt-4 grid gap-3 lg:grid-cols-2">{job.candidates.map((c: any) => <CandidateCard key={c.id} candidate={c} onCopy={(id) => copy.mutate(id)} onApprove={(id) => approve.mutate(id)} onReject={(id) => reject.mutate(id)} />)}</div>}
+      {(job.candidates ?? []).length > 0 && <div className="mt-4 grid gap-3 lg:grid-cols-2">{job.candidates.map((c: any) => <CandidateCard key={c.id} candidate={c} selectionBusy={selection.isPending} onSelection={(candidateId, kind, itemIds, selected) => selection.mutate({ candidateId, kind, itemIds, selected })} onCopy={(id) => copy.mutate(id)} onApprove={(id) => approve.mutate(id)} onReject={(id) => reject.mutate(id)} />)}</div>}
     </article>)}</div>
     {rows.length === 0 && !isLoading && <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">Nenhum produto nesta situação.</div>}
     {editing && <section className="rounded-lg border border-primary/40 bg-card p-4">
       <h2 className="font-display text-lg font-bold uppercase">Nova sugestão · {editing.product?.name}</h2>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <Field label="URL da fonte *" value={form.sourceUrl} onChange={(v) => setForm({ ...form, sourceUrl: v })} />
-        <Field label="URL da imagem" value={form.imageUrl} onChange={(v) => setForm({ ...form, imageUrl: v })} />
-        <label className="text-xs font-semibold uppercase text-muted-foreground">Tipo da fonte<select className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-sm" value={form.sourceType} onChange={(e) => setForm({ ...form, sourceType: e.target.value })}>
-          <option value="manufacturer">Fabricante</option><option value="supplier">Fornecedor</option><option value="authorized_distributor">Distribuidor autorizado</option><option value="gs1">GS1</option><option value="web">Internet</option><option value="manual">Manual</option><option value="bling">Bling (temporário)</option></select></label>
-        <Field label="Licença/autorização" value={form.licenseName} onChange={(v) => setForm({ ...form, licenseName: v })} />
-        <Field label="Nome sugerido" value={form.suggestedName} onChange={(v) => setForm({ ...form, suggestedName: v })} />
-        <Field label="Descrição curta" value={form.shortDescription} onChange={(v) => setForm({ ...form, shortDescription: v })} />
-        <Field label="GTIN" value={form.gtin} onChange={(v) => setForm({ ...form, gtin: v })} />
-        <Field label="Código fabricante" value={form.manufacturerCode} onChange={(v) => setForm({ ...form, manufacturerCode: v })} />
-        <Field label="Confiança (0–100)" value={form.confidence} onChange={(v) => setForm({ ...form, confidence: v })} />
+        <Field label="URL da fonte *" value={form.sourceUrl} onChange={(v) => setForm({ ...form, sourceUrl: v })} /><Field label="URL da imagem" value={form.imageUrl} onChange={(v) => setForm({ ...form, imageUrl: v })} />
+        <label className="text-xs font-semibold uppercase text-muted-foreground">Tipo da fonte<select className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-sm" value={form.sourceType} onChange={(e) => setForm({ ...form, sourceType: e.target.value })}><option value="manufacturer">Fabricante</option><option value="supplier">Fornecedor</option><option value="authorized_distributor">Distribuidor autorizado</option><option value="gs1">GS1</option><option value="web">Internet</option><option value="manual">Manual</option><option value="bling">Bling (temporário)</option></select></label>
+        <Field label="Licença/autorização" value={form.licenseName} onChange={(v) => setForm({ ...form, licenseName: v })} /><Field label="Nome sugerido" value={form.suggestedName} onChange={(v) => setForm({ ...form, suggestedName: v })} /><Field label="Descrição curta" value={form.shortDescription} onChange={(v) => setForm({ ...form, shortDescription: v })} /><Field label="GTIN" value={form.gtin} onChange={(v) => setForm({ ...form, gtin: v })} /><Field label="Código fabricante" value={form.manufacturerCode} onChange={(v) => setForm({ ...form, manufacturerCode: v })} /><Field label="Confiança (0–100)" value={form.confidence} onChange={(v) => setForm({ ...form, confidence: v })} />
         <label className="text-xs font-semibold uppercase text-muted-foreground sm:col-span-2">Descrição completa<textarea className="mt-1 min-h-28 w-full rounded-md border bg-background p-3 text-sm" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
       </div><div className="mt-4 flex justify-end gap-2"><Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button><Button disabled={add.isPending || !form.sourceUrl} onClick={() => add.mutate()}>Salvar para revisão</Button></div>
     </section>}
   </div>;
 }
 
-function CandidateCard({ candidate: c, onCopy, onApprove, onReject }: { candidate: any; onCopy: (id: string) => void; onApprove: (id: string) => void; onReject: (id: string) => void }) {
-  const gallery = ((c.gallery ?? []) as any[]).filter((item) => item.selected !== false).sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || Number(a.sort_order) - Number(b.sort_order));
-  const applications = ((c.applications ?? []) as any[]).filter((item) => item.selected !== false);
-  const missingGallery = gallery.filter((item) => !item.storage_url).length;
+function CandidateCard({ candidate: c, selectionBusy, onSelection, onCopy, onApprove, onReject }: {
+  candidate: any; selectionBusy: boolean;
+  onSelection: (candidateId: string, kind: EnrichmentSelectionKind, itemIds: string[] | undefined, selected: boolean) => void;
+  onCopy: (id: string) => void; onApprove: (id: string) => void; onReject: (id: string) => void;
+}) {
+  const gallery = ([...(c.gallery ?? [])] as any[]).sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || Number(a.sort_order) - Number(b.sort_order));
+  const selectedGallery = gallery.filter((item) => item.selected !== false);
+  const applications = ([...(c.applications ?? [])] as any[]);
+  const selectedApplications = applications.filter((item) => item.selected !== false);
+  const missingGallery = selectedGallery.filter((item) => !item.storage_url).length;
   const legacyNeedsCopy = gallery.length === 0 && Boolean(c.image_url && !c.storage_url);
   const needsCopy = missingGallery > 0 || legacyNeedsCopy;
-  const primary = gallery[0]?.storage_url || gallery[0]?.source_url || c.storage_url || c.image_url;
+  const primary = selectedGallery[0]?.storage_url || selectedGallery[0]?.source_url || gallery[0]?.storage_url || gallery[0]?.source_url || c.storage_url || c.image_url;
+  const editable = c.status === "pending";
 
   return <div className="rounded-md border border-border p-3">
-    <div className="flex flex-wrap justify-between gap-2"><div><strong>{c.source_name || c.source_type}</strong>
-      <div className="text-xs text-muted-foreground">Confiança {Number(c.confidence).toFixed(0)}% · {c.license_name || "licença não informada"}</div>
-      <div className="mt-1 flex flex-wrap gap-1">{gallery.length > 0 && <Badge>{gallery.length} foto(s)</Badge>}{applications.length > 0 && <Badge>{applications.length} aplicação(ões)</Badge>}</div>
-    </div><Status value={c.status} /></div>
+    <div className="flex flex-wrap justify-between gap-2"><div><strong>{c.source_name || c.source_type}</strong><div className="text-xs text-muted-foreground">Confiança {Number(c.confidence).toFixed(0)}% · {c.license_name || "licença não informada"}</div>
+      <div className="mt-1 flex flex-wrap gap-1">{gallery.length > 0 && <Badge>{selectedGallery.length}/{gallery.length} foto(s)</Badge>}{applications.length > 0 && <Badge>{selectedApplications.length}/{applications.length} aplicação(ões)</Badge>}</div></div><Status value={c.status} /></div>
 
-    {gallery.length > 1 ? <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
-      {gallery.slice(0, 8).map((image) => <div key={image.id} className="relative aspect-square overflow-hidden rounded border bg-muted">
+    {gallery.length > 0 ? <section className="mt-3 rounded-md border p-2">
+      <div className="mb-2 flex items-center justify-between gap-2"><div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Galeria oficial</div>{editable && <label className="flex cursor-pointer items-center gap-2 text-[11px] font-semibold"><input type="checkbox" disabled={selectionBusy} checked={selectedGallery.length === gallery.length && gallery.length > 0} onChange={(e) => onSelection(c.id, "image", undefined, e.target.checked)} />Selecionar todas</label>}</div>
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">{gallery.map((image) => <label key={image.id} className={`relative aspect-square overflow-hidden rounded border bg-muted ${image.selected === false ? "opacity-40" : "ring-1 ring-primary/40"}`}>
         <img src={image.storage_url || image.source_url} alt={image.alt || c.suggested_name || "Imagem do produto"} className="h-full w-full object-contain" referrerPolicy="no-referrer" />
+        {editable && <input aria-label="Selecionar imagem" type="checkbox" disabled={selectionBusy} checked={image.selected !== false} onChange={(e) => onSelection(c.id, "image", [image.id], e.target.checked)} className="absolute left-2 top-2 h-4 w-4 accent-primary" />}
         {image.is_primary && <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">Principal</span>}
-      </div>)}
-      {gallery.length > 8 && <div className="grid aspect-square place-items-center rounded border bg-muted text-xs font-semibold text-muted-foreground">+{gallery.length - 8}</div>}
-    </div> : primary && <img src={primary} alt={c.suggested_name || "Imagem do produto"} className="mt-3 h-40 w-full rounded bg-muted object-contain" referrerPolicy="no-referrer" />}
+        {image.storage_url && <span className="absolute bottom-1 right-1 rounded bg-emerald-700/80 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">Copiada</span>}
+      </label>)}</div>
+    </section> : primary && <img src={primary} alt={c.suggested_name || "Imagem do produto"} className="mt-3 h-40 w-full rounded bg-muted object-contain" referrerPolicy="no-referrer" />}
 
     <div className="mt-2 text-sm"><div>{c.suggested_name}</div>{c.suggested_description && <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">{c.suggested_description}</p>}</div>
 
-    {applications.length > 0 && <div className="mt-3 rounded-md border bg-muted/30 p-3">
-      <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Aplicações veiculares encontradas</div>
-      <div className="mt-2 space-y-1">{applications.slice(0, 10).map((app) => <div key={app.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
-        <span className="font-medium">{app.vehicle_make} {app.vehicle_model}</span><span className="text-muted-foreground">{formatYears(app.year_from, app.year_to)} · {Number(app.confidence).toFixed(0)}%</span>
-      </div>)}</div>
-      {applications.length > 10 && <div className="mt-2 text-xs text-muted-foreground">+ {applications.length - 10} aplicação(ões)</div>}
-    </div>}
+    {applications.length > 0 && <section className="mt-3 rounded-md border bg-muted/30 p-3">
+      <div className="flex items-center justify-between gap-2"><div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Aplicações veiculares</div>{editable && <label className="flex cursor-pointer items-center gap-2 text-[11px] font-semibold"><input type="checkbox" disabled={selectionBusy} checked={selectedApplications.length === applications.length && applications.length > 0} onChange={(e) => onSelection(c.id, "application", undefined, e.target.checked)} />Selecionar todas</label>}</div>
+      <div className="mt-2 max-h-64 space-y-1 overflow-auto">{applications.map((app) => <label key={app.id} className={`flex items-center gap-2 rounded border px-2 py-2 text-xs ${app.selected === false ? "opacity-50" : "bg-background"}`}>
+        {editable && <input aria-label="Selecionar aplicação" type="checkbox" disabled={selectionBusy} checked={app.selected !== false} onChange={(e) => onSelection(c.id, "application", [app.id], e.target.checked)} className="h-4 w-4 shrink-0 accent-primary" />}
+        <span className="min-w-0 flex-1 font-medium">{app.vehicle_make} {app.vehicle_model}</span><span className="shrink-0 text-muted-foreground">{formatYears(app.year_from, app.year_to)} · {Number(app.confidence).toFixed(0)}%</span>
+      </label>)}</div>
+    </section>}
 
     <div className="mt-3 flex flex-wrap gap-2"><a href={c.source_url} target="_blank" rel="noreferrer" className="inline-flex items-center rounded border px-2 py-1 text-xs">Ver fonte</a>
-      {c.status === "pending" && needsCopy && <Button size="sm" variant="outline" onClick={() => onCopy(c.id)}><ImageDown className="mr-1 h-3 w-3" />{gallery.length > 1 ? `Copiar galeria (${gallery.length})` : "Copiar imagem"}</Button>}
-      {c.status === "pending" && !needsCopy && <Button size="sm" onClick={() => onApprove(c.id)}><Check className="mr-1 h-3 w-3" />Aprovar dados{applications.length ? " + aplicações" : ""}</Button>}
-      {c.status === "pending" && <Button size="sm" variant="outline" onClick={() => onReject(c.id)}><X className="mr-1 h-3 w-3" />Rejeitar</Button>}
+      {editable && needsCopy && <Button size="sm" variant="outline" onClick={() => onCopy(c.id)}><ImageDown className="mr-1 h-3 w-3" />{selectedGallery.length > 1 ? `Copiar selecionadas (${selectedGallery.length})` : "Copiar imagem selecionada"}</Button>}
+      {editable && !needsCopy && <Button size="sm" onClick={() => onApprove(c.id)}><Check className="mr-1 h-3 w-3" />Aprovar seleção</Button>}
+      {editable && <Button size="sm" variant="outline" onClick={() => onReject(c.id)}><X className="mr-1 h-3 w-3" />Rejeitar</Button>}
     </div>
   </div>;
 }
