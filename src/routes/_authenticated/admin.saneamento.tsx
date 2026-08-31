@@ -254,6 +254,11 @@ function TabCategory() {
   const applyFn = useServerFn(applyCategory);
   const bulkFn = useServerFn(applyCategoryBulk);
   const [productMap, setProductMap] = useState<Record<string, string>>({});
+  const [search, setSearch] = useState("");
+  const [confidenceFilter, setConfidenceFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [selectedTerms, setSelectedTerms] = useState<string[]>([]);
+  const [termSearch, setTermSearch] = useState("");
 
   const sugg = useQuery({
     queryKey: ["san-cat-suggest"],
@@ -286,28 +291,162 @@ function TabCategory() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const highs = (sugg.data ?? []).filter((s) => s.confidence === "alta");
+  const suggestions = sugg.data ?? [];
+  const termStats = useMemo(() => {
+    const counts = new Map<string, number>();
+    suggestions.forEach((s) => {
+      const term = String(s.matched ?? "").trim();
+      if (term) counts.set(term, (counts.get(term) ?? 0) + 1);
+    });
+    return Array.from(counts.entries())
+      .map(([term, count]) => ({ term, count }))
+      .sort((a, b) => b.count - a.count || a.term.localeCompare(b.term, "pt-BR"));
+  }, [suggestions]);
+
+  const categoryOptions = useMemo(() => {
+    const values = new Set<string>();
+    suggestions.forEach((s) => values.add(s.categorySlug));
+    return Array.from(values).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [suggestions]);
+
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLocaleLowerCase("pt-BR");
+    return suggestions.filter((s) => {
+      const productName = (productMap[s.productId] ?? "").toLocaleLowerCase("pt-BR");
+      if (needle && !productName.includes(needle)) return false;
+      if (confidenceFilter !== "all" && s.confidence !== confidenceFilter) return false;
+      if (categoryFilter !== "all" && s.categorySlug !== categoryFilter) return false;
+      if (selectedTerms.length > 0 && !selectedTerms.includes(s.matched)) return false;
+      return true;
+    });
+  }, [suggestions, productMap, search, confidenceFilter, categoryFilter, selectedTerms]);
+
+  const filteredHighs = filtered.filter((s) => s.confidence === "alta");
+  const hasFilters = Boolean(search || confidenceFilter !== "all" || categoryFilter !== "all" || selectedTerms.length);
+  const visibleTerms = termStats.filter(({ term }) => term.toLocaleLowerCase("pt-BR").includes(termSearch.trim().toLocaleLowerCase("pt-BR")));
+
+  const toggleTerm = (term: string) => {
+    setSelectedTerms((current) => current.includes(term) ? current.filter((item) => item !== term) : [...current, term]);
+  };
+  const clearFilters = () => {
+    setSearch("");
+    setConfidenceFilter("all");
+    setCategoryFilter("all");
+    setSelectedTerms([]);
+    setTermSearch("");
+  };
 
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between rounded-lg border border-border bg-card p-3">
-        <div className="text-sm">{sugg.data?.length ?? 0} sugestões geradas por palavras-chave. Confiança <b>alta</b> = termo específico encontrado.</div>
-        <Button size="sm" disabled={!highs.length || bulk.isPending} onClick={() => bulk.mutate(highs)}>
-          {bulk.isPending ? "Aplicando..." : `Aplicar todas ALTAS (${highs.length})`}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-3">
+        <div className="text-sm">
+          <b>{filtered.length}</b> de {suggestions.length} sugestões exibidas. Confiança <b>alta</b> = termo específico encontrado.
+        </div>
+        <Button size="sm" disabled={!filteredHighs.length || bulk.isPending} onClick={() => bulk.mutate(filteredHighs)}>
+          {bulk.isPending ? "Aplicando..." : `Aplicar ALTAS filtradas (${filteredHighs.length})`}
         </Button>
       </div>
+
+      <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/20 p-3">
+        <Input
+          placeholder="Buscar produto..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="min-w-[220px] max-w-sm"
+        />
+
+        <details className="relative">
+          <summary className="list-none cursor-pointer rounded-md border border-border bg-background px-3 py-2 text-sm font-medium shadow-sm hover:bg-muted">
+            Termo: {selectedTerms.length ? `${selectedTerms.length} selecionado(s)` : "Todos"} ▾
+          </summary>
+          <div className="absolute left-0 z-30 mt-1 w-72 rounded-lg border border-border bg-card p-3 shadow-xl">
+            <Input
+              placeholder="Buscar termo..."
+              value={termSearch}
+              onChange={(e) => setTermSearch(e.target.value)}
+              className="mb-2 h-9"
+            />
+            <button
+              type="button"
+              onClick={() => setSelectedTerms([])}
+              className={`mb-1 flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-xs ${selectedTerms.length === 0 ? "bg-primary/10 font-bold text-primary" : "hover:bg-muted"}`}
+            >
+              <span>Todos os termos</span><span>{suggestions.length}</span>
+            </button>
+            <div className="max-h-64 space-y-0.5 overflow-auto pr-1">
+              {visibleTerms.map(({ term, count }) => (
+                <label key={term} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted">
+                  <input
+                    type="checkbox"
+                    checked={selectedTerms.includes(term)}
+                    onChange={() => toggleTerm(term)}
+                    className="h-4 w-4 rounded border-border"
+                  />
+                  <span className="min-w-0 flex-1 truncate">{term}</span>
+                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{count}</span>
+                </label>
+              ))}
+              {visibleTerms.length === 0 && <div className="p-2 text-center text-xs text-muted-foreground">Nenhum termo encontrado.</div>}
+            </div>
+          </div>
+        </details>
+
+        <select
+          aria-label="Filtrar por confiança"
+          className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+          value={confidenceFilter}
+          onChange={(e) => setConfidenceFilter(e.target.value)}
+        >
+          <option value="all">Confiança: todas</option>
+          <option value="alta">Alta</option>
+          <option value="media">Média</option>
+          <option value="baixa">Baixa</option>
+        </select>
+
+        <select
+          aria-label="Filtrar por categoria sugerida"
+          className="h-10 max-w-[260px] rounded-md border border-border bg-background px-3 text-sm"
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+        >
+          <option value="all">Categoria: todas</option>
+          {categoryOptions.map((slug) => <option key={slug} value={slug}>{slug}</option>)}
+        </select>
+
+        {hasFilters && <Button size="sm" variant="ghost" onClick={clearFilters}>Limpar filtros</Button>}
+      </div>
+
+      {selectedTerms.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-xs font-semibold text-muted-foreground">Termos ativos:</span>
+          {selectedTerms.map((term) => (
+            <button
+              key={term}
+              type="button"
+              onClick={() => toggleTerm(term)}
+              className="rounded-full border border-border bg-background px-2 py-1 text-xs hover:border-primary hover:text-primary"
+              title="Remover este termo do filtro"
+            >
+              {term} ×
+            </button>
+          ))}
+        </div>
+      )}
+
       {sugg.isLoading ? <p className="text-sm text-muted-foreground">Analisando…</p> : (
-        <div className="rounded-lg border border-border">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="w-full min-w-[860px] text-sm">
             <thead className="bg-muted"><tr>
               <th className="p-2 text-left">Produto</th>
               <th className="p-2 text-left">Categoria sugerida</th>
               <th className="p-2 text-left">Confiança</th>
-              <th className="p-2 text-left">Termo</th>
+              <th className="p-2 text-left">
+                <div className="flex items-center gap-1.5">Termo{selectedTerms.length > 0 && <Badge variant="outline">{selectedTerms.length}</Badge>}</div>
+              </th>
               <th className="p-2 text-right">Ação</th>
             </tr></thead>
             <tbody>
-              {(sugg.data ?? []).map((s) => (
+              {filtered.map((s) => (
                 <tr key={s.productId} className="border-t border-border">
                   <td className="p-2">{productMap[s.productId] ?? s.productId}</td>
                   <td className="p-2 font-bold">{s.categorySlug}</td>
@@ -315,7 +454,7 @@ function TabCategory() {
                   <td className="p-2 text-xs text-muted-foreground">{s.matched}</td>
                   <td className="p-2 text-right">
                     <div className="flex justify-end gap-1">
-                      <Button size="sm" variant="outline" onClick={() => applyOne.mutate({ productId: s.productId, categoryId: s.categoryId })}>Aplicar</Button>
+                      <Button size="sm" variant="outline" disabled={applyOne.isPending} onClick={() => applyOne.mutate({ productId: s.productId, categoryId: s.categoryId })}>Aplicar</Button>
                       <select
                         className="rounded border border-border bg-background px-1 text-xs"
                         defaultValue=""
@@ -328,7 +467,7 @@ function TabCategory() {
                   </td>
                 </tr>
               ))}
-              {(sugg.data ?? []).length === 0 && <tr><td colSpan={5} className="p-4 text-center text-sm text-muted-foreground">Nenhuma sugestão automática.</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-sm text-muted-foreground">Nenhuma sugestão corresponde aos filtros atuais.</td></tr>}
             </tbody>
           </table>
         </div>
