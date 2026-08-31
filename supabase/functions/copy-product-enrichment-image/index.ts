@@ -19,18 +19,14 @@ async function validatePublicHttps(source: URL) {
   if (!ips.length || ips.some(isPrivate)) throw new Error("Destino de rede não permitido");
 }
 
-async function copyImage(
-  admin: ReturnType<typeof createClient>,
-  sourceUrl: string,
-  pathBase: string,
-) {
+async function copyImage(admin: ReturnType<typeof createClient>, sourceUrl: string, pathBase: string) {
   const source = new URL(sourceUrl);
   await validatePublicHttps(source);
 
   const response = await fetch(source, {
     redirect: "error",
     signal: AbortSignal.timeout(12000),
-    headers: { "user-agent": "AutoNorteSulCatalog/2.0 (+gallery copy)" },
+    headers: { "user-agent": "AutoNorteSulCatalog/2.1 (+selective gallery copy)" },
   });
   if (!response.ok) throw new Error(`A origem respondeu ${response.status}`);
 
@@ -94,17 +90,22 @@ Deno.serve(async (req) => {
     if (!membership) return json({ error: "Sem permissão" }, 403);
     if (candidate.status !== "pending") return json({ error: "Sugestão já revisada" }, 409);
 
-    const { data: gallery, error: galleryError } = await admin
+    const { data: allGallery, error: galleryError } = await admin
       .from("product_enrichment_candidate_images")
       .select("id,source_url,storage_url,sort_order,is_primary,selected")
       .eq("tenant_id", candidate.tenant_id)
       .eq("candidate_id", candidate.id)
-      .eq("selected", true)
       .order("is_primary", { ascending: false })
       .order("sort_order", { ascending: true });
     if (galleryError) throw galleryError;
 
-    if (gallery?.length) {
+    const gallery = (allGallery ?? []).filter((image) => image.selected !== false);
+
+    if ((allGallery ?? []).length > 0) {
+      if (gallery.length === 0) {
+        return json({ ok: true, storageUrl: null, copied: 0, total: 0, available: allGallery?.length ?? 0 });
+      }
+
       let copied = 0;
       const failures: Array<{ id: string; error: string }> = [];
       let firstStorageUrl: string | null = null;
@@ -131,10 +132,7 @@ Deno.serve(async (req) => {
           firstStorageUrl ??= storageUrl;
           copied += 1;
         } catch (imageError) {
-          failures.push({
-            id: image.id,
-            error: imageError instanceof Error ? imageError.message : "Falha ao copiar imagem",
-          });
+          failures.push({ id: image.id, error: imageError instanceof Error ? imageError.message : "Falha ao copiar imagem" });
         }
       }
 
@@ -157,10 +155,10 @@ Deno.serve(async (req) => {
         }, 422);
       }
 
-      return json({ ok: true, storageUrl: firstStorageUrl, copied, total: gallery.length });
+      return json({ ok: true, storageUrl: firstStorageUrl, copied, total: gallery.length, available: allGallery?.length ?? 0 });
     }
 
-    // Compatibilidade com sugestões antigas, que possuíam apenas image_url/storage_url no candidato.
+    // Compatibilidade exclusiva com sugestões antigas, sem registros na tabela de galeria.
     if (!candidate.image_url) return json({ ok: true, storageUrl: candidate.storage_url ?? null, copied: 0, total: 0 });
     if (candidate.storage_url) return json({ ok: true, storageUrl: candidate.storage_url, copied: 0, total: 1 });
 
