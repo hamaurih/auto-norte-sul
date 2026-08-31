@@ -28,7 +28,7 @@ export const listProductEnrichmentJobs = createServerFn({ method: "GET" })
     const sb = tdb(context.supabase);
     await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_APPROVE_ROLES);
     let query = sb.from("product_enrichment_jobs")
-      .select("id,status,trigger_source,search_query,attempts,last_error,created_at,product:products(id,name,sku,gtin,manufacturer_code,description,short_description),candidates:product_enrichment_candidates(id,source_type,source_name,source_url,license_name,license_url,image_url,storage_url,suggested_name,suggested_short_description,suggested_description,suggested_gtin,suggested_manufacturer_code,confidence,match_reasons,status)")
+      .select("id,status,trigger_source,search_query,attempts,last_error,created_at,product:products(id,name,sku,gtin,manufacturer_code,description,short_description),candidates:product_enrichment_candidates(id,source_type,source_name,source_url,license_name,license_url,image_url,storage_url,suggested_name,suggested_short_description,suggested_description,suggested_gtin,suggested_manufacturer_code,confidence,match_reasons,status,gallery:product_enrichment_candidate_images(id,source_url,storage_url,alt,sort_order,is_primary,selected),applications:product_enrichment_candidate_applications(id,vehicle_make,vehicle_model,year_from,year_to,notes,source_text,confidence,selected))")
       .eq("tenant_id", context.tenantId).order("created_at", { ascending: false }).limit(150);
     if (data.status && data.status !== "all") query = query.eq("status", data.status);
     const { data: rows, error } = await query;
@@ -93,8 +93,8 @@ export const copyProductEnrichmentImage = createServerFn({ method: "POST" })
       body: { candidateId: data.candidateId },
     });
     if (error) throw new Error(error.message);
-    if (!result?.ok) throw new Error(result?.error ?? "Não foi possível copiar a imagem");
-    return result as { ok: true; storageUrl: string };
+    if (!result?.ok) throw new Error(result?.error ?? "Não foi possível copiar a galeria");
+    return result as { ok: true; storageUrl: string | null; copied: number; total: number };
   });
 
 export const approveProductEnrichmentCandidate = createServerFn({ method: "POST" })
@@ -104,7 +104,7 @@ export const approveProductEnrichmentCandidate = createServerFn({ method: "POST"
     await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_APPROVE_ROLES);
     const { data: result, error } = await sb.rpc("approve_product_enrichment_candidate", { p_candidate_id: data.candidateId });
     if (error) throw new Error(error.message);
-    return result as { ok: boolean; product_id: string };
+    return result as { ok: boolean; product_id: string; candidate_id: string; images_added: number; applications_added: number };
   });
 
 export const rejectProductEnrichmentCandidate = createServerFn({ method: "POST" })
@@ -119,7 +119,6 @@ export const rejectProductEnrichmentCandidate = createServerFn({ method: "POST" 
     return { ok: true };
   });
 
-
 export const processManufacturerEnrichment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input?: { limit?: number }) => input ?? {})
@@ -131,9 +130,21 @@ export const processManufacturerEnrichment = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     if (!result?.ok) throw new Error(result?.error ?? "Não foi possível processar a fila");
-    return result as { ok: true; processed: number; results: Array<{ jobId: string; status: string; sourceUrl?: string; reason?: string }> };
+    return result as {
+      ok: true;
+      processed: number;
+      results: Array<{
+        jobId: string;
+        status: string;
+        sourceUrl?: string;
+        sourceName?: string;
+        reason?: string;
+        imageFound?: boolean;
+        galleryImages?: number;
+        applications?: number;
+      }>;
+    };
   });
-
 
 export type EnqueueNfeItemEnrichmentResult = {
   ok: boolean;
