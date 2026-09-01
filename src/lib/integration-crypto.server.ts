@@ -16,8 +16,12 @@ function toBase64Url(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString("base64url");
 }
 
-function fromBase64Url(value: string): Uint8Array {
-  return new Uint8Array(Buffer.from(value, "base64url"));
+function fromBase64Url(value: string): Uint8Array<ArrayBuffer> {
+  const decoded = Buffer.from(value, "base64url");
+  const buffer = new ArrayBuffer(decoded.byteLength);
+  const bytes = new Uint8Array(buffer);
+  bytes.set(decoded);
+  return bytes;
 }
 
 async function getKey(): Promise<CryptoKey> {

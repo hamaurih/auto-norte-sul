@@ -1,5 +1,5 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +28,10 @@ import {
   FileText,
   Settings,
   ChevronRight,
+  Copy,
+  Eye,
+  EyeOff,
+  KeyRound,
 } from "lucide-react";
 import {
   getBlingStats,
@@ -88,6 +92,9 @@ function BlingModule() {
   const qc = useQueryClient();
   const [tab, setTab] = useState("conexao");
   const [logDetail, setLogDetail] = useState<BlingLog | null>(null);
+  const [clientIdInput, setClientIdInput] = useState("");
+  const [clientSecretInput, setClientSecretInput] = useState("");
+  const [showClientSecret, setShowClientSecret] = useState(false);
 
   const statusFn = useServerFn(getBlingStatus);
   const statsFn = useServerFn(getBlingStats);
@@ -119,6 +126,12 @@ function BlingModule() {
       return (data ?? []) as BlingLog[];
     },
   });
+
+  useEffect(() => {
+    if (status.data?.config?.client_id) {
+      setClientIdInput(status.data.config.client_id);
+    }
+  }, [status.data?.config?.client_id]);
 
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: ["bling-status"] });
@@ -169,6 +182,22 @@ function BlingModule() {
       qc.invalidateQueries({ queryKey: ["bling-status"] });
     },
     onError: (e: any) => toast.error(e.message ?? "Erro"),
+  });
+
+  const saveCredentialsMut = useMutation({
+    mutationFn: () => {
+      const payload: { client_id: string; client_secret?: string } = {
+        client_id: clientIdInput.trim(),
+      };
+      if (clientSecretInput.trim()) payload.client_secret = clientSecretInput.trim();
+      return updateFn({ data: payload });
+    },
+    onSuccess: () => {
+      toast.success("Credenciais do Bling salvas com segurança. Agora conecte novamente.");
+      setClientSecretInput("");
+      invalidateAll();
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao salvar credenciais"),
   });
 
   const [busy, setBusy] = useState<string | null>(null);
@@ -228,8 +257,8 @@ function BlingModule() {
         <Alert>
           <ShieldAlert className="h-4 w-4" />
           <AlertDescription>
-            Para conectar ao Bling, adicione os secrets <code>BLING_CLIENT_ID</code> e <code>BLING_CLIENT_SECRET</code> nas
-            configurações de backend. Peça esses valores no app <a className="underline" href="https://developer.bling.com.br" target="_blank" rel="noreferrer">developer.bling.com.br</a>.
+            Para conectar ao Bling, cadastre o <code>Client ID</code> e o <code>Client Secret</code> abaixo ou use os secrets
+            de backend. Peça esses valores no app <a className="underline" href="https://developer.bling.com.br" target="_blank" rel="noreferrer">developer.bling.com.br</a>.
             <br />
             Redirect URI a cadastrar no Bling:{" "}
             <code>https://www.nortesulauto.com.br/api/public/bling/callback</code>
@@ -260,6 +289,83 @@ function BlingModule() {
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="rounded border border-primary/20 bg-primary/5 p-3">
+                <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="flex items-center gap-2 text-sm font-semibold">
+                      <KeyRound className="h-4 w-4" /> Credenciais do aplicativo Bling
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Salvas por ambiente/tenant. O Client Secret é criptografado no backend e nunca é exibido novamente.
+                    </p>
+                  </div>
+                  <Badge variant="outline">
+                    {s.credentialsSource === "tenant" ? "Credencial salva no painel" : "Usando secrets do backend"}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="bling-client-id">Client ID</Label>
+                    <Input
+                      id="bling-client-id"
+                      value={clientIdInput}
+                      onChange={(e) => setClientIdInput(e.currentTarget.value)}
+                      placeholder="Cole o Client ID do app Bling"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="bling-client-secret">Client Secret</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="bling-client-secret"
+                        type={showClientSecret ? "text" : "password"}
+                        value={clientSecretInput}
+                        onChange={(e) => setClientSecretInput(e.currentTarget.value)}
+                        placeholder={s.clientSecretSaved ? "Já salvo — preencha só para trocar" : "Cole o Client Secret"}
+                        autoComplete="new-password"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        aria-label={showClientSecret ? "Ocultar Client Secret" : "Mostrar Client Secret"}
+                        onClick={() => setShowClientSecret((v) => !v)}
+                      >
+                        {showClientSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0 text-xs text-muted-foreground">
+                    Redirect URI:{" "}
+                    <code className="break-all">https://www.nortesulauto.com.br/api/public/bling/callback</code>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        await navigator.clipboard.writeText("https://www.nortesulauto.com.br/api/public/bling/callback");
+                        toast.success("Redirect URI copiada");
+                      }}
+                    >
+                      <Copy className="mr-1 h-3.5 w-3.5" /> Copiar URI
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => saveCredentialsMut.mutate()}
+                      disabled={saveCredentialsMut.isPending || !clientIdInput.trim() || (!clientSecretInput.trim() && !s.clientSecretSaved)}
+                    >
+                      {saveCredentialsMut.isPending ? "Salvando…" : "Salvar credenciais"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Info label="Última autorização" value={fmt(cfg?.last_authorized_at)} />
                 <Info label="Token expira em" value={fmt(cfg?.expires_at)} />

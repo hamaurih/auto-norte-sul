@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 import { requireTenantRole } from "@/lib/auth-guards";
+import { decryptIntegrationSecret, encryptIntegrationSecret } from "@/lib/integration-crypto.server";
 
 const BLING_API = "https://www.bling.com.br/Api/v3";
 const TOKEN_URL = "https://www.bling.com.br/Api/v3/oauth/token";
@@ -52,13 +53,29 @@ async function getConfig(sb: any, tenantId: string) {
   const { data, error } = await sb
     .from("bling_config")
     .select(
-      "id,tenant_id,active,last_authorized_at,last_test_at,last_test_status,expires_at,scope,sync_prices,sync_stock,hide_out_of_stock,image_overwrites_manual,manual_price_overrides,auto_sync,sync_interval_minutes,redirect_uri,access_token,refresh_token,last_image_sync_product_id,last_image_sync_at",
+      "id,tenant_id,active,last_authorized_at,last_test_at,last_test_status,expires_at,scope,sync_prices,sync_stock,hide_out_of_stock,image_overwrites_manual,manual_price_overrides,auto_sync,sync_interval_minutes,redirect_uri,client_id,client_secret_encrypted,access_token,refresh_token,last_image_sync_product_id,last_image_sync_at",
     )
     .eq("tenant_id", tenantId)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Configuração Bling não encontrada para este ambiente.");
   return data as any;
+}
+
+export async function getBlingCredentials(sb: any, tenantId: string, cfg?: any) {
+  const config = cfg ?? await getConfig(sb, tenantId);
+  const clientId = String(config.client_id || process.env.BLING_CLIENT_ID || "").trim();
+  let clientSecret = String(process.env.BLING_CLIENT_SECRET || "").trim();
+  if (config.client_secret_encrypted) {
+    clientSecret = await decryptIntegrationSecret(config.client_secret_encrypted);
+  }
+  return {
+    clientId,
+    clientSecret,
+    clientIdConfigured: Boolean(clientId),
+    clientSecretConfigured: Boolean(clientSecret),
+    source: config.client_id || config.client_secret_encrypted ? "tenant" : "environment",
+  };
 }
 
 async function refreshTokenIfNeeded(sb: any, tenantId: string): Promise<string> {
@@ -69,8 +86,7 @@ async function refreshTokenIfNeeded(sb: any, tenantId: string): Promise<string> 
   if (expiresAt - Date.now() > 60_000) return cfg.access_token as string;
   if (!cfg.refresh_token) throw new Error("Access token expirado e sem refresh_token. Reautorize o Bling.");
 
-  const clientId = process.env.BLING_CLIENT_ID;
-  const clientSecret = process.env.BLING_CLIENT_SECRET;
+  const { clientId, clientSecret } = await getBlingCredentials(sb, tenantId, cfg);
   if (!clientId || !clientSecret) throw new Error("Credenciais do Bling não configuradas no backend.");
 
   const basic = btoa(`${clientId}:${clientSecret}`);
@@ -200,7 +216,13 @@ export const getBlingStatus = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await requireBlingAdmin(context);
     const cfg = await getConfig(context.supabase, context.tenantId);
-    const { access_token: _accessToken, refresh_token: _refreshToken, ...safeConfig } = cfg;
+    const {
+      access_token: _accessToken,
+      refresh_token: _refreshToken,
+      client_secret_encrypted: _clientSecretEncrypted,
+      ...safeConfig
+    } = cfg;
+    const credentials = await getBlingCredentials(context.supabase, context.tenantId, cfg);
 
     let connectionStatus: "connected" | "disconnected" | "error" | "configuring" = "disconnected";
     if (cfg.last_test_status === "erro") connectionStatus = "error";
@@ -210,8 +232,10 @@ export const getBlingStatus = createServerFn({ method: "GET" })
 
     return {
       config: safeConfig,
-      clientIdConfigured: Boolean(process.env.BLING_CLIENT_ID),
-      clientSecretConfigured: Boolean(process.env.BLING_CLIENT_SECRET),
+      clientIdConfigured: credentials.clientIdConfigured,
+      clientSecretConfigured: credentials.clientSecretConfigured,
+      credentialsSource: credentials.source,
+      clientSecretSaved: Boolean(cfg.client_secret_encrypted),
       connectionStatus,
       sourceOfTruth: "Norte Sul ERP",
       adapterMode: true,
@@ -284,16 +308,61 @@ export const updateBlingConfig = createServerFn({ method: "POST" })
     sync_interval_minutes?: number;
     sync_prices?: boolean;
     sync_stock?: boolean;
+    source_products?: boolean;
+    source_stock?: boolean;
+    source_price_b2c?: boolean;
     hide_out_of_stock?: boolean;
     image_overwrites_manual?: boolean;
     manual_price_overrides?: boolean;
+    client_id?: string;
+    client_secret?: string;
   }) => input)
   .handler(async ({ data, context }) => {
     await requireBlingAdmin(context);
     const cfg = await getConfig(context.supabase, context.tenantId);
+    const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
+    const boolKeys = [
+      "active",
+      "auto_sync",
+      "sync_prices",
+      "sync_stock",
+      "source_products",
+      "source_stock",
+      "source_price_b2c",
+      "hide_out_of_stock",
+      "image_overwrites_manual",
+      "manual_price_overrides",
+    ] as const;
+    for (const key of boolKeys) {
+      if (typeof data[key] === "boolean") update[key] = data[key];
+    }
+    if (typeof data.sync_interval_minutes === "number") {
+      update.sync_interval_minutes = Math.min(Math.max(Math.trunc(data.sync_interval_minutes), 5), 1440);
+    }
+
+    const nextClientId = typeof data.client_id === "string" ? data.client_id.trim() : undefined;
+    const nextClientSecret = typeof data.client_secret === "string" ? data.client_secret.trim() : undefined;
+    const credentialsChanged = nextClientId !== undefined || Boolean(nextClientSecret);
+    if (nextClientId !== undefined) {
+      if (!nextClientId || nextClientId.length > 255) throw new Error("Informe um Client ID válido.");
+      update.client_id = nextClientId;
+    }
+    if (nextClientSecret) {
+      if (nextClientSecret.length > 4096) throw new Error("Client Secret muito longo.");
+      update.client_secret_encrypted = await encryptIntegrationSecret(nextClientSecret);
+    }
+    if (credentialsChanged) {
+      update.access_token = null;
+      update.refresh_token = null;
+      update.expires_at = null;
+      update.last_authorized_at = null;
+      update.last_test_status = null;
+    }
+
     const { error } = await (context.supabase as any)
       .from("bling_config")
-      .update({ ...data, updated_at: new Date().toISOString() })
+      .update(update)
       .eq("tenant_id", context.tenantId)
       .eq("id", cfg.id);
     if (error) throw new Error(error.message);
