@@ -311,10 +311,10 @@ function BlingModule() {
         <TabsContent value="imagens" className="mt-4">
           <SyncCard
             title="Imagens"
-            description="Baixa imagens vinculadas aos produtos no Bling. Processa em lotes de ~120 produtos (rate-limit 3 req/s do Bling)."
+            description="Baixa as imagens do Bling e copia cada arquivo para o Storage Norte Sul. Links temporários nunca são mantidos como imagem definitiva."
             lastSync={null}
             actionLabel="Sincronizar 1 lote"
-            onSync={runSync(() => syncImages({ data: { batchSize: 120, onlyMissing: true } }), "Imagens")}
+            onSync={runSync(() => syncImages({ data: { batchSize: 25, onlyMissing: true } }), "Imagens")}
             pending={busy === "Imagens" || busy === "Imagens (auto)"}
           >
             <ImageAutoSyncPanel
@@ -326,7 +326,7 @@ function BlingModule() {
                   let iter = 0;
                   while (iter < 100) {
                     iter++;
-                    const r: any = await syncImages({ data: { batchSize: 150, onlyMissing: true } });
+                    const r: any = await syncImages({ data: { batchSize: 25, onlyMissing: true } });
                     setProgress({
                       iter,
                       processed: r.processed,
@@ -759,4 +759,3 @@ function Stat({ label, value }: { label: string; value: number }) {
     </div>
   );
 }
-

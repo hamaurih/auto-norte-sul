@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 
 type Role = "admin" | "gerente" | "vendedor" | "staff";
 
@@ -14,48 +14,23 @@ async function assertRoles(sb: any, userId: string, roles: Role[]) {
 export const getSaneamentoStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const sb = context.supabase;
-    const { count: total } = await sb.from("products").select("id", { count: "exact", head: true });
-    const problem = async (col: string, op: "is" | "eq" | "lte", val: any) => {
-      let q = sb.from("products").select("id", { count: "exact", head: true });
-      if (op === "is") q = q.is(col, val);
-      else if (op === "eq") q = q.eq(col, val);
-      else q = q.lte(col, val);
-      const { count } = await q;
-      return count ?? 0;
-    };
-    const [semMarca, semCategoria, semSku, semPreco, semEstoque] = await Promise.all([
-      problem("brand_id", "is", null),
-      problem("category_id", "is", null),
-      problem("sku", "is", null),
-      problem("price_b2c", "lte", 0),
-      problem("stock", "lte", 0),
-    ]);
-    // Sem imagem: produtos sem product_images
-    const { data: withImg } = await sb.from("product_images").select("product_id");
-    const withImgSet = new Set((withImg ?? []).map((r) => r.product_id));
-    const { data: allIds } = await sb.from("products").select("id");
-    const semImagem = (allIds ?? []).filter((r) => !withImgSet.has(r.id)).length;
-    // Sem aplicação
-    const { data: withApp } = await sb.from("product_applications").select("product_id");
-    const withAppSet = new Set((withApp ?? []).map((r) => r.product_id));
-    const semAplicacao = (allIds ?? []).filter((r) => !withAppSet.has(r.id)).length;
-    // Com estoque multi
-    const { data: multiStock } = await sb.from("product_stock").select("product_id");
-    const multiSet = new Set((multiStock ?? []).map((r) => r.product_id));
-    const semMulti = (allIds ?? []).filter((r) => !multiSet.has(r.id)).length;
-
-    const t = total ?? 0;
+    const { data, error } = await (context.supabase as any)
+      .rpc("get_catalog_sanitation_stats", { p_tenant_id: context.tenantId })
+      .single();
+    if (error) throw new Error(error.message);
+    const n = (value: unknown) => Number(value ?? 0);
     return {
-      total: t,
-      semMarca,
-      semCategoria,
-      semSku,
-      semPreco,
-      semEstoque,
-      semImagem,
-      semAplicacao,
-      semMultiEstoque: semMulti,
+      total: n(data.total),
+      semMarca: n(data.sem_marca),
+      semCategoria: n(data.sem_categoria),
+      semSku: n(data.sem_sku),
+      semPreco: n(data.sem_preco),
+      semEstoque: n(data.sem_estoque),
+      semImagem: n(data.sem_imagem),
+      imagemExpirada: n(data.imagem_expirada),
+      imagensValidas: n(data.imagens_validas),
+      semAplicacao: n(data.sem_aplicacao),
+      semMultiEstoque: n(data.sem_multi_estoque),
     };
   });
 
@@ -69,32 +44,21 @@ export const listProblemProducts = createServerFn({ method: "GET" })
     search?: string;
   }) => input)
   .handler(async ({ data, context }) => {
-    const sb = context.supabase;
     const limit = Math.min(data.limit ?? 100, 500);
     const offset = data.offset ?? 0;
-
-    if (data.problem === "sem_imagem" || data.problem === "sem_aplicacao" || data.problem === "sem_multi") {
-      const other = data.problem === "sem_imagem" ? "product_images" : data.problem === "sem_aplicacao" ? "product_applications" : "product_stock";
-      const { data: withRows } = await sb.from(other).select("product_id");
-      const excl = Array.from(new Set((withRows ?? []).map((r) => r.product_id)));
-      let q = sb.from("products").select("id, sku, name, internal_code, brand_id, category_id, price_b2c, stock, active, bling_id").order("name").range(offset, offset + limit - 1);
-      if (excl.length) q = q.not("id", "in", `(${excl.join(",")})`);
-      if (data.search) q = q.or(`name.ilike.%${data.search}%,sku.ilike.%${data.search}%`);
-      const { data: rows, error } = await q;
-      if (error) throw new Error(error.message);
-      return { rows: rows ?? [], count: rows?.length ?? 0 };
-    }
-
-    let q = sb.from("products").select("id, sku, name, internal_code, brand_id, category_id, price_b2c, stock, active, bling_id", { count: "exact" }).order("name").range(offset, offset + limit - 1);
-    if (data.problem === "sem_marca") q = q.is("brand_id", null);
-    if (data.problem === "sem_categoria") q = q.is("category_id", null);
-    if (data.problem === "sem_sku") q = q.is("sku", null);
-    if (data.problem === "sem_preco") q = q.lte("price_b2c", 0);
-    if (data.problem === "sem_estoque") q = q.lte("stock", 0);
-    if (data.search) q = q.or(`name.ilike.%${data.search}%,sku.ilike.%${data.search}%`);
-    const { data: rows, error, count } = await q;
+    const { data: rows, error } = await (context.supabase as any).rpc(
+      "list_catalog_sanitation_products",
+      {
+        p_tenant_id: context.tenantId,
+        p_problem: data.problem,
+        p_limit: limit,
+        p_offset: offset,
+        p_search: data.search?.trim() || null,
+      },
+    );
     if (error) throw new Error(error.message);
-    return { rows: rows ?? [], count: count ?? 0 };
+    const cleanRows = (rows ?? []).map(({ total_count: _totalCount, ...row }: any) => row);
+    return { rows: cleanRows, count: Number(rows?.[0]?.total_count ?? 0) };
   });
 
 // ============ BRAND SUGGESTIONS ============
@@ -250,15 +214,19 @@ export const initStockFromLegacy = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertRoles(context.supabase, context.userId, ["admin", "gerente"]);
     const sb = context.supabase;
-    const { data: wh } = await sb.from("warehouses").select("id, is_default, branch:branches(is_main)").order("is_default", { ascending: false });
+    const { data: wh } = await sb
+      .from("warehouses")
+      .select("id, is_default, branch:branches(is_main)")
+      .eq("tenant_id", context.tenantId)
+      .order("is_default", { ascending: false });
     const defaultWh = (wh ?? []).find((w: any) => w.is_default && (w.branch as any)?.is_main) ?? wh?.[0];
     if (!defaultWh) throw new Error("Nenhum depósito padrão encontrado. Crie a Matriz.");
 
     // Products com estoque legado > 0 e SEM product_stock
-    const { data: haveMulti } = await sb.from("product_stock").select("product_id");
+    const { data: haveMulti } = await sb.from("product_stock").select("product_id").eq("tenant_id", context.tenantId);
     const multiSet = new Set((haveMulti ?? []).map((r) => r.product_id));
 
-    let q = sb.from("products").select("id, stock").gt("stock", 0);
+    let q = sb.from("products").select("id, stock").eq("tenant_id", context.tenantId).gt("stock", 0);
     if (data.productId) q = q.eq("id", data.productId);
     const { data: prods } = await q;
     const targets = (prods ?? []).filter((p) => !multiSet.has(p.id));
@@ -266,6 +234,7 @@ export const initStockFromLegacy = createServerFn({ method: "POST" })
     let created = 0;
     for (const p of targets) {
       const { error } = await sb.from("product_stock").insert({
+        tenant_id: context.tenantId,
         product_id: p.id,
         warehouse_id: defaultWh.id,
         on_hand: p.stock,
@@ -274,6 +243,7 @@ export const initStockFromLegacy = createServerFn({ method: "POST" })
       if (!error) {
         created++;
         await sb.from("stock_movements").insert({
+          tenant_id: context.tenantId,
           product_id: p.id,
           warehouse_id: defaultWh.id,
           type: "IN",
@@ -295,6 +265,7 @@ export const listApplications = createServerFn({ method: "GET" })
     const { data: rows, error } = await context.supabase
       .from("product_applications")
       .select("*")
+      .eq("tenant_id", context.tenantId)
       .eq("product_id", data.productId)
       .order("vehicle_make");
     if (error) throw new Error(error.message);
@@ -308,11 +279,19 @@ export const upsertApplication = createServerFn({ method: "POST" })
     await assertRoles(context.supabase, context.userId, ["admin", "gerente"]);
     const { id, ...row } = data;
     if (id) {
-      const { error } = await context.supabase.from("product_applications").update(row).eq("id", id);
+      const { error } = await context.supabase
+        .from("product_applications")
+        .update(row)
+        .eq("tenant_id", context.tenantId)
+        .eq("id", id);
       if (error) throw new Error(error.message);
       return { ok: true, id };
     }
-    const { data: ins, error } = await context.supabase.from("product_applications").insert(row).select("id").single();
+    const { data: ins, error } = await context.supabase
+      .from("product_applications")
+      .insert({ ...row, tenant_id: context.tenantId })
+      .select("id")
+      .single();
     if (error) throw new Error(error.message);
     return { ok: true, id: ins.id };
   });
@@ -322,7 +301,11 @@ export const deleteApplication = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string }) => input)
   .handler(async ({ data, context }) => {
     await assertRoles(context.supabase, context.userId, ["admin", "gerente"]);
-    const { error } = await context.supabase.from("product_applications").delete().eq("id", data.id);
+    const { error } = await context.supabase
+      .from("product_applications")
+      .delete()
+      .eq("tenant_id", context.tenantId)
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

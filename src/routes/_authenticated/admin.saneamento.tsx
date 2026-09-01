@@ -67,6 +67,8 @@ function SaneamentoPage() {
         <Stat label="Sem marca" value={stats.data?.semMarca ?? 0} warn={(stats.data?.semMarca ?? 0) > 0} total={stats.data?.total} />
         <Stat label="Sem categoria" value={stats.data?.semCategoria ?? 0} warn={(stats.data?.semCategoria ?? 0) > 0} total={stats.data?.total} />
         <Stat label="Sem imagem" value={stats.data?.semImagem ?? 0} warn={(stats.data?.semImagem ?? 0) > 0} total={stats.data?.total} />
+        <Stat label="Link expirado" value={stats.data?.imagemExpirada ?? 0} warn={(stats.data?.imagemExpirada ?? 0) > 0} total={stats.data?.total} />
+        <Stat label="Imagem válida" value={stats.data?.imagensValidas ?? 0} total={stats.data?.total} />
         <Stat label="Sem SKU" value={stats.data?.semSku ?? 0} warn={(stats.data?.semSku ?? 0) > 0} total={stats.data?.total} />
         <Stat label="Sem preço" value={stats.data?.semPreco ?? 0} warn={(stats.data?.semPreco ?? 0) > 0} total={stats.data?.total} />
         <Stat label="Sem estoque" value={stats.data?.semEstoque ?? 0} warn={(stats.data?.semEstoque ?? 0) > 0} total={stats.data?.total} />
@@ -87,7 +89,7 @@ function SaneamentoPage() {
 
         <TabsContent value="marca" className="mt-4"><TabBrand /></TabsContent>
         <TabsContent value="categoria" className="mt-4"><TabCategory /></TabsContent>
-        <TabsContent value="imagem" className="mt-4"><TabSimpleList problem="sem_imagem" title="Produtos sem imagem" helpText="Reprocessamento via Bling: rode a importação Bling na aba Ecossistema › Bling. Aqui só listamos os pendentes para você priorizar." /></TabsContent>
+        <TabsContent value="imagem" className="mt-4"><TabSimpleList problem="sem_imagem" title="Produtos sem imagem válida" helpText="Links temporários expirados também aparecem aqui. A sincronização deve copiar a imagem para o Storage Norte Sul antes de considerá-la válida." /></TabsContent>
         <TabsContent value="sku" className="mt-4"><TabSimpleList problem="sem_sku" title="Produtos sem SKU" helpText="SKU nunca é gerado automaticamente. Use o botão Editar para inserir manualmente." /></TabsContent>
         <TabsContent value="preco" className="mt-4"><TabSimpleList problem="sem_preco" title="Produtos com preço inválido (≤ 0)" helpText="Preço nunca é inventado. Ajuste manualmente ou reimporte do Bling." /></TabsContent>
         <TabsContent value="estoque" className="mt-4">
