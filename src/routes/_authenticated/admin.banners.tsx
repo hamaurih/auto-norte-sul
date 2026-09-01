@@ -186,7 +186,7 @@ function LinkBuilder({ value, onChange }: { value: string; onChange: (v: string)
 
   const { data: categories = [] } = useQuery({
     queryKey: ["admin-banners-categories"],
-    queryFn: async () => (await supabase.from("categories").select("id, name, slug").order("name")).data ?? [],
+    queryFn: async () => (await supabase.from("categories").select("id, name, slug").is("parent_id", null).order("name")).data ?? [],
   });
   const { data: brands = [] } = useQuery({
     queryKey: ["admin-banners-brands"],
