@@ -16,6 +16,14 @@ export async function resolveAlias(term: string) {
   return data?.[0] ?? null;
 }
 
+type CategoryTarget = { id: string; parent_id: string | null };
+
+function applyCategoryTarget<T extends { eq: (column: string, value: string) => T }>(query: T, category: CategoryTarget) {
+  return category.parent_id
+    ? query.eq("subcategory_id", category.id)
+    : query.eq("category_id", category.id);
+}
+
 async function logNoResult(term: string, origin: "site" | "mcp" | "ia" | "admin", matched?: { alias?: string | null; brand?: string | null; category?: string | null }) {
   try {
     await supabase.from("search_no_result_logs").insert({
@@ -167,7 +175,7 @@ export async function fetchCatalog(f: CatalogFilters = {}): Promise<ProductRow[]
     .is("deleted_at", null);
 
   let brandIdFromQuery: string | null = null;
-  let categoryIdFromAlias: string | null = null;
+  let categoryFromAlias: CategoryTarget | null = null;
   if (f.q) {
     const rawTerm = f.q.trim().toLowerCase();
     const term = sanitizeSearchTerm(f.q).toLowerCase();
@@ -193,8 +201,8 @@ export async function fetchCatalog(f: CatalogFilters = {}): Promise<ProductRow[]
           const { data: br } = await supabase.from("brands").select("id").eq("slug", alias.target_slug).maybeSingle();
           if (br) brandIdFromQuery = br.id;
         } else if (alias.target_type === "category" && alias.target_slug) {
-          const { data: cat } = await supabase.from("categories").select("id").eq("slug", alias.target_slug).maybeSingle();
-          if (cat) categoryIdFromAlias = cat.id;
+          const { data: cat } = await supabase.from("categories").select("id, parent_id").eq("slug", alias.target_slug).maybeSingle();
+          if (cat) categoryFromAlias = cat;
         } else if (alias.target_type === "product" && alias.target_id) {
           q = q.eq("id", alias.target_id);
         }
@@ -202,15 +210,15 @@ export async function fetchCatalog(f: CatalogFilters = {}): Promise<ProductRow[]
     }
 
     // 3) Se nada casou por marca/alias, busca textual normal
-    if (!brandIdFromQuery && !categoryIdFromAlias) {
+    if (!brandIdFromQuery && !categoryFromAlias) {
       q = q.or(`name.ilike.%${safe}%,sku.ilike.%${safe}%,short_description.ilike.%${safe}%`);
     }
   }
   if (brandIdFromQuery) q = q.eq("brand_id", brandIdFromQuery);
-  if (categoryIdFromAlias) q = q.eq("category_id", categoryIdFromAlias);
+  if (categoryFromAlias) q = applyCategoryTarget(q, categoryFromAlias);
   if (f.category) {
-    const { data: cat } = await supabase.from("categories").select("id").eq("slug", f.category).maybeSingle();
-    if (cat) q = q.eq("category_id", cat.id);
+    const { data: cat } = await supabase.from("categories").select("id, parent_id").eq("slug", f.category).maybeSingle();
+    if (cat) q = applyCategoryTarget(q, cat);
   }
   if (f.brand) {
     const { data: br } = await supabase.from("brands").select("id").eq("slug", f.brand).maybeSingle();
@@ -314,8 +322,8 @@ export async function fetchSearchSuggestions(term: string, limit = 8): Promise<S
     // Tenta alias comercial antes do fallback textual
     const alias = await resolveAlias(q);
     if (alias?.target_type === "category" && alias.target_slug) {
-      const { data: cat } = await supabase.from("categories").select("id").eq("slug", alias.target_slug).maybeSingle();
-      if (cat) query = query.eq("category_id", cat.id);
+      const { data: cat } = await supabase.from("categories").select("id, parent_id").eq("slug", alias.target_slug).maybeSingle();
+      if (cat) query = applyCategoryTarget(query, cat);
       else query = query.or(`name.ilike.%${safe}%,sku.ilike.%${safe}%`);
     } else if (alias?.target_type === "brand" && alias.target_slug) {
       const { data: br } = await supabase.from("brands").select("id").eq("slug", alias.target_slug).maybeSingle();
@@ -352,7 +360,12 @@ export async function fetchSearchSuggestions(term: string, limit = 8): Promise<S
 
 
 export async function fetchCategories() {
-  const { data } = await supabase.from("categories").select("id, name, slug, icon, sort_order").eq("active", true).order("sort_order");
+  const { data } = await supabase
+    .from("categories")
+    .select("id, name, slug, icon, sort_order")
+    .eq("active", true)
+    .is("parent_id", null)
+    .order("sort_order");
   return data ?? [];
 }
 
