@@ -94,7 +94,8 @@ function isAllowedDomain(hostname: string, domains: string[]) {
   return domains.some((domain) => host === domain || host.endsWith(`.${domain}`));
 }
 
-async function safeHtml(url: URL, domains: string[]) {
+async function safeHtml(url: URL, domains: string[], redirects = 0) {
+  if (redirects > 3) throw new Error("Fonte excedeu o limite de redirecionamentos");
   if (url.protocol !== "https:" || !isAllowedDomain(url.hostname, domains)) throw new Error("Domínio fora da lista permitida");
   const ips = [
     ...(await Deno.resolveDns(url.hostname, "A").catch(() => [])),
@@ -103,13 +104,22 @@ async function safeHtml(url: URL, domains: string[]) {
   if (!ips.length || ips.some(privateIp)) throw new Error("Destino de rede bloqueado");
 
   const response = await fetch(url, {
-    redirect: "error",
+    redirect: "manual",
     signal: AbortSignal.timeout(8000),
     headers: {
       "user-agent": "AutoNorteSulCatalog/3.0 (+official gallery and fitment enrichment)",
       "accept": "text/html,application/xhtml+xml",
     },
   });
+  if (response.status >= 300 && response.status < 400) {
+    const location = response.headers.get("location");
+    if (!location) throw new Error("Fonte redirecionou sem informar destino");
+    const redirected = absolute(location, url.href);
+    if (!redirected || redirected.protocol !== "https:" || !isAllowedDomain(redirected.hostname, domains)) {
+      throw new Error("Redirecionamento para domínio não permitido");
+    }
+    return safeHtml(redirected, domains, redirects + 1);
+  }
   if (!response.ok) throw new Error(`Fonte respondeu ${response.status}`);
   const type = response.headers.get("content-type") ?? "";
   if (!type.toLowerCase().includes("text/html") && !type.toLowerCase().includes("application/xhtml+xml")) throw new Error("Fonte não retornou HTML");
@@ -146,11 +156,22 @@ function fuzzyCodeRegex(normalizedCode: string) {
 }
 
 function detailPath(url: URL) {
-  return /\/produto\/|\/produtos\/visualizar\//i.test(url.pathname);
+  return /\/produto\/|\/produtos\/visualizar\/|\/[^/?]+\/p\/?$/i.test(url.pathname);
 }
 
 function catalogPath(url: URL) {
   return /\/produtos?(?:\/|$)|\/categoria-produto\/|catalog|automotiva|linha-completa|linha\//i.test(url.pathname);
+}
+
+function inlineCatalogFragment(html: string, variants: string[]) {
+  for (const match of html.matchAll(/<a\\b[^>]*>[\\s\\S]*?<\\/a>/gi)) {
+    const fragment = match[0];
+    if (!/<img\\b/i.test(fragment)) continue;
+    const normalized = normalize(text(fragment));
+    const matchedCode = variants.find((variant) => normalized.includes(variant));
+    if (matchedCode) return { html: fragment, matchedCode };
+  }
+  return null;
 }
 
 function findNearbyDetailLink(html: string, base: string, domains: string[], variants: string[]) {
@@ -197,6 +218,8 @@ async function findOfficialPage(entry: URL, domains: string[], code: string, bra
 
     if (matchedCode) {
       if (detailPath(current)) return { url: current, html, matchedCode };
+      const inline = inlineCatalogFragment(html, [matchedCode]);
+      if (inline) return { url: current, html: inline.html, matchedCode: inline.matchedCode };
       const title = meta(html, "og:title") ?? html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "";
       if (normalize(text(title)).includes(matchedCode)) return { url: current, html, matchedCode };
       const nearby = findNearbyDetailLink(html, current.href, domains, [matchedCode]);
@@ -400,14 +423,21 @@ function validModel(model: string) {
   return /[A-Za-zÀ-ÿ0-9]/.test(model);
 }
 
+function expandYear(raw: string) {
+  const value = Number(raw);
+  if (!Number.isInteger(value)) return value;
+  if (raw.length === 2) return value >= 50 ? 1900 + value : 2000 + value;
+  return value;
+}
+
 function extractVehicleApplications(html: string): VehicleApplication[] {
   const lines = textLines(html);
   const applications = new Map<string, VehicleApplication>();
   const add = (makeRaw: string, modelRaw: string, fromRaw: string, toRaw: string, sourceText: string, confidence: number) => {
     const vehicleMake = canonicalMake(makeRaw);
     const vehicleModel = cleanModel(modelRaw);
-    const yearFrom = Number(fromRaw);
-    const yearTo = Number(toRaw);
+    const yearFrom = expandYear(fromRaw);
+    const yearTo = expandYear(toRaw);
     if (!validModel(vehicleModel) || !Number.isInteger(yearFrom) || !Number.isInteger(yearTo)) return;
     if (yearFrom < 1950 || yearTo > 2100 || yearFrom > yearTo) return;
     const key = `${normalize(vehicleMake)}|${normalize(vehicleModel)}|${yearFrom}|${yearTo}`;
@@ -417,12 +447,14 @@ function extractVehicleApplications(html: string): VehicleApplication[] {
     }
   };
 
-  const paren = new RegExp(`\\b(${MAKE_PATTERN})\\s+([^\\n()]{1,80}?)\\s*\\(\\s*((?:19|20)\\d{2})\\s*(?:-|–|—|a|até)\\s*((?:19|20)\\d{2})\\s*\\)`, "gi");
+  const paren = new RegExp(`\\b(${MAKE_PATTERN})\\s+([^\\n()]{1,80}?)\\s*\\(\\s*((?:19|20)\\d{2})\\s*(?:-|–|—|/|a|até)\\s*((?:19|20)\\d{2})\\s*\\)`, "gi");
   const words = new RegExp(`\\b(${MAKE_PATTERN})\\s+([^\\n.;:]{1,80}?)\\s+(?:a\\s+partir\\s+do\\s+ano\\s+|dos\\s+anos\\s+de\\s+|do\\s+ano\\s+|de\\s+ano\\s+|de\\s+)?((?:19|20)\\d{2})\\s*(?:até|a|ao|-|–|—)\\s*(?:ano\\s+)?((?:19|20)\\d{2})`, "gi");
+  const shortYears = new RegExp(`\\\\b(${MAKE_PATTERN})\\\\s+([^\\\\n.;:]{1,80}?)\\\\s+(\\\\d{2})\\\\s*(?:/|-|–|—|a|até)\\\\s*(\\\\d{2})(?!\\\\d)`, "gi");
 
   const scan = (value: string) => {
     for (const match of value.matchAll(paren)) add(match[1], match[2], match[3], match[4], match[0], 99);
     for (const match of value.matchAll(words)) add(match[1], match[2], match[3], match[4], match[0], 97);
+    for (const match of value.matchAll(shortYears)) add(match[1], match[2], match[3], match[4], match[0], 94);
   };
 
   for (let i = 0; i < lines.length; i++) {
