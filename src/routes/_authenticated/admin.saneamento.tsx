@@ -7,16 +7,19 @@ import {
   getSaneamentoStats,
   listProblemProducts,
   suggestBrands,
-  suggestCategories,
   applyBrand,
   applyBrandBulk,
-  applyCategory,
-  applyCategoryBulk,
   initStockFromLegacy,
   listApplications,
   upsertApplication,
   deleteApplication,
 } from "@/lib/saneamento.functions";
+import {
+  suggestProductTaxonomy,
+  applyProductTaxonomy,
+  applyProductTaxonomyBulk,
+  type ProductTaxonomySuggestion,
+} from "@/lib/catalog-taxonomy.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -250,10 +253,9 @@ function TabBrand() {
 // =========== TAB: CATEGORY ===========
 function TabCategory() {
   const qc = useQueryClient();
-  const suggestFn = useServerFn(suggestCategories);
-  const applyFn = useServerFn(applyCategory);
-  const bulkFn = useServerFn(applyCategoryBulk);
-  const [productMap, setProductMap] = useState<Record<string, string>>({});
+  const suggestFn = useServerFn(suggestProductTaxonomy);
+  const applyFn = useServerFn(applyProductTaxonomy);
+  const bulkFn = useServerFn(applyProductTaxonomyBulk);
   const [search, setSearch] = useState("");
   const [confidenceFilter, setConfidenceFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -262,27 +264,17 @@ function TabCategory() {
 
   const sugg = useQuery({
     queryKey: ["san-cat-suggest"],
-    queryFn: async () => {
-      const list = await suggestFn({ data: { limit: 1000 } });
-      const ids = list.map((s) => s.productId);
-      if (ids.length) {
-        const { data } = await supabase.from("products").select("id, name").in("id", ids);
-        const map: Record<string, string> = {};
-        (data ?? []).forEach((p) => (map[p.id] = p.name));
-        setProductMap(map);
-      }
-      return list;
-    },
+    queryFn: () => suggestFn({ data: { limit: 3000, includeAssigned: true } }),
   });
 
   const { data: cats } = useQuery({
     queryKey: ["all-cats"],
-    queryFn: async () => (await supabase.from("categories").select("id, name, slug").order("name")).data ?? [],
+    queryFn: async () => (await supabase.from("categories").select("id, name, slug, parent_id").eq("active", true).order("name")).data ?? [],
   });
 
   const applyOne = useMutation({
-    mutationFn: (v: { productId: string; categoryId: string }) => applyFn({ data: v }),
-    onSuccess: () => { toast.success("Categoria aplicada"); qc.invalidateQueries({ queryKey: ["san-stats"] }); qc.invalidateQueries({ queryKey: ["san-cat-suggest"] }); },
+    mutationFn: (v: { productId: string; categoryId: string; subcategoryId: string; ruleId?: string | null; confidence?: "alta" | "media" | "baixa" }) => applyFn({ data: v }),
+    onSuccess: () => { toast.success("Categoria e subcategoria aplicadas"); qc.invalidateQueries({ queryKey: ["san-stats"] }); qc.invalidateQueries({ queryKey: ["san-cat-suggest"] }); },
     onError: (e: any) => toast.error(e.message),
   });
   const bulk = useMutation({
@@ -291,7 +283,7 @@ function TabCategory() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const suggestions = sugg.data ?? [];
+  const suggestions: ProductTaxonomySuggestion[] = sugg.data ?? [];
   const termStats = useMemo(() => {
     const counts = new Map<string, number>();
     suggestions.forEach((s) => {
@@ -312,14 +304,21 @@ function TabCategory() {
   const filtered = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase("pt-BR");
     return suggestions.filter((s) => {
-      const productName = (productMap[s.productId] ?? "").toLocaleLowerCase("pt-BR");
+      const productName = s.productName.toLocaleLowerCase("pt-BR");
       if (needle && !productName.includes(needle)) return false;
       if (confidenceFilter !== "all" && s.confidence !== confidenceFilter) return false;
       if (categoryFilter !== "all" && s.categorySlug !== categoryFilter) return false;
       if (selectedTerms.length > 0 && !selectedTerms.includes(s.matched)) return false;
       return true;
     });
-  }, [suggestions, productMap, search, confidenceFilter, categoryFilter, selectedTerms]);
+  }, [suggestions, search, confidenceFilter, categoryFilter, selectedTerms]);
+
+  const parentCategories = (cats ?? []).filter((category) => !category.parent_id);
+  const categoryPairs = parentCategories.flatMap((category) =>
+    (cats ?? [])
+      .filter((subcategory) => subcategory.parent_id === category.id)
+      .map((subcategory) => ({ category, subcategory })),
+  );
 
   const filteredHighs = filtered.filter((s) => s.confidence === "alta");
   const hasFilters = Boolean(search || confidenceFilter !== "all" || categoryFilter !== "all" || selectedTerms.length);
@@ -340,7 +339,7 @@ function TabCategory() {
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-3">
         <div className="text-sm">
-          <b>{filtered.length}</b> de {suggestions.length} sugestões exibidas. Confiança <b>alta</b> = termo específico encontrado.
+          <b>{filtered.length}</b> de {suggestions.length} sugestões exibidas. Confiança <b>alta</b> = tipo do produto reconhecido no início do nome.
         </div>
         <Button size="sm" disabled={!filteredHighs.length || bulk.isPending} onClick={() => bulk.mutate(filteredHighs)}>
           {bulk.isPending ? "Aplicando..." : `Aplicar ALTAS filtradas (${filteredHighs.length})`}
@@ -438,7 +437,7 @@ function TabCategory() {
           <table className="w-full min-w-[860px] text-sm">
             <thead className="bg-muted"><tr>
               <th className="p-2 text-left">Produto</th>
-              <th className="p-2 text-left">Categoria sugerida</th>
+              <th className="p-2 text-left">Categoria e subcategoria sugeridas</th>
               <th className="p-2 text-left">Confiança</th>
               <th className="p-2 text-left">
                 <div className="flex items-center gap-1.5">Termo{selectedTerms.length > 0 && <Badge variant="outline">{selectedTerms.length}</Badge>}</div>
@@ -448,20 +447,36 @@ function TabCategory() {
             <tbody>
               {filtered.map((s) => (
                 <tr key={s.productId} className="border-t border-border">
-                  <td className="p-2">{productMap[s.productId] ?? s.productId}</td>
-                  <td className="p-2 font-bold">{s.categorySlug}</td>
+                  <td className="p-2">{s.productName}</td>
+                  <td className="p-2 font-bold">
+                    {s.categoryName}<span className="mx-1 text-muted-foreground">›</span>{s.subcategoryName}
+                  </td>
                   <td className="p-2"><ConfBadge c={s.confidence} /></td>
                   <td className="p-2 text-xs text-muted-foreground">{s.matched}</td>
                   <td className="p-2 text-right">
                     <div className="flex justify-end gap-1">
-                      <Button size="sm" variant="outline" disabled={applyOne.isPending} onClick={() => applyOne.mutate({ productId: s.productId, categoryId: s.categoryId })}>Aplicar</Button>
+                      <Button size="sm" variant="outline" disabled={applyOne.isPending} onClick={() => applyOne.mutate({
+                        productId: s.productId,
+                        categoryId: s.categoryId,
+                        subcategoryId: s.subcategoryId,
+                        ruleId: s.ruleId,
+                        confidence: s.confidence,
+                      })}>Aplicar</Button>
                       <select
                         className="rounded border border-border bg-background px-1 text-xs"
                         defaultValue=""
-                        onChange={(e) => e.target.value && applyOne.mutate({ productId: s.productId, categoryId: e.target.value })}
+                        onChange={(e) => {
+                          if (!e.target.value) return;
+                          const [categoryId, subcategoryId] = e.target.value.split("|");
+                          applyOne.mutate({ productId: s.productId, categoryId, subcategoryId, ruleId: null, confidence: "alta" });
+                        }}
                       >
-                        <option value="">Outra...</option>
-                        {(cats ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        <option value="">Outra categoria...</option>
+                        {categoryPairs.map(({ category, subcategory }) => (
+                          <option key={subcategory.id} value={`${category.id}|${subcategory.id}`}>
+                            {category.name} › {subcategory.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </td>
