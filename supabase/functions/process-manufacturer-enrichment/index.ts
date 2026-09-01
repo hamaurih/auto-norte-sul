@@ -164,9 +164,9 @@ function catalogPath(url: URL) {
 }
 
 function inlineCatalogFragment(html: string, variants: string[]) {
-  for (const match of html.matchAll(/<a\\b[^>]*>[\\s\\S]*?<\\/a>/gi)) {
+  for (const match of html.matchAll(/<a\b[^>]*>[\s\S]*?<\/a>/gi)) {
     const fragment = match[0];
-    if (!/<img\\b/i.test(fragment)) continue;
+    if (!/<img\b/i.test(fragment)) continue;
     const normalized = normalize(text(fragment));
     const matchedCode = variants.find((variant) => normalized.includes(variant));
     if (matchedCode) return { html: fragment, matchedCode };
@@ -449,7 +449,7 @@ function extractVehicleApplications(html: string): VehicleApplication[] {
 
   const paren = new RegExp(`\\b(${MAKE_PATTERN})\\s+([^\\n()]{1,80}?)\\s*\\(\\s*((?:19|20)\\d{2})\\s*(?:-|–|—|/|a|até)\\s*((?:19|20)\\d{2})\\s*\\)`, "gi");
   const words = new RegExp(`\\b(${MAKE_PATTERN})\\s+([^\\n.;:]{1,80}?)\\s+(?:a\\s+partir\\s+do\\s+ano\\s+|dos\\s+anos\\s+de\\s+|do\\s+ano\\s+|de\\s+ano\\s+|de\\s+)?((?:19|20)\\d{2})\\s*(?:até|a|ao|-|–|—)\\s*(?:ano\\s+)?((?:19|20)\\d{2})`, "gi");
-  const shortYears = new RegExp(`\\\\b(${MAKE_PATTERN})\\\\s+([^\\\\n.;:]{1,80}?)\\\\s+(\\\\d{2})\\\\s*(?:/|-|–|—|a|até)\\\\s*(\\\\d{2})(?!\\\\d)`, "gi");
+  const shortYears = new RegExp(`\\b(${MAKE_PATTERN})\\s+([^\\n.;:]{1,80}?)\\s+(\\d{2})\\s*(?:/|-|–|—|a|até)\\s*(\\d{2})(?!\\d)`, "gi");
 
   const scan = (value: string) => {
     for (const match of value.matchAll(paren)) add(match[1], match[2], match[3], match[4], match[0], 99);
