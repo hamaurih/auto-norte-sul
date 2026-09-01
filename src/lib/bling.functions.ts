@@ -52,7 +52,7 @@ async function getConfig(sb: any, tenantId: string) {
   const { data, error } = await sb
     .from("bling_config")
     .select(
-      "id,tenant_id,active,last_authorized_at,last_test_at,last_test_status,expires_at,scope,sync_prices,sync_stock,hide_out_of_stock,image_overwrites_manual,manual_price_overrides,auto_sync,sync_interval_minutes,redirect_uri,access_token,refresh_token",
+      "id,tenant_id,active,last_authorized_at,last_test_at,last_test_status,expires_at,scope,sync_prices,sync_stock,hide_out_of_stock,image_overwrites_manual,manual_price_overrides,auto_sync,sync_interval_minutes,redirect_uri,access_token,refresh_token,last_image_sync_product_id,last_image_sync_at",
     )
     .eq("tenant_id", tenantId)
     .maybeSingle();
@@ -115,6 +115,69 @@ async function blingFetch(token: string, path: string) {
   return payload;
 }
 
+function isUsableCatalogImage(url: string) {
+  const value = String(url ?? "").trim();
+  if (!value) return false;
+  const expires = value.match(/[?&]Expires=([0-9]+)/i)?.[1];
+  if (expires && Number(expires) * 1000 < Date.now()) return false;
+  if (/^https:\/\/orgbling\.s3\.amazonaws\.com\//i.test(value) && !expires) return false;
+  return true;
+}
+
+async function shortHash(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest)).slice(0, 8).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function copyBlingImageToStorage(
+  admin: any,
+  tenantId: string,
+  productId: string,
+  sourceUrl: string,
+  order: number,
+) {
+  const source = new URL(sourceUrl);
+  const allowedHosts = new Set([
+    "orgbling.s3.amazonaws.com",
+    "bling.com.br",
+    "www.bling.com.br",
+  ]);
+  if (source.protocol !== "https:" || !allowedHosts.has(source.hostname.toLowerCase())) {
+    throw new Error(`Host de imagem do Bling não permitido: ${source.hostname}`);
+  }
+
+  const response = await fetch(source, {
+    redirect: "error",
+    signal: AbortSignal.timeout(15_000),
+    headers: { "User-Agent": "NorteSulCatalog/1.0" },
+  });
+  if (!response.ok) throw new Error(`Download da imagem retornou HTTP ${response.status}`);
+
+  const mime = (response.headers.get("content-type") || "").split(";")[0].toLowerCase();
+  const extensions: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+  };
+  const extension = extensions[mime];
+  if (!extension) throw new Error(`Formato de imagem não permitido: ${mime || "desconhecido"}`);
+  const declaredSize = Number(response.headers.get("content-length") || 0);
+  if (declaredSize > 5 * 1024 * 1024) throw new Error("Imagem maior que 5 MB");
+
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (bytes.byteLength > 5 * 1024 * 1024) throw new Error("Imagem maior que 5 MB");
+  const fingerprint = await shortHash(`${source.origin}${source.pathname}`);
+  const path = `${tenantId}/${productId}/bling/${String(order).padStart(2, "0")}-${fingerprint}.${extension}`;
+  const { error: uploadError } = await admin.storage.from("product-images").upload(path, bytes, {
+    contentType: mime,
+    cacheControl: "31536000",
+    upsert: true,
+  });
+  if (uploadError) throw new Error(uploadError.message);
+  return admin.storage.from("product-images").getPublicUrl(path).data.publicUrl as string;
+}
+
 async function blockedInbound(context: any, entity: BlingEntity, action: string) {
   await requireBlingAdmin(context);
   await writeLog(context.supabase, context.tenantId, {
@@ -171,7 +234,7 @@ export const testBlingConnection = createServerFn({ method: "POST" })
         message = String(error?.message ?? error);
       }
     }
-    const { error } = await context.supabase
+    const { error } = await (context.supabase as any)
       .from("bling_config")
       .update({ last_test_at: new Date().toISOString(), last_test_status: status, updated_at: new Date().toISOString() })
       .eq("tenant_id", context.tenantId)
@@ -191,7 +254,7 @@ export const revokeBlingConnection = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     await requireBlingAdmin(context);
     const cfg = await getConfig(context.supabase, context.tenantId);
-    const { error } = await context.supabase
+    const { error } = await (context.supabase as any)
       .from("bling_config")
       .update({
         access_token: null,
@@ -228,7 +291,7 @@ export const updateBlingConfig = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await requireBlingAdmin(context);
     const cfg = await getConfig(context.supabase, context.tenantId);
-    const { error } = await context.supabase
+    const { error } = await (context.supabase as any)
       .from("bling_config")
       .update({ ...data, updated_at: new Date().toISOString() })
       .eq("tenant_id", context.tenantId)
@@ -262,38 +325,63 @@ export const syncBlingImages = createServerFn({ method: "POST" })
     await requireBlingAdmin(context);
     const sb = context.supabase as any;
     const token = await refreshTokenIfNeeded(sb, context.tenantId);
-    const integrationId = await getBlingIntegrationId(sb);
-    const batchSize = Math.min(Math.max(data.batchSize ?? 100, 1), 200);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+    const cfg = await getConfig(sb, context.tenantId);
+    const batchSize = Math.min(Math.max(data.batchSize ?? 20, 1), 25);
+    const scanLimit = Math.min(batchSize * 4, 100);
 
-    const { data: mappings, error: mappingsError } = await sb
-      .from("external_entity_mappings")
-      .select("internal_id,external_id")
+    let productsQuery = admin
+      .from("products")
+      .select("id,bling_id,name")
       .eq("tenant_id", context.tenantId)
-      .eq("integration_id", integrationId)
-      .eq("entity_type", "product")
-      .limit(batchSize * 3);
-    if (mappingsError) throw new Error(mappingsError.message);
+      .eq("active", true)
+      .is("deleted_at", null)
+      .not("bling_id", "is", null)
+      .order("id", { ascending: true })
+      .limit(scanLimit);
+    if (cfg.last_image_sync_product_id) productsQuery = productsQuery.gt("id", cfg.last_image_sync_product_id);
+    const { data: products, error: productsError } = await productsQuery;
+    if (productsError) throw new Error(productsError.message);
 
-    const productIds = (mappings ?? []).map((row: any) => row.internal_id);
+    if (!(products ?? []).length && cfg.last_image_sync_product_id) {
+      await admin.from("bling_config").update({
+        last_image_sync_product_id: null,
+        last_image_sync_at: new Date().toISOString(),
+      }).eq("tenant_id", context.tenantId);
+      return {
+        ok: true,
+        message: "Ciclo completo. O cursor foi reiniciado para a próxima verificação.",
+        processed: 0,
+        withImages: 0,
+        imagesSaved: 0,
+        remaining: 0,
+        cycleCompleted: true,
+      };
+    }
+
+    const productIds = (products ?? []).map((row: any) => row.id);
     const { data: existingImages } = productIds.length
-      ? await sb
+      ? await admin
           .from("product_images")
-          .select("product_id")
+          .select("id,product_id,url")
           .eq("tenant_id", context.tenantId)
           .in("product_id", productIds)
       : { data: [] };
-    const hasImage = new Set((existingImages ?? []).map((row: any) => String(row.product_id)));
-    const candidates = (mappings ?? [])
-      .filter((row: any) => !data.onlyMissing || !hasImage.has(String(row.internal_id)))
+    const usableProductIds = new Set(
+      (existingImages ?? []).filter((row: any) => isUsableCatalogImage(row.url)).map((row: any) => String(row.product_id)),
+    );
+    const candidates = (products ?? [])
+      .filter((row: any) => !data.onlyMissing || !usableProductIds.has(String(row.id)))
       .slice(0, batchSize);
 
     let processed = 0;
     let withImages = 0;
     let imagesSaved = 0;
-    for (const mapping of candidates) {
+    for (const productRow of candidates) {
       processed += 1;
       try {
-        const payload: any = await blingFetch(token, `/produtos/${encodeURIComponent(mapping.external_id)}`);
+        const payload: any = await blingFetch(token, `/produtos/${encodeURIComponent(productRow.bling_id)}`);
         const product = payload?.data ?? payload;
         const images: any[] = product?.midia?.imagens?.externas ?? product?.midia?.imagens ?? product?.imagens ?? [];
         const urls = images
@@ -301,30 +389,39 @@ export const syncBlingImages = createServerFn({ method: "POST" })
           .filter((value: string) => /^https:\/\//i.test(value));
         if (!urls.length) continue;
         withImages += 1;
-        if (data.onlyMissing && hasImage.has(String(mapping.internal_id))) continue;
-
-        if (!data.onlyMissing) {
-          await sb
-            .from("product_images")
-            .delete()
-            .eq("tenant_id", context.tenantId)
-            .eq("product_id", mapping.internal_id);
+        const permanentUrls: string[] = [];
+        for (const [index, url] of urls.slice(0, 8).entries()) {
+          permanentUrls.push(await copyBlingImageToStorage(admin, context.tenantId, productRow.id, url, index));
         }
-        const rows = urls.slice(0, 8).map((url: string, index: number) => ({
+
+        const currentRows = (existingImages ?? []).filter((row: any) => row.product_id === productRow.id);
+        const expiredBlingIds = currentRows
+          .filter((row: any) => !isUsableCatalogImage(row.url) || /^https:\/\/orgbling\.s3\.amazonaws\.com\//i.test(row.url))
+          .map((row: any) => row.id);
+        if (expiredBlingIds.length) {
+          const { error: deleteError } = await admin.from("product_images").delete()
+            .eq("tenant_id", context.tenantId).in("id", expiredBlingIds);
+          if (deleteError) throw new Error(deleteError.message);
+        }
+
+        const alreadySaved = new Set(currentRows.map((row: any) => row.url));
+        const rows = permanentUrls.filter((url) => !alreadySaved.has(url)).map((url: string, index: number) => ({
           tenant_id: context.tenantId,
-          product_id: mapping.internal_id,
+          product_id: productRow.id,
           url,
-          alt: "Imagem do produto",
+          alt: productRow.name || "Imagem do produto",
           sort_order: index,
-          is_primary: index === 0,
+          is_primary: index === 0 && !currentRows.some((row: any) => isUsableCatalogImage(row.url)),
         }));
-        const { error } = await sb.from("product_images").insert(rows);
-        if (error) throw new Error(error.message);
+        if (rows.length) {
+          const { error } = await admin.from("product_images").insert(rows);
+          if (error) throw new Error(error.message);
+        }
         imagesSaved += rows.length;
       } catch (error: any) {
         await writeLog(sb, context.tenantId, {
           entity: "imagem",
-          entity_id: mapping.internal_id,
+          entity_id: productRow.id,
           action: "media_enrichment",
           status: "erro",
           message: String(error?.message ?? error).slice(0, 400),
@@ -332,7 +429,17 @@ export const syncBlingImages = createServerFn({ method: "POST" })
       }
     }
 
-    const remaining = Math.max((mappings?.length ?? 0) - processed, 0);
+    const lastScannedId =
+      data.onlyMissing === false
+        ? (candidates.at(-1)?.id ?? products?.at(-1)?.id ?? cfg.last_image_sync_product_id ?? null)
+        : candidates.length >= batchSize
+          ? candidates.at(-1)?.id
+          : products?.at(-1)?.id;
+    await admin.from("bling_config").update({
+      last_image_sync_product_id: lastScannedId,
+      last_image_sync_at: new Date().toISOString(),
+    }).eq("tenant_id", context.tenantId);
+    const remaining = (products?.length ?? 0) === scanLimit ? 1 : 0;
     await writeLog(sb, context.tenantId, {
       entity: "imagem",
       action: "media_enrichment_batch",
@@ -340,7 +447,14 @@ export const syncBlingImages = createServerFn({ method: "POST" })
       message: `Enriquecimento de mídia: ${processed} verificados, ${imagesSaved} imagens salvas.`,
       payload: { processed, withImages, imagesSaved, remaining },
     });
-    return { ok: true, processed, withImages, imagesSaved, remaining };
+    return {
+      ok: true,
+      message: `${processed} produto(s) verificado(s); ${imagesSaved} imagem(ns) permanente(s) salva(s).`,
+      processed,
+      withImages,
+      imagesSaved,
+      remaining,
+    };
   });
 
 export const sendPendingOrders = createServerFn({ method: "POST" })

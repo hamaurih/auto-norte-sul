@@ -521,6 +521,11 @@ Deno.serve(async (req) => {
       const code = product?.manufacturer_code?.trim();
       const brandName = String(product?.brand?.name ?? "").trim();
       if (!code || !product?.brand_id) {
+        await admin.from("product_enrichment_jobs").update({
+          status: "failed",
+          last_error: "Produto sem marca ou código do fabricante",
+          finished_at: new Date().toISOString(),
+        }).eq("id", job.id).eq("tenant_id", job.tenant_id);
         results.push({ jobId: job.id, status: "skipped", reason: "Produto sem marca ou código" });
         continue;
       }
