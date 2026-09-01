@@ -4,6 +4,7 @@
  * the exact tenant, configuration and redirect URI that initiated authorization.
  */
 import { createFileRoute } from "@tanstack/react-router";
+import { getBlingCredentials } from "@/lib/bling.functions";
 
 const TOKEN_URL = "https://www.bling.com.br/Api/v3/oauth/token";
 
@@ -92,20 +93,19 @@ export const Route = createFileRoute("/api/public/bling/callback")({
           return html(400, "Código ausente", "O Bling não enviou um authorization_code válido.");
         }
 
-        const clientId = process.env.BLING_CLIENT_ID;
-        const clientSecret = process.env.BLING_CLIENT_SECRET;
-        if (!clientId || !clientSecret) {
-          return html(500, "Configuração incompleta", "As credenciais do Bling não estão configuradas no backend.");
-        }
-
         const { data: cfg, error: cfgError } = await (supabaseAdmin as any)
           .from("bling_config")
-          .select("id,tenant_id")
+          .select("id,tenant_id,client_id,client_secret_encrypted")
           .eq("tenant_id", stateRow.tenant_id)
           .eq("id", stateRow.config_id)
           .maybeSingle();
         if (cfgError || !cfg?.id) {
           return html(400, "Configuração inválida", "A configuração associada a esta autorização não existe mais.");
+        }
+
+        const { clientId, clientSecret } = await getBlingCredentials(supabaseAdmin, stateRow.tenant_id, cfg);
+        if (!clientId || !clientSecret) {
+          return html(500, "Configuração incompleta", "As credenciais do Bling não estão configuradas no backend.");
         }
 
         const log = async (status: "sucesso" | "erro", message: string) => {
