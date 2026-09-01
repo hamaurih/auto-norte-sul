@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 import { requireTenantRole } from "@/lib/auth-guards";
+import { getBlingCredentials } from "@/lib/bling.functions";
 
 const BLING_AUTHORIZE_URL = "https://www.bling.com.br/Api/v3/oauth/authorize";
 const CALLBACK_PATH = "/api/public/bling/callback";
@@ -39,17 +40,18 @@ export const getSecureBlingAuthUrl = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await requireTenantRole(context.supabase, context.userId, context.tenantId, ["owner", "admin"]);
 
-    const clientId = process.env.BLING_CLIENT_ID;
-    if (!clientId) throw new Error("BLING_CLIENT_ID não configurado.");
-
     const redirectUri = validateRedirectUri(data.redirectUri);
     const { data: cfg, error: cfgError } = await (context.supabase as any)
       .from("bling_config")
-      .select("id")
+      .select("id,client_id,client_secret_encrypted")
       .eq("tenant_id", context.tenantId)
       .maybeSingle();
     if (cfgError || !cfg?.id) {
       throw new Error(cfgError?.message ?? "Configuração Bling não encontrada para este ambiente.");
+    }
+    const { clientId, clientSecret } = await getBlingCredentials(context.supabase, context.tenantId, cfg);
+    if (!clientId || !clientSecret) {
+      throw new Error("Informe Client ID e Client Secret antes de conectar ao Bling.");
     }
 
     const { error: updateError } = await (context.supabase as any)
