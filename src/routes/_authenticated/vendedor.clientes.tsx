@@ -26,7 +26,7 @@ function Clientes() {
   async function add(e: React.FormEvent) {
     e.preventDefault();
     if (!data?.rep_id) return;
-    const { error } = await supabase.from("sales_rep_customers").insert({ rep_id: data.rep_id, ...form });
+    const { error } = await supabase.from("sales_rep_customers").insert({ rep_id: data.rep_id, ...form } as never);
     if (error) toast.error(error.message);
     else {
       toast.success("Cliente/lead adicionado");

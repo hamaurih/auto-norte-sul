@@ -43,8 +43,9 @@ function Catalog() {
     sort: search.sort ?? "sales",
   };
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["catalog", filters],
-    queryFn: () => fetchCatalog(filters),
+    queryKey: ["catalog", tenantId, filters],
+    queryFn: () => fetchCatalog(filters, tenantId),
+    enabled: Boolean(tenantId),
   });
   // Taxonomy lists are tenant-scoped: without the tenant id in the key/filter
   // other tenants' categories/brands leak in and appear duplicated.
