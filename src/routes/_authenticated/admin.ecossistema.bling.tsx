@@ -471,8 +471,9 @@ function BlingModule() {
                       remaining: r.remaining,
                     });
                     if (!r.processed || r.remaining === 0) break;
-                    // pequena pausa entre lotes
-                    await new Promise((res) => setTimeout(res, 800));
+                    // pausa entre lotes (>= 1s) para reduzir rajadas no limite de 3 req/s do Bling
+                    await new Promise((res) => setTimeout(res, 1200));
+
                   }
                   toast.success("Sincronização de imagens concluída (ou pausada em 100 lotes)");
                 } catch (e: any) {
