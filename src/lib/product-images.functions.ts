@@ -20,10 +20,91 @@ function isPrivateHost(host: string): boolean {
     || /^(::1|::|fc|fd|fe80)/i.test(h);
 }
 
-function assertPublicHttps(target: URL): void {
+function isBlockedIpv4(ip: string): boolean {
+  const parts = ip.split(".");
+  if (parts.length !== 4) return true;
+  const [a, b] = parts.map((p) => Number(p));
+  if (parts.some((p) => !/^\d{1,3}$/.test(p)) || [a, b].some((n) => Number.isNaN(n))) return true;
+  const o = parts.map(Number) as [number, number, number, number];
+  if (o.some((n) => n < 0 || n > 255)) return true;
+  if (o[0] === 0 || o[0] === 10 || o[0] === 127) return true; // this-network, private, loopback
+  if (o[0] === 169 && o[1] === 254) return true; // link-local
+  if (o[0] === 172 && o[1]! >= 16 && o[1]! <= 31) return true; // private
+  if (o[0] === 192 && o[1] === 168) return true; // private
+  if (o[0] === 192 && o[1] === 0 && (o[2] === 0 || o[2] === 2)) return true; // reserved/test
+  if (o[0] === 198 && (o[1] === 18 || o[1] === 19)) return true; // benchmarking
+  if (o[0] === 198 && o[1] === 51 && o[2] === 100) return true; // test-net-2
+  if (o[0] === 203 && o[1] === 0 && o[2] === 113) return true; // test-net-3
+  if (o[0] === 100 && o[1]! >= 64 && o[1]! <= 127) return true; // CGNAT
+  if (o[0]! >= 224) return true; // multicast + reserved + broadcast
+  return false;
+}
+
+function isBlockedIp(address: string): boolean {
+  const ip = address.trim().toLowerCase().replace(/^\[|\]$/g, "").replace(/%.*$/, "");
+  if (!ip) return true;
+  if (ip.includes(":")) {
+    if (ip === "::" || ip === "::1" || ip === "::0") return true;
+    // IPv4-mapped / IPv4-compatible
+    const mapped = /(?:^::ffff:|^::)((?:\d{1,3}\.){3}\d{1,3})$/.exec(ip);
+    if (mapped) return isBlockedIpv4(mapped[1]!);
+    if (/^f[cd]/.test(ip)) return true; // ULA fc00::/7
+    if (/^fe[89ab]/.test(ip)) return true; // link-local fe80::/10
+    if (/^ff/.test(ip)) return true; // multicast
+    return false;
+  }
+  return isBlockedIpv4(ip);
+}
+
+let dnsModule: typeof import("node:dns/promises") | null | undefined;
+
+async function loadDns() {
+  if (dnsModule !== undefined) return dnsModule;
+  try {
+    dnsModule = await import("node:dns/promises");
+  } catch {
+    dnsModule = null;
+  }
+  return dnsModule;
+}
+
+/** Resolve o hostname e rejeita se qualquer endereço cair em faixa não pública. */
+async function assertResolvesToPublicAddress(hostname: string): Promise<void> {
+  const literal = hostname.replace(/^\[|\]$/g, "");
+  if (/^[\d.]+$/.test(literal) || literal.includes(":")) {
+    if (isBlockedIp(literal)) throw new Error("Destino de rede não permitido");
+    return;
+  }
+  const dns = await loadDns();
+  if (!dns) return; // runtime sem node:dns: mantém validações literais existentes
+  let addresses: string[] = [];
+  try {
+    const looked = await dns.lookup(literal, { all: true });
+    addresses = looked.map((entry) => entry.address);
+  } catch {
+    addresses = [];
+  }
+  if (addresses.length === 0) {
+    try {
+      const [v4, v6] = await Promise.allSettled([dns.resolve4(literal), dns.resolve6(literal)]);
+      if (v4.status === "fulfilled") addresses.push(...v4.value);
+      if (v6.status === "fulfilled") addresses.push(...v6.value);
+    } catch {
+      /* ignore */
+    }
+  }
+  if (addresses.length === 0) throw new Error("Não foi possível resolver o host de origem");
+  if (addresses.some((address) => isBlockedIp(address))) {
+    throw new Error("Destino de rede não permitido");
+  }
+}
+
+async function assertPublicHttps(target: URL): Promise<void> {
   if (target.protocol !== "https:") throw new Error("Somente URLs HTTPS públicas são aceitas");
   if (isPrivateHost(target.hostname)) throw new Error("Destino de rede não permitido");
+  await assertResolvesToPublicAddress(target.hostname);
 }
+
 
 function detectMagic(bytes: Uint8Array): "jpg" | "png" | "webp" | null {
   if (bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "jpg";
