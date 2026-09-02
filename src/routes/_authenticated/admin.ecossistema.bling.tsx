@@ -87,6 +87,8 @@ const logBadge = {
 };
 
 const fmt = (iso: string | null) => (iso ? new Date(iso).toLocaleString("pt-BR") : "—");
+const BLING_CALLBACK_PATH = "/api/public/bling/callback";
+const BLING_REDIRECT_HOSTS = ["www.nortesulauto.com.br", "nortesulauto.com.br"] as const;
 
 function BlingModule() {
   const qc = useQueryClient();
@@ -95,6 +97,8 @@ function BlingModule() {
   const [clientIdInput, setClientIdInput] = useState("");
   const [clientSecretInput, setClientSecretInput] = useState("");
   const [showClientSecret, setShowClientSecret] = useState(false);
+  const [redirectHost, setRedirectHost] = useState<(typeof BLING_REDIRECT_HOSTS)[number]>("www.nortesulauto.com.br");
+  const [connecting, setConnecting] = useState(false);
 
   const statusFn = useServerFn(getBlingStatus);
   const statsFn = useServerFn(getBlingStats);
@@ -133,30 +137,43 @@ function BlingModule() {
     }
   }, [status.data?.config?.client_id]);
 
+  useEffect(() => {
+    const host = window.location.hostname as (typeof BLING_REDIRECT_HOSTS)[number];
+    if (BLING_REDIRECT_HOSTS.includes(host)) {
+      setRedirectHost(host);
+    }
+  }, []);
+
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: ["bling-status"] });
     qc.invalidateQueries({ queryKey: ["bling-stats"] });
     qc.invalidateQueries({ queryKey: ["bling-logs"] });
   };
 
-  const connectMut = useMutation({
-    mutationFn: async () => {
-      // Domínio publicado fixo — é a Redirect URI cadastrada no app do Bling.
-      const redirectUri = "https://www.nortesulauto.com.br/api/public/bling/callback";
-      return authUrlFn({ data: { redirectUri } });
-    },
-    onSuccess: (r) => {
-      // Abre em nova aba: o Bling recusa ser carregado dentro do iframe do preview
-      // (X-Frame-Options), então navegar via window.location.href mostra "conexão recusada".
-      const w = window.open((r as any).url, "_blank", "noopener,noreferrer");
-      if (!w) {
-        toast.error("Popup bloqueado. Libere pop-ups para este site e tente novamente.");
-      } else {
-        toast.success("Autorize o acesso na nova aba. Depois volte aqui e clique em Testar conexão.");
-      }
-    },
-    onError: (e: any) => toast.error(e.message ?? "Erro"),
-  });
+  const redirectUri = `https://${redirectHost}${BLING_CALLBACK_PATH}`;
+  const handleConnect = async () => {
+    if (connecting) return;
+    setConnecting(true);
+    const popup = window.open("about:blank", "_blank");
+    if (!popup) {
+      setConnecting(false);
+      toast.error("Popup bloqueado. Libere pop-ups para este site e tente novamente.");
+      return;
+    }
+    try {
+      popup.opener = null;
+      popup.document.title = "Conectando ao Bling";
+      popup.document.body.innerHTML = "<p style=\"font-family:system-ui;padding:24px\">Abrindo autorização do Bling...</p>";
+      const r = await authUrlFn({ data: { redirectUri } });
+      popup.location.href = (r as any).url;
+      toast.success("Autorize o acesso na nova aba. Depois volte aqui e clique em Testar conexão.");
+    } catch (e: any) {
+      popup.close();
+      toast.error(e.message ?? "Erro ao iniciar conexão com Bling");
+    } finally {
+      setConnecting(false);
+    }
+  };
 
   const testMut = useMutation({
     mutationFn: () => testFn(),
@@ -261,7 +278,7 @@ function BlingModule() {
             de backend. Peça esses valores no app <a className="underline" href="https://developer.bling.com.br" target="_blank" rel="noreferrer">developer.bling.com.br</a>.
             <br />
             Redirect URI a cadastrar no Bling:{" "}
-            <code>https://www.nortesulauto.com.br/api/public/bling/callback</code>
+            <code>{redirectUri}</code>
           </AlertDescription>
         </Alert>
       )}
@@ -340,7 +357,20 @@ function BlingModule() {
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                   <div className="min-w-0 text-xs text-muted-foreground">
                     Redirect URI:{" "}
-                    <code className="break-all">https://www.nortesulauto.com.br/api/public/bling/callback</code>
+                    <code className="break-all">{redirectUri}</code>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {BLING_REDIRECT_HOSTS.map((host) => (
+                        <Button
+                          key={host}
+                          type="button"
+                          variant={redirectHost === host ? "secondary" : "outline"}
+                          size="sm"
+                          onClick={() => setRedirectHost(host)}
+                        >
+                          {host.startsWith("www.") ? "Usar com www" : "Usar sem www"}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button
@@ -348,7 +378,7 @@ function BlingModule() {
                       variant="outline"
                       size="sm"
                       onClick={async () => {
-                        await navigator.clipboard.writeText("https://www.nortesulauto.com.br/api/public/bling/callback");
+                        await navigator.clipboard.writeText(redirectUri);
                         toast.success("Redirect URI copiada");
                       }}
                     >
@@ -374,8 +404,8 @@ function BlingModule() {
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button
-                  onClick={() => connectMut.mutate()}
-                  disabled={connectMut.isPending || !s.clientIdConfigured || !s.clientSecretConfigured}
+                  onClick={handleConnect}
+                  disabled={connecting || !s.clientIdConfigured || !s.clientSecretConfigured}
                 >
                   <Link2 className="mr-1 h-4 w-4" />
                   {s.connectionStatus === "connected" ? "Reautorizar" : "Conectar ao Bling"}
