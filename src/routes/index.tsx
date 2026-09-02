@@ -33,6 +33,7 @@ import {
   fetchBestSellers,
 } from "@/lib/queries";
 import { useSession } from "@/lib/session";
+import { useCompanyProfile } from "@/lib/company";
 
 // Categories/brands are intentionally NOT prefetched here: they are
 // tenant-scoped and the active tenant is only known on the client, so
