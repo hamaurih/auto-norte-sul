@@ -203,8 +203,10 @@ export interface CatalogFilters {
   sort?: "sales" | "price_asc" | "price_desc" | "new";
 }
 
-export async function fetchCatalog(f: CatalogFilters = {}): Promise<ProductRow[]> {
-  let q = supabase.from("products").select(PRODUCT_LIST_SELECT).eq("active", true)
+export async function fetchCatalog(f: CatalogFilters = {}, tenantId?: string | null): Promise<ProductRow[]> {
+  const tenant = await tenantScope(tenantId);
+  if (!tenant) return [];
+  let q = supabase.from("products").select(PRODUCT_LIST_SELECT).eq("tenant_id", tenant).eq("active", true)
     .is("deleted_at", null);
 
   let brandIdFromQuery: string | null = null;
@@ -219,6 +221,7 @@ export async function fetchCatalog(f: CatalogFilters = {}): Promise<ProductRow[]
       const { data: brands } = await supabase
         .from("brands")
         .select("id, name, slug")
+        .eq("tenant_id", tenant)
         .or(`name.ilike.%${safe}%,slug.ilike.%${safe}%`)
         .limit(3);
       const exact = (brands ?? []).find((b) => b.name.toLowerCase() === rawTerm || b.slug.toLowerCase() === rawTerm);
@@ -231,10 +234,10 @@ export async function fetchCatalog(f: CatalogFilters = {}): Promise<ProductRow[]
       const alias = await resolveAlias(f.q);
       if (alias) {
         if (alias.target_type === "brand" && alias.target_slug) {
-          const { data: br } = await supabase.from("brands").select("id").eq("slug", alias.target_slug).maybeSingle();
+          const br = await findBrandBySlug(alias.target_slug, tenant);
           if (br) brandIdFromQuery = br.id;
         } else if (alias.target_type === "category" && alias.target_slug) {
-          const { data: cat } = await supabase.from("categories").select("id, parent_id").eq("slug", alias.target_slug).maybeSingle();
+          const cat = await findCategoryBySlug(alias.target_slug, tenant);
           if (cat) categoryFromAlias = cat;
         } else if (alias.target_type === "product" && alias.target_id) {
           q = q.eq("id", alias.target_id);
@@ -250,11 +253,11 @@ export async function fetchCatalog(f: CatalogFilters = {}): Promise<ProductRow[]
   if (brandIdFromQuery) q = q.eq("brand_id", brandIdFromQuery);
   if (categoryFromAlias) q = applyCategoryTarget(q, categoryFromAlias);
   if (f.category) {
-    const { data: cat } = await supabase.from("categories").select("id, parent_id").eq("slug", f.category).maybeSingle();
+    const cat = await findCategoryBySlug(f.category, tenant);
     if (cat) q = applyCategoryTarget(q, cat);
   }
   if (f.brand) {
-    const { data: br } = await supabase.from("brands").select("id").eq("slug", f.brand).maybeSingle();
+    const br = await findBrandBySlug(f.brand, tenant);
     if (br) q = q.eq("brand_id", br.id);
   }
   if (typeof f.minPrice === "number") q = q.gte("price_b2c", f.minPrice);
@@ -285,10 +288,13 @@ export async function fetchCatalog(f: CatalogFilters = {}): Promise<ProductRow[]
   return rows;
 }
 
-export async function fetchProductBySlug(slug: string): Promise<ProductRow | null> {
+export async function fetchProductBySlug(slug: string, tenantId?: string | null): Promise<ProductRow | null> {
+  const tenant = await tenantScope(tenantId);
+  if (!tenant) return null;
   const { data, error } = await supabase
     .from("products")
     .select(PRODUCT_SELECT)
+    .eq("tenant_id", tenant)
     .eq("slug", slug)
     .eq("active", true)
     .is("deleted_at", null)
@@ -308,11 +314,13 @@ export async function fetchProductApplications(productId: string) {
   return data ?? [];
 }
 
-export async function fetchRelated(categorySlug: string | null, excludeId: string) {
-  let q = supabase.from("products").select(PRODUCT_LIST_SELECT).eq("active", true)
+export async function fetchRelated(categorySlug: string | null, excludeId: string, tenantId?: string | null) {
+  const tenant = await tenantScope(tenantId);
+  if (!tenant) return [];
+  let q = supabase.from("products").select(PRODUCT_LIST_SELECT).eq("tenant_id", tenant).eq("active", true)
     .is("deleted_at", null).neq("id", excludeId).limit(8);
   if (categorySlug) {
-    const { data: cat } = await supabase.from("categories").select("id").eq("slug", categorySlug).maybeSingle();
+    const cat = await findCategoryBySlug(categorySlug, tenant);
     if (cat) q = q.eq("category_id", cat.id);
   }
   const { data } = await q;
