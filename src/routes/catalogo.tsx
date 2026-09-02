@@ -5,6 +5,7 @@ import { z } from "zod";
 import { fetchBrands, fetchCatalog, fetchCategories, type CatalogFilters } from "@/lib/queries";
 import { ProductCard } from "@/components/site/ProductCard";
 import { useSession } from "@/lib/session";
+import { useCompanyProfile } from "@/lib/company";
 import { Filter } from "lucide-react";
 
 const searchSchema = z.object({
@@ -30,6 +31,8 @@ function Catalog() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const { isB2BApproved } = useSession();
+  const { data: company } = useCompanyProfile();
+  const tenantId = company?.tenant_id;
   const [openFilters, setOpenFilters] = useState(false);
 
   const filters: CatalogFilters = {
@@ -43,8 +46,18 @@ function Catalog() {
     queryKey: ["catalog", filters],
     queryFn: () => fetchCatalog(filters),
   });
-  const { data: categories = [] } = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
-  const { data: brands = [] } = useQuery({ queryKey: ["brands"], queryFn: fetchBrands });
+  // Taxonomy lists are tenant-scoped: without the tenant id in the key/filter
+  // other tenants' categories/brands leak in and appear duplicated.
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories", tenantId],
+    queryFn: () => fetchCategories(tenantId),
+    enabled: Boolean(tenantId),
+  });
+  const { data: brands = [] } = useQuery({
+    queryKey: ["brands", tenantId],
+    queryFn: () => fetchBrands(tenantId),
+    enabled: Boolean(tenantId),
+  });
 
   function update(patch: Partial<typeof search>) {
     navigate({ search: { ...search, ...patch } });

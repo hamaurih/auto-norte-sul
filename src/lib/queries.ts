@@ -359,18 +359,38 @@ export async function fetchSearchSuggestions(term: string, limit = 8): Promise<S
 }
 
 
-export async function fetchCategories() {
-  const { data } = await supabase
+/**
+ * Public taxonomy reads are tenant-scoped: the storefront must only ever show
+ * the departments/brands of the active tenant. Without the explicit filter,
+ * rows from other tenants leak in and appear as duplicated categories/brands.
+ */
+export async function fetchCategories(tenantId?: string | null) {
+  if (!tenantId) return [];
+  const { data, error } = await supabase
     .from("categories")
     .select("id, name, slug, icon, sort_order")
+    .eq("tenant_id", tenantId)
     .eq("active", true)
     .is("parent_id", null)
     .order("sort_order");
+  if (error) {
+    console.error("Erro ao carregar departamentos", error);
+    return [];
+  }
   return data ?? [];
 }
 
-export async function fetchBrands() {
-  const { data } = await supabase.from("brands").select("id, name, slug, logo_url, featured").order("name");
+export async function fetchBrands(tenantId?: string | null) {
+  if (!tenantId) return [];
+  const { data, error } = await supabase
+    .from("brands")
+    .select("id, name, slug, logo_url, featured")
+    .eq("tenant_id", tenantId)
+    .order("name");
+  if (error) {
+    console.error("Erro ao carregar marcas", error);
+    return [];
+  }
   return data ?? [];
 }
 

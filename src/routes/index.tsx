@@ -33,16 +33,18 @@ import {
   fetchBestSellers,
 } from "@/lib/queries";
 import { useSession } from "@/lib/session";
+import { useCompanyProfile } from "@/lib/company";
 
+// Categories/brands are intentionally NOT prefetched here: they are
+// tenant-scoped and the active tenant is only known on the client, so
+// prefetching them without the tenant id would poison the cache.
 const HOME_QUERIES: { queryKey: readonly string[]; queryFn: () => Promise<unknown> }[] = [
   { queryKey: ["banners"], queryFn: fetchBanners },
   { queryKey: ["mini-banners"], queryFn: fetchMiniBanners },
-  { queryKey: ["categories"], queryFn: fetchCategories },
   { queryKey: ["offers"], queryFn: fetchOffers },
   { queryKey: ["new"], queryFn: fetchNewArrivals },
   { queryKey: ["best"], queryFn: fetchBestSellers },
   { queryKey: ["featured"], queryFn: fetchFeatured },
-  { queryKey: ["brands"], queryFn: fetchBrands },
 ];
 
 export const Route = createFileRoute("/")({
@@ -151,6 +153,8 @@ function HomeFallback() {
 
 function Home() {
   const { isB2BApproved } = useSession();
+  const { data: company } = useCompanyProfile();
+  const tenantId = company?.tenant_id;
   const common = { staleTime: 60_000, retry: 1 } as const;
   const { data: banners = [], isLoading: loadingBanners, isError: errorBanners } = useQuery({
     queryKey: ["banners"],
@@ -163,8 +167,9 @@ function Home() {
     ...common,
   });
   const { data: categories = [] } = useQuery({
-    queryKey: ["categories"],
-    queryFn: fetchCategories,
+    queryKey: ["categories", tenantId],
+    queryFn: () => fetchCategories(tenantId),
+    enabled: Boolean(tenantId),
     ...common,
   });
   const { data: offers = [], isLoading: loadingOffers } = useQuery({
@@ -188,8 +193,9 @@ function Home() {
     ...common,
   });
   const { data: brands = [] } = useQuery({
-    queryKey: ["brands"],
-    queryFn: fetchBrands,
+    queryKey: ["brands", tenantId],
+    queryFn: () => fetchBrands(tenantId),
+    enabled: Boolean(tenantId),
     ...common,
   });
 
