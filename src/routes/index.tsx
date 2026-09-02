@@ -152,6 +152,8 @@ function HomeFallback() {
 
 function Home() {
   const { isB2BApproved } = useSession();
+  const { data: company } = useCompanyProfile();
+  const tenantId = company?.tenant_id;
   const common = { staleTime: 60_000, retry: 1 } as const;
   const { data: banners = [], isLoading: loadingBanners, isError: errorBanners } = useQuery({
     queryKey: ["banners"],
@@ -164,8 +166,9 @@ function Home() {
     ...common,
   });
   const { data: categories = [] } = useQuery({
-    queryKey: ["categories"],
-    queryFn: fetchCategories,
+    queryKey: ["categories", tenantId],
+    queryFn: () => fetchCategories(tenantId),
+    enabled: Boolean(tenantId),
     ...common,
   });
   const { data: offers = [], isLoading: loadingOffers } = useQuery({
@@ -189,8 +192,9 @@ function Home() {
     ...common,
   });
   const { data: brands = [] } = useQuery({
-    queryKey: ["brands"],
-    queryFn: fetchBrands,
+    queryKey: ["brands", tenantId],
+    queryFn: () => fetchBrands(tenantId),
+    enabled: Boolean(tenantId),
     ...common,
   });
 
