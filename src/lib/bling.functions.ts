@@ -3,8 +3,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 import { requireTenantRole } from "@/lib/auth-guards";
 import { decryptIntegrationSecret, encryptIntegrationSecret } from "@/lib/integration-crypto.server";
 
-const BLING_API = "https://www.bling.com.br/Api/v3";
-const TOKEN_URL = "https://www.bling.com.br/Api/v3/oauth/token";
+const BLING_API = "https://api.bling.com.br/Api/v3";
+const TOKEN_URL = "https://api.bling.com.br/Api/v3/oauth/token";
 const INBOUND_BLOCKED_MESSAGE =
   "Sincronização de entrada desativada: o ERP Norte Sul é a fonte oficial";
 
@@ -22,7 +22,7 @@ async function getBlingIntegrationId(sb: any): Promise<string> {
 }
 
 async function writeLog(
-  sb: any,
+  _sb: any,
   tenantId: string,
   args: {
     entity: BlingEntity;
@@ -35,7 +35,8 @@ async function writeLog(
     integration_event_id?: string | null;
   },
 ) {
-  const { error } = await sb.from("bling_sync_logs").insert({
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { error } = await (supabaseAdmin as any).from("bling_sync_logs").insert({
     tenant_id: tenantId,
     entity: args.entity,
     entity_id: args.entity_id ?? null,
@@ -95,7 +96,8 @@ async function refreshTokenIfNeeded(sb: any, tenantId: string): Promise<string> 
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
       Authorization: `Basic ${basic}`,
-      Accept: "application/json",
+      Accept: "1.0",
+      "enable-jwt": "1",
     },
     body: new URLSearchParams({
       grant_type: "refresh_token",
@@ -124,7 +126,7 @@ async function refreshTokenIfNeeded(sb: any, tenantId: string): Promise<string> 
 
 async function blingFetch(token: string, path: string) {
   const response = await fetch(`${BLING_API}${path}`, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/json", "enable-jwt": "1" },
   });
   const payload: any = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(`Bling ${path} → HTTP ${response.status}`);
