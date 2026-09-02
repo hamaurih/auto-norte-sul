@@ -57,6 +57,31 @@ function applyCategoryTarget<T extends { eq: (column: string, value: string) => 
     : query.eq("category_id", category.id);
 }
 
+// Slugs de categoria/marca só são únicos dentro de um tenant: sem o filtro por
+// `tenant_id` o mesmo slug pode resolver para outra loja (ou quebrar o
+// `maybeSingle` por múltiplas linhas).
+async function findCategoryBySlug(slug: string, tenantId: string): Promise<CategoryTarget | null> {
+  const { data } = await supabase
+    .from("categories")
+    .select("id, parent_id")
+    .eq("tenant_id", tenantId)
+    .eq("slug", slug)
+    .limit(1)
+    .maybeSingle();
+  return data ?? null;
+}
+
+async function findBrandBySlug(slug: string, tenantId: string): Promise<{ id: string } | null> {
+  const { data } = await supabase
+    .from("brands")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("slug", slug)
+    .limit(1)
+    .maybeSingle();
+  return data ?? null;
+}
+
 async function logNoResult(term: string, origin: "site" | "mcp" | "ia" | "admin", matched?: { alias?: string | null; brand?: string | null; category?: string | null }) {
   try {
     await supabase.from("search_no_result_logs").insert({
