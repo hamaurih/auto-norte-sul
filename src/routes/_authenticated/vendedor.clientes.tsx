@@ -16,17 +16,17 @@ function Clientes() {
   const { data } = useQuery({
     queryKey: ["vendedor-clientes"],
     queryFn: async () => {
-      const { data: rep } = await supabase.from("sales_reps").select("id").eq("user_id", (await supabase.auth.getUser()).data.user!.id).maybeSingle();
-      if (!rep) return { rep_id: null as string | null, list: [] as any[] };
+      const { data: rep } = await supabase.from("sales_reps").select("id,tenant_id").eq("user_id", (await supabase.auth.getUser()).data.user!.id).maybeSingle();
+      if (!rep) return { rep_id: null as string | null, tenant_id: null as string | null, list: [] as any[] };
       const { data: list } = await supabase.from("sales_rep_customers").select("*").eq("rep_id", rep.id).order("created_at", { ascending: false });
-      return { rep_id: rep.id, list: list ?? [] };
+      return { rep_id: rep.id, tenant_id: (rep as any).tenant_id as string | null, list: list ?? [] };
     },
   });
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
     if (!data?.rep_id) return;
-    const { error } = await supabase.from("sales_rep_customers").insert({ rep_id: data.rep_id, ...form });
+    const { error } = await supabase.from("sales_rep_customers").insert({ rep_id: data.rep_id, tenant_id: data.tenant_id!, ...form });
     if (error) toast.error(error.message);
     else {
       toast.success("Cliente/lead adicionado");

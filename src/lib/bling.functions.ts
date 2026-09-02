@@ -163,12 +163,23 @@ async function shortHash(value: string) {
   return Array.from(new Uint8Array(digest)).slice(0, 8).map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+function detectImageFormat(bytes: Uint8Array): "jpeg" | "png" | "webp" | null {
+  if (bytes.byteLength < 12) return null;
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "jpeg";
+  const png = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (png.every((byte, index) => bytes[index] === byte)) return "png";
+  const ascii = (start: number, end: number) =>
+    String.fromCharCode(...Array.from(bytes.slice(start, end)));
+  if (ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP") return "webp";
+  return null;
+}
+
 async function copyBlingImageToStorage(
   admin: any,
   tenantId: string,
   productId: string,
   sourceUrl: string,
-  order: number,
+  _order: number,
 ) {
   const source = new URL(sourceUrl);
   const allowedHosts = new Set([
@@ -188,28 +199,41 @@ async function copyBlingImageToStorage(
   if (!response.ok) throw new Error(`Download da imagem retornou HTTP ${response.status}`);
 
   const mime = (response.headers.get("content-type") || "").split(";")[0].toLowerCase();
-  const extensions: Record<string, string> = {
-    "image/jpeg": "jpg",
+  const mimeFormats: Record<string, "jpeg" | "png" | "webp"> = {
+    "image/jpeg": "jpeg",
+    "image/jpg": "jpeg",
     "image/png": "png",
     "image/webp": "webp",
   };
-  const extension = extensions[mime];
-  if (!extension) throw new Error(`Formato de imagem não permitido: ${mime || "desconhecido"}`);
+  const declaredFormat = mime ? mimeFormats[mime] : undefined;
+  if (mime && !declaredFormat) throw new Error(`Formato de imagem não permitido: ${mime}`);
   const declaredSize = Number(response.headers.get("content-length") || 0);
   if (declaredSize > 5 * 1024 * 1024) throw new Error("Imagem maior que 5 MB");
 
   const bytes = new Uint8Array(await response.arrayBuffer());
+  if (!bytes.byteLength) throw new Error("Download da imagem retornou payload vazio");
   if (bytes.byteLength > 5 * 1024 * 1024) throw new Error("Imagem maior que 5 MB");
+
+  const detected = detectImageFormat(bytes);
+  if (!detected) throw new Error("Conteúdo da imagem inválido ou truncado (magic bytes não reconhecidos)");
+  if (declaredFormat && declaredFormat !== detected) {
+    throw new Error(`Content-Type (${mime}) divergente do conteúdo real (${detected})`);
+  }
+  const format = detected;
+  const extension = format === "jpeg" ? "jpg" : format;
+  const contentType = `image/${format}`;
+
   const fingerprint = await shortHash(`${source.origin}${source.pathname}`);
-  const path = `${tenantId}/${productId}/bling/${String(order).padStart(2, "0")}-${fingerprint}.${extension}`;
+  const path = `${tenantId}/${productId}/bling/${fingerprint}.${extension}`;
   const { error: uploadError } = await admin.storage.from("product-images").upload(path, bytes, {
-    contentType: mime,
+    contentType,
     cacheControl: "31536000",
     upsert: true,
   });
   if (uploadError) throw new Error(uploadError.message);
   return admin.storage.from("product-images").getPublicUrl(path).data.publicUrl as string;
 }
+
 
 async function blockedInbound(context: any, entity: BlingEntity, action: string) {
   await requireBlingAdmin(context);
@@ -474,9 +498,13 @@ export const syncBlingImages = createServerFn({ method: "POST" })
         const payload: any = await blingFetch(token, `/produtos/${encodeURIComponent(productRow.bling_id)}`);
         const product = payload?.data ?? payload;
         const images: any[] = product?.midia?.imagens?.externas ?? product?.midia?.imagens ?? product?.imagens ?? [];
-        const urls = images
-          .map((item: any) => String(item?.link ?? item?.url ?? item?.imagemURL ?? "").trim())
-          .filter((value: string) => /^https:\/\//i.test(value));
+        const urls = Array.from(
+          new Set(
+            images
+              .map((item: any) => String(item?.link ?? item?.url ?? item?.imagemURL ?? "").trim())
+              .filter((value: string) => /^https:\/\//i.test(value)),
+          ),
+        );
         if (!urls.length) continue;
         withImages += 1;
 
@@ -485,9 +513,10 @@ export const syncBlingImages = createServerFn({ method: "POST" })
         const downloadErrors: string[] = [];
         for (const [index, url] of urls.slice(0, 8).entries()) {
           try {
-            permanentUrls.push(await copyBlingImageToStorage(admin, context.tenantId, productRow.id, url, index));
+            const stored = await copyBlingImageToStorage(admin, context.tenantId, productRow.id, url, index);
+            if (!permanentUrls.includes(stored)) permanentUrls.push(stored);
           } catch (copyError: any) {
-            downloadErrors.push(String(copyError?.message ?? copyError).slice(0, 200));
+            downloadErrors.push(`${url}: ${String(copyError?.message ?? copyError)}`.slice(0, 200));
           }
         }
         if (!permanentUrls.length) {
@@ -515,9 +544,9 @@ export const syncBlingImages = createServerFn({ method: "POST" })
         }
 
         const keptRows = currentRows.filter((row: any) => !externalIds.includes(row.id));
-        const hasPermanentPrimary = keptRows.some(
-          (row: any) => isPermanentStorageImageUrl(row.url) && row.is_primary,
-        );
+        const overwriteManual = cfg.image_overwrites_manual === true;
+        // Qualquer primary mantida (inclusive manual em host/Storage legado) é preservada quando não há overwrite.
+        const hasKeptPrimary = keptRows.some((row: any) => row.is_primary === true);
         const alreadySaved = new Set(keptRows.map((row: any) => String(row.url)));
         const newUrls = permanentUrls.filter((url) => !alreadySaved.has(url));
         const baseOrder = keptRows.length;
@@ -527,8 +556,9 @@ export const syncBlingImages = createServerFn({ method: "POST" })
           url,
           alt: productRow.name || "Imagem do produto",
           sort_order: baseOrder + index,
-          is_primary: index === 0 && (cfg.image_overwrites_manual === true || !hasPermanentPrimary),
+          is_primary: index === 0 && (overwriteManual || !hasKeptPrimary),
         }));
+
         if (rows.length) {
           if (rows[0]?.is_primary) {
             await admin.from("product_images").update({ is_primary: false })
