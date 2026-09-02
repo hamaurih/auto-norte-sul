@@ -5,23 +5,39 @@ import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { checkInternalCodeDuplicate, productUpsert, type ProductInput } from "@/lib/products.functions";
+import { importProductImageUrl } from "@/lib/product-images.functions";
+
 import { normalizeCode, normalizeName } from "@/lib/product-codes";
 import { slugify } from "@/lib/format";
 import { Trash2, ArrowUp, ArrowDown, Star, Plus, Upload, Loader2 } from "lucide-react";
 
 type Img = { url: string; alt?: string | null; is_primary?: boolean };
 
+const STORAGE_PUBLIC_PREFIX = `${(import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? ""}/storage/v1/object/`;
+
+/** Já hospedada por nós (bucket público `product-images` desta instância). */
+function isOwnStorageUrl(url: string) {
+  const value = url.trim();
+  if (!value || !STORAGE_PUBLIC_PREFIX.startsWith("http")) return false;
+  return value.startsWith(`${STORAGE_PUBLIC_PREFIX}public/product-images/`)
+    || value.startsWith(`${STORAGE_PUBLIC_PREFIX}sign/product-images/`);
+}
+
 function toInput(v: string | null | undefined) {
   return v ? v.slice(0, 16) : "";
 }
+
 
 export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { id?: string; images?: Img[] } }) {
   const navigate = useNavigate();
   const upsert = useServerFn(productUpsert);
   const checkDup = useServerFn(checkInternalCodeDuplicate);
+  const importImage = useServerFn(importProductImageUrl);
   const [dupWarning, setDupWarning] = useState<string | null>(null);
   const [tab, setTab] = useState<"geral" | "precos" | "estoque" | "imagens">("geral");
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
+
   const [form, setForm] = useState<ProductInput>({
     id: initial?.id ?? null,
     sku: initial?.sku ?? "",
@@ -116,10 +132,9 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
           upsert: false,
         });
         if (up.error) throw up.error;
-        // Long-lived signed URL (10 years) — works while bucket is private.
-        const signed = await bucket.createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
-        if (signed.error) throw signed.error;
-        uploaded.push({ url: signed.data.signedUrl, alt: file.name, is_primary: false });
+        // Bucket público: URL permanente, sem expiração, pronta para marketplaces.
+        const publicUrl = bucket.getPublicUrl(path).data.publicUrl;
+        uploaded.push({ url: publicUrl, alt: file.name, is_primary: false });
       }
       setForm((f) => {
         const existing = f.images ?? [];
@@ -138,6 +153,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
+
 
   async function verifyInternalCode() {
     const code = normalizeCode(form.internal_code);
@@ -158,6 +174,39 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
     try {
       const name = normalizeName(form.name);
       if (!name) { toast.error("Nome do produto é obrigatório"); setSaving(false); return; }
+
+      const current = (form.images ?? []).filter((i) => i.url.trim().length > 0);
+      const hasExternal = current.some((i) => !isOwnStorageUrl(i.url));
+      let images = current;
+
+      if (hasExternal) {
+        setImporting(true);
+        try {
+          images = [];
+          for (const img of current) {
+            const url = img.url.trim();
+            if (isOwnStorageUrl(url)) {
+              images.push({ ...img, url });
+              continue;
+            }
+            const res = await importImage({
+              data: { sourceUrl: url, sku: form.sku || null, productId: form.id ?? null },
+            });
+            images.push({ ...img, url: res.publicUrl });
+          }
+          setForm((f) => ({ ...f, images }));
+        } catch (importErr) {
+          toast.error(
+            importErr instanceof Error
+              ? `Não foi possível importar a imagem: ${importErr.message}`
+              : "Não foi possível importar as imagens externas",
+          );
+          return;
+        } finally {
+          setImporting(false);
+        }
+      }
+
       const payload: ProductInput = {
         ...form,
         name,
@@ -165,7 +214,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
         internal_code: normalizeCode(form.internal_code),
         manufacturer_code: normalizeCode(form.manufacturer_code),
         slug: form.slug || slugify(name),
-        images: (form.images ?? []).filter((i) => i.url.trim().length > 0),
+        images,
       };
       const res = await upsert({ data: payload });
       toast.success(form.id ? "Produto atualizado" : "Produto criado");
@@ -176,6 +225,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
       setSaving(false);
     }
   }
+
 
   const tabs = [
     { id: "geral", label: "Geral" },
@@ -201,7 +251,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
         ))}
         <div className="ml-auto flex items-center gap-2">
           <button type="submit" disabled={saving} className="rounded bg-primary px-4 py-2 text-sm font-bold uppercase text-primary-foreground disabled:opacity-50">
-            {saving ? "Salvando..." : form.id ? "Salvar alterações" : "Criar produto"}
+            {importing ? "Importando imagens..." : saving ? "Salvando..." : form.id ? "Salvar alterações" : "Criar produto"}
           </button>
         </div>
       </div>
@@ -346,8 +396,12 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
           <p className="rounded bg-muted p-3 text-xs text-muted-foreground">
             💡 Imagens sincronizadas do Bling já aparecem aqui automaticamente após rodar
             <strong> Ecossistema → Bling → Sincronizar imagens</strong>. Você também pode enviar
-            novas fotos do seu computador ou colar URLs externas.
+            fotos do computador ou colar URLs externas: ao salvar, toda URL externa é
+            <strong> copiada para a nossa biblioteca</strong> e substituída por um link permanente
+            nosso — o site de origem não fica como dependência e a imagem já serve para
+            Mercado Livre/Shopee. Formatos aceitos: JPEG, PNG ou WebP até 5 MB.
           </p>
+
           {(form.images ?? []).map((img, i) => (
             <div key={i} className="flex items-start gap-2 rounded border border-border p-3">
               <img src={img.url || "/placeholder.svg"} alt="" className="h-16 w-16 rounded object-cover bg-muted" />
