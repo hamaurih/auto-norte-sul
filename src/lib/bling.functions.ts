@@ -133,14 +133,29 @@ async function blingFetch(token: string, path: string) {
   return payload;
 }
 
-function isUsableCatalogImage(url: string) {
+const STORAGE_IMAGE_BUCKET = "product-images";
+
+function storagePublicPrefix() {
+  const base = String(process.env['SUPABASE_URL'] ?? process.env['VITE_SUPABASE_URL'] ?? "").replace(/\/+$/, "");
+  return base ? `${base}/storage/v1/object/public/${STORAGE_IMAGE_BUCKET}/` : null;
+}
+
+/** Somente URLs públicas do bucket product-images desta instância são permanentes. */
+function isPermanentStorageImageUrl(url: unknown) {
   const value = String(url ?? "").trim();
   if (!value) return false;
-  const expires = value.match(/[?&]Expires=([0-9]+)/i)?.[1];
-  if (expires && Number(expires) * 1000 < Date.now()) return false;
-  if (/^https:\/\/orgbling\.s3\.amazonaws\.com\//i.test(value) && !expires) return false;
-  return true;
+  const prefix = storagePublicPrefix();
+  if (!prefix) return false;
+  return value.startsWith(prefix);
 }
+
+function isExternalBlingImageUrl(url: unknown) {
+  const value = String(url ?? "").trim();
+  if (!value) return false;
+  if (isPermanentStorageImageUrl(value)) return false;
+  return /orgbling\.s3\.amazonaws\.com|bling\.com\.br/i.test(value) || /[?&](Expires|X-Amz-Signature|token)=/i.test(value);
+}
+
 
 async function shortHash(value: string) {
   const bytes = new TextEncoder().encode(value);
