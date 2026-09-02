@@ -13,13 +13,18 @@ let tenantIdPromise: Promise<string | null> | null = null;
 
 export async function resolveActiveTenantId(): Promise<string | null> {
   if (!tenantIdPromise) {
-    tenantIdPromise = supabase
-      .from("tenant_storefronts")
-      .select("tenant_id")
-      .eq("slug", activeTenantSlug())
-      .maybeSingle()
-      .then(({ data }) => data?.tenant_id ?? null)
-      .catch(() => null);
+    tenantIdPromise = (async () => {
+      try {
+        const { data } = await supabase
+          .from("tenant_storefronts")
+          .select("tenant_id")
+          .eq("slug", activeTenantSlug())
+          .maybeSingle();
+        return data?.tenant_id ?? null;
+      } catch {
+        return null;
+      }
+    })();
   }
   return tenantIdPromise;
 }
@@ -29,15 +34,14 @@ async function tenantScope(tenantId?: string | null): Promise<string | null> {
 }
 
 // Resolve termo → alias (categoria/marca/produto). Retorna o alias de maior peso ativo.
-export async function resolveAlias(term: string, tenantId?: string | null) {
+// O alias em si é resolvido por termo; a segurança multi-tenant vem da resolução
+// do alvo (marca/categoria/produto), sempre filtrada por `tenant_id`.
+export async function resolveAlias(term: string) {
   const n = normalizeTerm(term);
   if (n.length < 2) return null;
-  const tenant = await tenantScope(tenantId);
-  if (!tenant) return null;
   const { data } = await supabase
     .from("search_aliases")
     .select("term, normalized_term, target_type, target_id, target_slug, target_label, weight")
-    .eq("tenant_id", tenant)
     .eq("is_active", true)
     .eq("normalized_term", n)
     .order("weight", { ascending: false })
