@@ -450,7 +450,7 @@ function BlingModule() {
             description="Baixa as imagens do Bling e copia cada arquivo para o Storage Norte Sul. Links temporários nunca são mantidos como imagem definitiva."
             lastSync={null}
             actionLabel="Sincronizar 1 lote"
-            onSync={runSync(() => syncImages({ data: { batchSize: 25, onlyMissing: true } }), "Imagens")}
+            onSync={runSync(() => syncImages({ data: { batchSize: 75, onlyMissing: true } }), "Imagens")}
             pending={busy === "Imagens" || busy === "Imagens (auto)"}
           >
             <ImageAutoSyncPanel
@@ -462,7 +462,7 @@ function BlingModule() {
                   let iter = 0;
                   while (iter < 100) {
                     iter++;
-                    const r: any = await syncImages({ data: { batchSize: 25, onlyMissing: true } });
+                    const r: any = await syncImages({ data: { batchSize: 75, onlyMissing: true } });
                     setProgress({
                       iter,
                       processed: r.processed,
