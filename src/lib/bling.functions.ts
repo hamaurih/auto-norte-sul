@@ -561,7 +561,14 @@ export const syncBlingImages = createServerFn({ method: "POST" })
         const currentRows = (existingImages ?? []).filter((row: any) => row.product_id === productRow.id);
         const payload: any = await blingFetch(token, `/produtos/${encodeURIComponent(productRow.bling_id)}`);
         const product = payload?.data ?? payload;
-        const images: any[] = product?.midia?.imagens?.externas ?? product?.midia?.imagens ?? product?.imagens ?? [];
+        const mediaImages = product?.midia?.imagens;
+        const images: any[] = [
+          ...(Array.isArray(mediaImages?.externas) ? mediaImages.externas : []),
+          ...(Array.isArray(mediaImages?.internas) ? mediaImages.internas : []),
+          ...(Array.isArray(mediaImages) ? mediaImages : []),
+          ...(Array.isArray(product?.imagens) ? product.imagens : []),
+          ...(product?.imagemURL ? [{ link: product.imagemURL }] : []),
+        ];
         const apiUrls = Array.from(
           new Set(
             images
