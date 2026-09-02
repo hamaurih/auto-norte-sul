@@ -18,7 +18,7 @@ export default defineTool({
       return { content: [{ type: "text", text: "Informe pelo menos um SKU ou slug." }], isError: true };
     }
     const supabase = createMcpSupabase();
-    const requests: Promise<any>[] = [];
+    const requests: PromiseLike<any>[] = [];
     if (skus?.length) requests.push(supabase.from("products").select("id, sku, slug, name, stock, price_b2c, sale_price_b2c, active").eq("active", true).is("deleted_at", null).in("sku", [...new Set(skus)]));
     if (slugs?.length) requests.push(supabase.from("products").select("id, sku, slug, name, stock, price_b2c, sale_price_b2c, active").eq("active", true).is("deleted_at", null).in("slug", [...new Set(slugs)]));
     const responses = await Promise.all(requests);
