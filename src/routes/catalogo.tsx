@@ -43,8 +43,18 @@ function Catalog() {
     queryKey: ["catalog", filters],
     queryFn: () => fetchCatalog(filters),
   });
-  const { data: categories = [] } = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
-  const { data: brands = [] } = useQuery({ queryKey: ["brands"], queryFn: fetchBrands });
+  // Taxonomy lists are tenant-scoped: without the tenant id in the key/filter
+  // other tenants' categories/brands leak in and appear duplicated.
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories", tenantId],
+    queryFn: () => fetchCategories(tenantId),
+    enabled: Boolean(tenantId),
+  });
+  const { data: brands = [] } = useQuery({
+    queryKey: ["brands", tenantId],
+    queryFn: () => fetchBrands(tenantId),
+    enabled: Boolean(tenantId),
+  });
 
   function update(patch: Partial<typeof search>) {
     navigate({ search: { ...search, ...patch } });
