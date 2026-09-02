@@ -149,13 +149,12 @@ export const Route = createFileRoute("/api/public/bling/callback")({
             headers: {
               Authorization: `Basic ${basic}`,
               "Content-Type": "application/x-www-form-urlencoded",
-              Accept: "application/json",
+              Accept: "1.0",
               "enable-jwt": "1",
             },
             body: new URLSearchParams({
               grant_type: "authorization_code",
               code,
-              redirect_uri: stateRow.redirect_uri,
             }).toString(),
           });
           const tokenPayload: any = await tokRes.json().catch(() => ({}));
