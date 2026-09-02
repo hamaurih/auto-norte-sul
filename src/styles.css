@@ -6,7 +6,9 @@
 
 /*
  * Norte Sul Acessórios — automotive marketplace design system.
- * Bold red/black/white "popular-premium" identity. All colors in oklch.
+ * Public storefront tokens are dynamic and are overwritten by CompanyTheme
+ * after the company profile loads. The initial values intentionally match the
+ * production branding so the first paint never flashes the legacy red theme.
  */
 
 @theme inline {
@@ -47,10 +49,18 @@
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
 
-  --gradient-brand: linear-gradient(135deg, oklch(0.55 0.24 27) 0%, oklch(0.42 0.22 22) 100%);
-  --gradient-hero: linear-gradient(120deg, oklch(0.15 0.02 260) 0%, oklch(0.28 0.14 25) 100%);
+  --gradient-brand: linear-gradient(
+    135deg,
+    var(--primary) 0%,
+    color-mix(in oklch, var(--primary) 72%, black) 100%
+  );
+  --gradient-hero: linear-gradient(
+    120deg,
+    color-mix(in oklch, var(--secondary) 55%, black) 0%,
+    color-mix(in oklch, var(--primary) 55%, black) 100%
+  );
   --shadow-card: 0 1px 2px oklch(0 0 0 / 0.06), 0 8px 24px oklch(0 0 0 / 0.06);
-  --shadow-brand: 0 10px 30px -10px oklch(0.55 0.24 27 / 0.55);
+  --shadow-brand: 0 10px 30px -10px color-mix(in oklch, var(--primary) 55%, transparent);
 }
 
 :root {
@@ -64,12 +74,11 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.14 0.02 260);
 
-  /* Automotive red */
-  --primary: oklch(0.55 0.24 27);
+  /* Production storefront fallback — must match tenant_company_profiles. */
+  --primary: #1c10c6;
   --primary-foreground: oklch(0.99 0.01 60);
 
-  /* Deep black for hero/nav */
-  --secondary: oklch(0.16 0.02 260);
+  --secondary: #bec0cb;
   --secondary-foreground: oklch(0.99 0.01 60);
 
   --muted: oklch(0.96 0.005 250);
@@ -80,14 +89,14 @@
   --destructive-foreground: oklch(0.99 0.01 60);
   --border: oklch(0.9 0.008 250);
   --input: oklch(0.94 0.008 250);
-  --ring: oklch(0.55 0.24 27);
+  --ring: #1c10c6;
 
   /* Brand tokens */
-  --brand: oklch(0.55 0.24 27);
+  --brand: #1c10c6;
   --brand-foreground: oklch(0.99 0.01 60);
   --ink: oklch(0.14 0.02 260);
   --ink-foreground: oklch(0.99 0.01 60);
-  --hot: oklch(0.72 0.19 55); /* orange for offers */
+  --hot: #f59e0b;
   --hot-foreground: oklch(0.14 0.02 260);
   --success: oklch(0.62 0.16 152);
   --success-foreground: oklch(0.99 0.01 60);
