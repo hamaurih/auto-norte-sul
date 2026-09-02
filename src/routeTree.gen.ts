@@ -77,6 +77,7 @@ import { Route as AuthenticatedAdminProdutosIndexRouteImport } from './routes/_a
 import { Route as AuthenticatedAdminPedidosCompraIndexRouteImport } from './routes/_authenticated/admin.pedidos-compra.index'
 import { Route as AuthenticatedAdminNfeImportacaoIndexRouteImport } from './routes/_authenticated/admin.nfe-importacao.index'
 import { Route as AuthenticatedAdminEcossistemaIndexRouteImport } from './routes/_authenticated/admin.ecossistema.index'
+import { Route as ApiPublicCronEnrichmentRouteImport } from './routes/api/public/cron.enrichment'
 import { Route as ApiPublicBlingCallbackRouteImport } from './routes/api/public/bling.callback'
 import { Route as AuthenticatedAdminVendedoresNovoRouteImport } from './routes/_authenticated/admin.vendedores.novo'
 import { Route as AuthenticatedAdminSaneamentoAliasesRouteImport } from './routes/_authenticated/admin.saneamento.aliases'
@@ -474,6 +475,11 @@ const AuthenticatedAdminEcossistemaIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedAdminEcossistemaRoute,
   } as any)
+const ApiPublicCronEnrichmentRoute = ApiPublicCronEnrichmentRouteImport.update({
+  id: '/api/public/cron/enrichment',
+  path: '/api/public/cron/enrichment',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicBlingCallbackRoute = ApiPublicBlingCallbackRouteImport.update({
   id: '/api/public/bling/callback',
   path: '/api/public/bling/callback',
@@ -627,6 +633,7 @@ export interface FileRoutesByFullPath {
   '/admin/saneamento/aliases': typeof AuthenticatedAdminSaneamentoAliasesRoute
   '/admin/vendedores/novo': typeof AuthenticatedAdminVendedoresNovoRoute
   '/api/public/bling/callback': typeof ApiPublicBlingCallbackRoute
+  '/api/public/cron/enrichment': typeof ApiPublicCronEnrichmentRoute
   '/admin/ecossistema/': typeof AuthenticatedAdminEcossistemaIndexRoute
   '/admin/nfe-importacao/': typeof AuthenticatedAdminNfeImportacaoIndexRoute
   '/admin/pedidos-compra/': typeof AuthenticatedAdminPedidosCompraIndexRoute
@@ -706,6 +713,7 @@ export interface FileRoutesByTo {
   '/admin/saneamento/aliases': typeof AuthenticatedAdminSaneamentoAliasesRoute
   '/admin/vendedores/novo': typeof AuthenticatedAdminVendedoresNovoRoute
   '/api/public/bling/callback': typeof ApiPublicBlingCallbackRoute
+  '/api/public/cron/enrichment': typeof ApiPublicCronEnrichmentRoute
   '/admin/ecossistema': typeof AuthenticatedAdminEcossistemaIndexRoute
   '/admin/nfe-importacao': typeof AuthenticatedAdminNfeImportacaoIndexRoute
   '/admin/pedidos-compra': typeof AuthenticatedAdminPedidosCompraIndexRoute
@@ -790,6 +798,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/saneamento/aliases': typeof AuthenticatedAdminSaneamentoAliasesRoute
   '/_authenticated/admin/vendedores/novo': typeof AuthenticatedAdminVendedoresNovoRoute
   '/api/public/bling/callback': typeof ApiPublicBlingCallbackRoute
+  '/api/public/cron/enrichment': typeof ApiPublicCronEnrichmentRoute
   '/_authenticated/admin/ecossistema/': typeof AuthenticatedAdminEcossistemaIndexRoute
   '/_authenticated/admin/nfe-importacao/': typeof AuthenticatedAdminNfeImportacaoIndexRoute
   '/_authenticated/admin/pedidos-compra/': typeof AuthenticatedAdminPedidosCompraIndexRoute
@@ -874,6 +883,7 @@ export interface FileRouteTypes {
     | '/admin/saneamento/aliases'
     | '/admin/vendedores/novo'
     | '/api/public/bling/callback'
+    | '/api/public/cron/enrichment'
     | '/admin/ecossistema/'
     | '/admin/nfe-importacao/'
     | '/admin/pedidos-compra/'
@@ -953,6 +963,7 @@ export interface FileRouteTypes {
     | '/admin/saneamento/aliases'
     | '/admin/vendedores/novo'
     | '/api/public/bling/callback'
+    | '/api/public/cron/enrichment'
     | '/admin/ecossistema'
     | '/admin/nfe-importacao'
     | '/admin/pedidos-compra'
@@ -1036,6 +1047,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/saneamento/aliases'
     | '/_authenticated/admin/vendedores/novo'
     | '/api/public/bling/callback'
+    | '/api/public/cron/enrichment'
     | '/_authenticated/admin/ecossistema/'
     | '/_authenticated/admin/nfe-importacao/'
     | '/_authenticated/admin/pedidos-compra/'
@@ -1066,6 +1078,7 @@ export interface RootRouteChildren {
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicLoginRoute: typeof ApiPublicLoginRoute
   ApiPublicBlingCallbackRoute: typeof ApiPublicBlingCallbackRoute
+  ApiPublicCronEnrichmentRoute: typeof ApiPublicCronEnrichmentRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1546,6 +1559,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEcossistemaIndexRouteImport
       parentRoute: typeof AuthenticatedAdminEcossistemaRoute
     }
+    '/api/public/cron/enrichment': {
+      id: '/api/public/cron/enrichment'
+      path: '/api/public/cron/enrichment'
+      fullPath: '/api/public/cron/enrichment'
+      preLoaderRoute: typeof ApiPublicCronEnrichmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/bling/callback': {
       id: '/api/public/bling/callback'
       path: '/api/public/bling/callback'
@@ -1881,6 +1901,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicLoginRoute: ApiPublicLoginRoute,
   ApiPublicBlingCallbackRoute: ApiPublicBlingCallbackRoute,
+  ApiPublicCronEnrichmentRoute: ApiPublicCronEnrichmentRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
