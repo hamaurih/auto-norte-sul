@@ -41,6 +41,21 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
   headers: { "content-type": "application/json" },
 });
 
+async function secureEqual(a: string, b: string) {
+  if (!a || !b) return false;
+  const encoder = new TextEncoder();
+  const [da, db] = await Promise.all([
+    crypto.subtle.digest("SHA-256", encoder.encode(a)),
+    crypto.subtle.digest("SHA-256", encoder.encode(b)),
+  ]);
+  const aa = new Uint8Array(da);
+  const bb = new Uint8Array(db);
+  if (aa.length !== bb.length) return false;
+  let diff = 0;
+  for (let i = 0; i < aa.length; i++) diff |= aa[i] ^ bb[i];
+  return diff === 0;
+}
+
 const decodeEntities = (value: string) => value
   .replace(/&nbsp;/gi, " ")
   .replace(/&amp;/gi, "&")
@@ -87,7 +102,7 @@ const absolute = (href: string, base: string) => {
   try { return new URL(decodeEntities(href), base); } catch { return null; }
 };
 
-const privateIp = (ip: string) => /^(127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1$|fc|fd|fe80)/i.test(ip);
+const privateIp = (ip: string) => /^(127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|::1$|::$|fc|fd|fe80)/i.test(ip);
 
 function isAllowedDomain(hostname: string, domains: string[]) {
   const host = hostname.toLowerCase();
@@ -107,7 +122,7 @@ async function safeHtml(url: URL, domains: string[], redirects = 0) {
     redirect: "manual",
     signal: AbortSignal.timeout(8000),
     headers: {
-      "user-agent": "AutoNorteSulCatalog/3.0 (+official gallery and fitment enrichment)",
+      "user-agent": "AutoNorteSulCatalog/3.1 (+official gallery and fitment enrichment)",
       "accept": "text/html,application/xhtml+xml",
     },
   });
@@ -199,14 +214,14 @@ function buildEntryUrl(source: CatalogSource, code: string) {
     .replaceAll("{code_normalized}", encodeURIComponent(normalizedCode)));
 }
 
-async function findOfficialPage(entry: URL, domains: string[], code: string, brandName: string): Promise<Match | null> {
+async function findOfficialPage(entry: URL, domains: string[], code: string, brandName: string, maxScans = 55): Promise<Match | null> {
   const variants = codeVariants(code, brandName);
   if (!variants.length) return null;
   const visited = new Set<string>();
   const queued = new Set<string>([entry.href]);
   const queue: URL[] = [entry];
 
-  for (let scanned = 0; queue.length && scanned < 55; scanned++) {
+  for (let scanned = 0; queue.length && scanned < maxScans; scanned++) {
     const current = queue.shift()!;
     queued.delete(current.href);
     if (visited.has(current.href)) continue;
@@ -493,30 +508,55 @@ Deno.serve(async (req) => {
   try {
     if (req.method !== "POST") return json({ error: "Método inválido" }, 405);
     const projectUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const auth = req.headers.get("authorization");
     if (!auth) return json({ error: "Não autenticado" }, 401);
 
-    const userClient = createClient(projectUrl, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: auth } } });
-    const { data: { user } } = await userClient.auth.getUser();
-    if (!user) return json({ error: "Sessão inválida" }, 401);
+    const bearer = auth.replace(/^Bearer\s+/i, "").trim();
+    const workerMode = await secureEqual(bearer, serviceKey);
+    const body = await req.json().catch(() => ({}));
+    const admin = createClient(projectUrl, serviceKey);
 
-    const { limit = 3 } = await req.json().catch(() => ({}));
-    const batch = Math.max(1, Math.min(Number(limit) || 3, 5));
-    const admin = createClient(projectUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    let jobs: any[] = [];
 
-    const { data: memberships } = await admin.from("tenant_memberships").select("tenant_id")
-      .eq("user_id", user.id).eq("active", true).in("role", ["owner", "admin", "manager"]);
-    const tenantIds = (memberships ?? []).map((value) => value.tenant_id);
-    if (!tenantIds.length) return json({ error: "Sem permissão" }, 403);
+    // verify_jwt=false no gateway: toda chamada é autenticada aqui.
+    if (workerMode) {
+      const jobIds = Array.isArray(body?.jobIds)
+        ? body.jobIds.filter((id: unknown): id is string => typeof id === "string" && id.length > 0).slice(0, 5)
+        : [];
+      if (!jobIds.length) return json({ error: "Worker exige jobIds previamente reivindicados" }, 400);
 
-    const { data: jobs, error } = await admin.from("product_enrichment_jobs")
-      .select("id,tenant_id,product_id,attempts,product:products(id,name,manufacturer_code,brand_id,brand:brands(id,name))")
-      .in("tenant_id", tenantIds).eq("status", "queued").not("product.manufacturer_code", "is", null)
-      .order("created_at").limit(batch);
-    if (error) throw error;
+      const { data, error } = await admin.from("product_enrichment_jobs")
+        .select("id,tenant_id,product_id,attempts,product:products(id,name,manufacturer_code,brand_id,brand:brands(id,name))")
+        .in("id", jobIds)
+        .eq("status", "processing")
+        .order("started_at", { ascending: true });
+      if (error) throw error;
+      jobs = data ?? [];
+      if (!jobs.length) return json({ ok: true, processed: 0, results: [] });
+    } else {
+      const userClient = createClient(projectUrl, anonKey, { global: { headers: { Authorization: auth } } });
+      const { data: { user }, error: userError } = await userClient.auth.getUser();
+      if (userError || !user) return json({ error: "Sessão inválida" }, 401);
+
+      const limit = Number(body?.limit ?? 3);
+      const batch = Math.max(1, Math.min(limit || 3, 5));
+      const { data: memberships } = await admin.from("tenant_memberships").select("tenant_id")
+        .eq("user_id", user.id).eq("active", true).in("role", ["owner", "admin", "manager"]);
+      const tenantIds = (memberships ?? []).map((value) => value.tenant_id);
+      if (!tenantIds.length) return json({ error: "Sem permissão" }, 403);
+
+      const { data, error } = await admin.from("product_enrichment_jobs")
+        .select("id,tenant_id,product_id,attempts,product:products(id,name,manufacturer_code,brand_id,brand:brands(id,name))")
+        .in("tenant_id", tenantIds).eq("status", "queued").not("product.manufacturer_code", "is", null)
+        .order("created_at").limit(batch);
+      if (error) throw error;
+      jobs = data ?? [];
+    }
 
     const results: Array<Record<string, unknown>> = [];
-    for (const job of jobs ?? []) {
+    for (const job of jobs) {
       const product: any = job.product;
       const code = product?.manufacturer_code?.trim();
       const brandName = String(product?.brand?.name ?? "").trim();
@@ -530,9 +570,12 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      await admin.from("product_enrichment_jobs").update({
-        status: "processing", started_at: new Date().toISOString(), attempts: (job.attempts ?? 0) + 1, last_error: null,
-      }).eq("id", job.id);
+      // No worker, claim_product_enrichment_jobs já marcou processing e incrementou attempts.
+      if (!workerMode) {
+        await admin.from("product_enrichment_jobs").update({
+          status: "processing", started_at: new Date().toISOString(), attempts: (job.attempts ?? 0) + 1, last_error: null,
+        }).eq("id", job.id).eq("tenant_id", job.tenant_id).eq("status", "queued");
+      }
 
       let createdCandidateId: string | null = null;
       try {
@@ -557,7 +600,13 @@ Deno.serve(async (req) => {
           try {
             const domains = (candidateSource.allowed_domains ?? []).map((value) => value.toLowerCase());
             if (!domains.length) continue;
-            matched = await findOfficialPage(buildEntryUrl(candidateSource, code), domains, code, brandName);
+            matched = await findOfficialPage(
+              buildEntryUrl(candidateSource, code),
+              domains,
+              code,
+              brandName,
+              workerMode ? 18 : 55,
+            );
             if (matched) {
               source = candidateSource;
               await admin.from("manufacturer_catalog_sources").update({
@@ -663,7 +712,7 @@ Deno.serve(async (req) => {
         }
 
         await admin.from("product_enrichment_jobs").update({ status: "review", finished_at: new Date().toISOString(), last_error: null })
-          .eq("id", job.id);
+          .eq("id", job.id).eq("tenant_id", job.tenant_id);
         results.push({
           jobId: job.id,
           status: "review",
@@ -678,9 +727,23 @@ Deno.serve(async (req) => {
           await admin.from("product_enrichment_candidates").delete().eq("id", createdCandidateId).eq("tenant_id", job.tenant_id);
         }
         const reason = jobError instanceof Error ? jobError.message : "Falha inesperada";
-        await admin.from("product_enrichment_jobs").update({ status: "failed", last_error: reason, finished_at: new Date().toISOString() })
-          .eq("id", job.id);
-        results.push({ jobId: job.id, status: "failed", reason });
+
+        if (workerMode && Number(job.attempts ?? 0) < 3) {
+          const delayMinutes = Number(job.attempts ?? 0) <= 1 ? 30 : 180;
+          await admin.from("product_enrichment_jobs").update({
+            status: "queued",
+            started_at: null,
+            finished_at: null,
+            scheduled_at: new Date(Date.now() + delayMinutes * 60_000).toISOString(),
+            last_error: reason,
+          }).eq("id", job.id).eq("tenant_id", job.tenant_id).eq("status", "processing");
+          results.push({ jobId: job.id, status: "requeued", reason });
+        } else {
+          await admin.from("product_enrichment_jobs").update({
+            status: "failed", last_error: reason, finished_at: new Date().toISOString(),
+          }).eq("id", job.id).eq("tenant_id", job.tenant_id);
+          results.push({ jobId: job.id, status: "failed", reason });
+        }
       }
     }
 
