@@ -548,6 +548,7 @@ export const syncBlingImages = createServerFn({ method: "POST" })
         imagesSaved += rows.length;
 
       } catch (error: any) {
+        failures += 1;
         await writeLog(sb, context.tenantId, {
           entity: "imagem",
           entity_id: productRow.id,
@@ -572,18 +573,20 @@ export const syncBlingImages = createServerFn({ method: "POST" })
     await writeLog(sb, context.tenantId, {
       entity: "imagem",
       action: "media_enrichment_batch",
-      status: "sucesso",
-      message: `Enriquecimento de mídia: ${processed} verificados, ${imagesSaved} imagens salvas.`,
-      payload: { processed, withImages, imagesSaved, remaining },
+      status: failures ? "aviso" : "sucesso",
+      message: `Enriquecimento de mídia: ${processed} verificados, ${withImages} com imagem no Bling, ${imagesSaved} cópias permanentes salvas, ${failures} falha(s).`,
+      payload: { processed, withImages, imagesSaved, failures, remaining },
     });
     return {
       ok: true,
-      message: `${processed} produto(s) verificado(s); ${imagesSaved} imagem(ns) permanente(s) salva(s).`,
+      message: `${processed} produto(s) verificado(s); ${imagesSaved} imagem(ns) permanente(s) salva(s); ${failures} falha(s).`,
       processed,
       withImages,
       imagesSaved,
+      failures,
       remaining,
     };
+
   });
 
 export const sendPendingOrders = createServerFn({ method: "POST" })
