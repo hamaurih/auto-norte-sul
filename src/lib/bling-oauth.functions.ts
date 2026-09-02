@@ -92,9 +92,6 @@ export const getSecureBlingAuthUrl = createServerFn({ method: "POST" })
       });
     if (stateError) throw new Error(stateError.message);
 
-    // The Bling authorization server should echo `state` back in the callback.
-    // Keep the same nonce in a short-lived, first-party HttpOnly cookie as a
-    // browser-bound recovery path for providers/flows that omit it on return.
     setCookie(OAUTH_STATE_COOKIE, state, {
       httpOnly: true,
       secure: true,
@@ -103,10 +100,12 @@ export const getSecureBlingAuthUrl = createServerFn({ method: "POST" })
       path: "/",
     });
 
+    // Bling's OAuth documentation explicitly defines the authorize request with
+    // response_type, client_id and state. The redirect URI is taken from the
+    // application's registered "Link de redirecionamento" in Bling.
     const params = new URLSearchParams({
       response_type: "code",
       client_id: clientId,
-      redirect_uri: redirectUri,
       state,
     });
     return { url: `${BLING_AUTHORIZE_URL}?${params.toString()}` };
