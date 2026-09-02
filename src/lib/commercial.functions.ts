@@ -260,7 +260,7 @@ export const getCommercialAdminData = createServerFn({ method: "GET" })
         document: row.document,
         customer_group: row.customer_group,
         b2b_status: row.b2b_status,
-        price_table: assignmentByCustomer.get(row.id) ?? null,
+        price_table: (assignmentByCustomer.get(row.id) ?? null) as never,
       })),
       reps: (repsResult.data ?? []).map((row: any) => ({
         id: row.id,

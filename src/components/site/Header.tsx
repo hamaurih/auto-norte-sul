@@ -53,9 +53,9 @@ export function Header() {
 
   const enabled = debounced.length >= 2;
   const { data: suggestions = [], isFetching } = useQuery({
-    queryKey: ["search-suggestions", debounced],
-    queryFn: () => fetchSearchSuggestions(debounced, 8),
-    enabled,
+    queryKey: ["search-suggestions", company?.tenant_id, debounced],
+    queryFn: () => fetchSearchSuggestions(debounced, 8, company?.tenant_id),
+    enabled: enabled && Boolean(company?.tenant_id),
     staleTime: 30_000,
   });
 
