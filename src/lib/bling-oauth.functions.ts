@@ -6,10 +6,12 @@ import { getBlingCredentials } from "@/lib/bling.functions";
 
 const BLING_AUTHORIZE_URL = "https://www.bling.com.br/Api/v3/oauth/authorize";
 const CALLBACK_PATH = "/api/public/bling/callback";
-const OAUTH_STATE_COOKIE = "__Host-bling-oauth-state";
+const OAUTH_STATE_COOKIE = "__Secure-bling-oauth-state";
+const OAUTH_COOKIE_DOMAIN = ".nortesulauto.com.br";
 const CANONICAL_OAUTH_HOST = "www.nortesulauto.com.br";
 const CANONICAL_OAUTH_ORIGIN = `https://${CANONICAL_OAUTH_HOST}`;
-const ALLOWED_CALLBACK_HOSTS = new Set([CANONICAL_OAUTH_HOST]);
+const CANONICAL_REDIRECT_URI = `${CANONICAL_OAUTH_ORIGIN}${CALLBACK_PATH}`;
+const OFFICIAL_OAUTH_HOSTS = new Set([CANONICAL_OAUTH_HOST, "nortesulauto.com.br"]);
 
 function randomState(): string {
   return Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
@@ -20,34 +22,22 @@ async function hashState(state: string): Promise<string> {
   return Buffer.from(new Uint8Array(digest)).toString("hex");
 }
 
-function validateRedirectUri(value: string): string {
-  const url = new URL(value);
-  if (
-    url.protocol !== "https:" ||
-    url.pathname !== CALLBACK_PATH ||
-    !ALLOWED_CALLBACK_HOSTS.has(url.hostname)
-  ) {
-    throw new Error("Redirect URI do Bling não autorizada.");
-  }
-  url.search = "";
-  url.hash = "";
-  return url.toString();
-}
-
 export const getSecureBlingAuthUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { redirectUri: string }) => input)
-  .handler(async ({ data, context }) => {
+  .handler(async ({ context }) => {
     await requireTenantRole(context.supabase, context.userId, context.tenantId, ["owner", "admin"]);
 
     const requestUrl = new URL(getRequest().url);
-    if (requestUrl.hostname !== CANONICAL_OAUTH_HOST) {
+    if (!OFFICIAL_OAUTH_HOSTS.has(requestUrl.hostname)) {
       throw new Error(
         `Por segurança, conecte o Bling somente pelo domínio oficial: ${CANONICAL_OAUTH_ORIGIN}/admin/ecossistema/bling`,
       );
     }
 
-    const redirectUri = validateRedirectUri(data.redirectUri);
+    // O callback da integração é canônico e não depende do host pelo qual o
+    // administrador abriu o painel. Isso evita divergência entre www e apex.
+    const redirectUri = CANONICAL_REDIRECT_URI;
     const { data: cfg, error: cfgError } = await (context.supabase as any)
       .from("bling_config")
       .select("id,client_id,client_secret_encrypted")
@@ -92,17 +82,20 @@ export const getSecureBlingAuthUrl = createServerFn({ method: "POST" })
       });
     if (stateError) throw new Error(stateError.message);
 
+    // __Secure- permite Domain, ao contrário de __Host-. O nonce continua
+    // HttpOnly/Secure/SameSite=Lax e só é compartilhado entre os hosts oficiais
+    // do mesmo domínio para sobreviver ao retorno canônico em www.
     setCookie(OAUTH_STATE_COOKIE, state, {
       httpOnly: true,
       secure: true,
       sameSite: "lax",
       maxAge: 10 * 60,
       path: "/",
+      domain: OAUTH_COOKIE_DOMAIN,
     });
 
-    // Bling's OAuth documentation explicitly defines the authorize request with
-    // response_type, client_id and state. The redirect URI is taken from the
-    // application's registered "Link de redirecionamento" in Bling.
+    // Bling usa o Link de redirecionamento cadastrado no aplicativo. Mantemos
+    // apenas os parâmetros documentados para iniciar a autorização.
     const params = new URLSearchParams({
       response_type: "code",
       client_id: clientId,
