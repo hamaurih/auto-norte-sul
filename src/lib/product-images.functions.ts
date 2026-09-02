@@ -119,7 +119,7 @@ function detectMagic(bytes: Uint8Array): "jpg" | "png" | "webp" | null {
 async function safeFetch(startUrl: URL): Promise<Response> {
   let current = startUrl;
   for (let hop = 0; hop <= 3; hop++) {
-    assertPublicHttps(current);
+    await assertPublicHttps(current);
     const response = await fetch(current.toString(), {
       redirect: "manual",
       signal: AbortSignal.timeout(15000),
