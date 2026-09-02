@@ -6,7 +6,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getBlingCredentials } from "@/lib/bling.functions";
 
-const TOKEN_URL = "https://www.bling.com.br/Api/v3/oauth/token";
+const TOKEN_URL = "https://api.bling.com.br/Api/v3/oauth/token";
+const OAUTH_STATE_COOKIE = "__Host-bling-oauth-state";
 
 function escapeHtml(value: string): string {
   return value
@@ -17,9 +18,22 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#039;");
 }
 
-function html(status: number, title: string, body: string) {
+function html(status: number, title: string, body: string, clearStateCookie = false) {
   const safeTitle = escapeHtml(title);
   const safeBody = escapeHtml(body);
+  const headers = new Headers({
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-store, max-age=0",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'",
+  });
+  if (clearStateCookie) {
+    headers.set(
+      "Set-Cookie",
+      `${OAUTH_STATE_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`,
+    );
+  }
   return new Response(
     `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${safeTitle}</title>
     <style>body{font-family:system-ui;margin:0;background:#0a0a0a;color:#f4f4f5;display:flex;align-items:center;justify-content:center;min-height:100vh}
@@ -28,17 +42,24 @@ function html(status: number, title: string, body: string) {
     a{color:#60a5fa;text-decoration:none}</style></head>
     <body><div class="box"><h1>${safeTitle}</h1><p>${safeBody}</p>
     <p><a href="/admin/ecossistema/bling">← Voltar ao painel Bling</a></p></div></body></html>`,
-    {
-      status,
-      headers: {
-        "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "no-store, max-age=0",
-        "X-Content-Type-Options": "nosniff",
-        "Referrer-Policy": "no-referrer",
-        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'",
-      },
-    },
+    { status, headers },
   );
+}
+
+function readCookie(request: Request, name: string): string | null {
+  const header = request.headers.get("cookie");
+  if (!header) return null;
+  for (const part of header.split(";")) {
+    const [rawName, ...rawValue] = part.trim().split("=");
+    if (rawName === name) {
+      try {
+        return decodeURIComponent(rawValue.join("="));
+      } catch {
+        return rawValue.join("=");
+      }
+    }
+  }
+  return null;
 }
 
 async function hashState(value: string): Promise<string> {
@@ -52,7 +73,9 @@ export const Route = createFileRoute("/api/public/bling/callback")({
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const code = url.searchParams.get("code");
-        const state = url.searchParams.get("state");
+        const returnedState = url.searchParams.get("state");
+        const cookieState = readCookie(request, OAUTH_STATE_COOKIE);
+        const state = returnedState || cookieState;
         const oauthError = url.searchParams.get("error");
 
         if (!state || state.length > 512) {
@@ -83,14 +106,15 @@ export const Route = createFileRoute("/api/public/bling/callback")({
             400,
             "Autorização expirada",
             "Esta autorização é inválida, já foi utilizada ou expirou. Inicie uma nova conexão pelo painel.",
+            !returnedState && Boolean(cookieState),
           );
         }
 
         if (oauthError) {
-          return html(400, "Autorização negada", `O Bling retornou o erro: ${oauthError}`);
+          return html(400, "Autorização negada", `O Bling retornou o erro: ${oauthError}`, true);
         }
         if (!code || code.length > 4096) {
-          return html(400, "Código ausente", "O Bling não enviou um authorization_code válido.");
+          return html(400, "Código ausente", "O Bling não enviou um authorization_code válido.", true);
         }
 
         const { data: cfg, error: cfgError } = await (supabaseAdmin as any)
@@ -100,12 +124,12 @@ export const Route = createFileRoute("/api/public/bling/callback")({
           .eq("id", stateRow.config_id)
           .maybeSingle();
         if (cfgError || !cfg?.id) {
-          return html(400, "Configuração inválida", "A configuração associada a esta autorização não existe mais.");
+          return html(400, "Configuração inválida", "A configuração associada a esta autorização não existe mais.", true);
         }
 
         const { clientId, clientSecret } = await getBlingCredentials(supabaseAdmin, stateRow.tenant_id, cfg);
         if (!clientId || !clientSecret) {
-          return html(500, "Configuração incompleta", "As credenciais do Bling não estão configuradas no backend.");
+          return html(500, "Configuração incompleta", "As credenciais do Bling não estão configuradas no backend.", true);
         }
 
         const log = async (status: "sucesso" | "erro", message: string) => {
@@ -126,6 +150,7 @@ export const Route = createFileRoute("/api/public/bling/callback")({
               Authorization: `Basic ${basic}`,
               "Content-Type": "application/x-www-form-urlencoded",
               Accept: "application/json",
+              "enable-jwt": "1",
             },
             body: new URLSearchParams({
               grant_type: "authorization_code",
@@ -140,6 +165,7 @@ export const Route = createFileRoute("/api/public/bling/callback")({
               502,
               "Falha na autorização",
               "O Bling não devolveu um access_token válido. Inicie uma nova autorização pelo painel.",
+              true,
             );
           }
 
@@ -161,11 +187,16 @@ export const Route = createFileRoute("/api/public/bling/callback")({
             .eq("id", cfg.id);
           if (updateError) throw updateError;
 
-          await log("sucesso", "Autorização OAuth 2.0 concluída com state tenant-aware de uso único.");
-          return html(200, "Conectado ao Bling", "Sua loja está autorizada. Você pode fechar esta aba.");
+          await log(
+            "sucesso",
+            returnedState
+              ? "Autorização OAuth 2.0 concluída com state retornado pelo Bling."
+              : "Autorização OAuth 2.0 concluída com state recuperado do cookie seguro de origem.",
+          );
+          return html(200, "Conectado ao Bling", "Sua loja está autorizada. Você pode fechar esta aba.", true);
         } catch (error: any) {
           await log("erro", `Exceção no callback OAuth: ${String(error?.message ?? error).slice(0, 240)}`);
-          return html(500, "Erro inesperado", "Não foi possível concluir a autorização. Inicie uma nova tentativa pelo painel.");
+          return html(500, "Erro inesperado", "Não foi possível concluir a autorização. Inicie uma nova tentativa pelo painel.", true);
         }
       },
     },
