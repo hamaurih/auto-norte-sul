@@ -573,7 +573,7 @@ export const syncBlingImages = createServerFn({ method: "POST" })
     await writeLog(sb, context.tenantId, {
       entity: "imagem",
       action: "media_enrichment_batch",
-      status: failures ? "aviso" : "sucesso",
+      status: failures ? "erro" : "sucesso",
       message: `Enriquecimento de mídia: ${processed} verificados, ${withImages} com imagem no Bling, ${imagesSaved} cópias permanentes salvas, ${failures} falha(s).`,
       payload: { processed, withImages, imagesSaved, failures, remaining },
     });
