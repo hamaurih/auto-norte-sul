@@ -1,10 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
+import { setCookie } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 import { requireTenantRole } from "@/lib/auth-guards";
 import { getBlingCredentials } from "@/lib/bling.functions";
 
 const BLING_AUTHORIZE_URL = "https://www.bling.com.br/Api/v3/oauth/authorize";
 const CALLBACK_PATH = "/api/public/bling/callback";
+const OAUTH_STATE_COOKIE = "__Host-bling-oauth-state";
 const ALLOWED_CALLBACK_HOSTS = new Set([
   "nortesulauto.com.br",
   "www.nortesulauto.com.br",
@@ -84,6 +86,17 @@ export const getSecureBlingAuthUrl = createServerFn({ method: "POST" })
         expires_at: expiresAt,
       });
     if (stateError) throw new Error(stateError.message);
+
+    // The Bling authorization server should echo `state` back in the callback.
+    // Keep the same nonce in a short-lived, first-party HttpOnly cookie as a
+    // browser-bound recovery path for providers/flows that omit it on return.
+    setCookie(OAUTH_STATE_COOKIE, state, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      maxAge: 10 * 60,
+      path: "/",
+    });
 
     const params = new URLSearchParams({
       response_type: "code",
