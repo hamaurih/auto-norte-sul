@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -89,9 +89,9 @@ function SaneamentoPage() {
 
         <TabsContent value="marca" className="mt-4"><TabBrand /></TabsContent>
         <TabsContent value="categoria" className="mt-4"><TabCategory /></TabsContent>
-        <TabsContent value="imagem" className="mt-4"><TabSimpleList problem="sem_imagem" title="Produtos sem imagem válida" helpText="Links temporários expirados também aparecem aqui. A sincronização deve copiar a imagem para o Storage Norte Sul antes de considerá-la válida." /></TabsContent>
-        <TabsContent value="sku" className="mt-4"><TabSimpleList problem="sem_sku" title="Produtos sem SKU" helpText="SKU nunca é gerado automaticamente. Use o botão Editar para inserir manualmente." /></TabsContent>
-        <TabsContent value="preco" className="mt-4"><TabSimpleList problem="sem_preco" title="Produtos com preço inválido (≤ 0)" helpText="Preço nunca é inventado. Ajuste manualmente ou reimporte do Bling." /></TabsContent>
+        <TabsContent value="imagem" className="mt-4"><TabSimpleList problem="sem_imagem" title="Produtos sem imagem válida" actionLabel="Corrigir imagem" helpText="A lista mostra pendências de imagem (incluindo links temporários expirados). Use o botão à direita para abrir o cadastro do produto e corrigir." /></TabsContent>
+        <TabsContent value="sku" className="mt-4"><TabSimpleList problem="sem_sku" title="Produtos sem SKU" actionLabel="Editar SKU" helpText="A lista mostra pendências de SKU. Use o botão à direita para abrir o cadastro do produto e inserir o SKU manualmente — ele nunca é gerado automaticamente." /></TabsContent>
+        <TabsContent value="preco" className="mt-4"><TabSimpleList problem="sem_preco" title="Produtos com preço inválido (≤ 0)" actionLabel="Corrigir preço" helpText="A lista mostra pendências de preço. Use o botão à direita para abrir o cadastro do produto e ajustar o preço — ele nunca é inventado." /></TabsContent>
         <TabsContent value="estoque" className="mt-4">
           <div className="mb-3 flex items-center justify-between rounded-lg border border-border bg-card p-3">
             <div className="text-sm">
@@ -101,7 +101,7 @@ function SaneamentoPage() {
               {initAll.isPending ? "Inicializando..." : "Inicializar Matriz"}
             </Button>
           </div>
-          <TabSimpleList problem="sem_multi" title="Produtos sem registro em multi-filial" helpText="Estes usam estoque legado como fallback." />
+          <TabSimpleList problem="sem_multi" title="Produtos sem registro em multi-filial" actionLabel="Abrir produto" helpText="A lista mostra pendências de estoque multi-filial. Use o botão à direita para abrir o cadastro do produto e configurar." />
         </TabsContent>
         <TabsContent value="aplicacao" className="mt-4"><TabApplications /></TabsContent>
       </Tabs>
