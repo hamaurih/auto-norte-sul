@@ -450,12 +450,15 @@ export const syncBlingImages = createServerFn({ method: "POST" })
     const { data: existingImages } = productIds.length
       ? await admin
           .from("product_images")
-          .select("id,product_id,url")
+          .select("id,product_id,url,is_primary")
           .eq("tenant_id", context.tenantId)
           .in("product_id", productIds)
       : { data: [] };
+    // Apenas URL permanente do nosso Storage conta como "já tem imagem".
     const usableProductIds = new Set(
-      (existingImages ?? []).filter((row: any) => isUsableCatalogImage(row.url)).map((row: any) => String(row.product_id)),
+      (existingImages ?? [])
+        .filter((row: any) => isPermanentStorageImageUrl(row.url))
+        .map((row: any) => String(row.product_id)),
     );
     const candidates = (products ?? [])
       .filter((row: any) => !data.onlyMissing || !usableProductIds.has(String(row.id)))
@@ -464,6 +467,7 @@ export const syncBlingImages = createServerFn({ method: "POST" })
     let processed = 0;
     let withImages = 0;
     let imagesSaved = 0;
+    let failures = 0;
     for (const productRow of candidates) {
       processed += 1;
       try {
@@ -475,35 +479,74 @@ export const syncBlingImages = createServerFn({ method: "POST" })
           .filter((value: string) => /^https:\/\//i.test(value));
         if (!urls.length) continue;
         withImages += 1;
+
+        // Download imediato + validação; nada é gravado se todas as cópias falharem.
         const permanentUrls: string[] = [];
+        const downloadErrors: string[] = [];
         for (const [index, url] of urls.slice(0, 8).entries()) {
-          permanentUrls.push(await copyBlingImageToStorage(admin, context.tenantId, productRow.id, url, index));
+          try {
+            permanentUrls.push(await copyBlingImageToStorage(admin, context.tenantId, productRow.id, url, index));
+          } catch (copyError: any) {
+            downloadErrors.push(String(copyError?.message ?? copyError).slice(0, 200));
+          }
+        }
+        if (!permanentUrls.length) {
+          failures += 1;
+          await writeLog(sb, context.tenantId, {
+            entity: "imagem",
+            entity_id: productRow.id,
+            action: "media_download_failed",
+            status: "erro",
+            message: `Download/validação da imagem falhou (URL temporária expirada ou inválida): ${downloadErrors.join(" | ")}`.slice(0, 400),
+            payload: { productId: productRow.id, attempted: urls.length, errors: downloadErrors },
+          });
+          continue;
         }
 
         const currentRows = (existingImages ?? []).filter((row: any) => row.product_id === productRow.id);
-        const expiredBlingIds = currentRows
-          .filter((row: any) => !isUsableCatalogImage(row.url) || /^https:\/\/orgbling\.s3\.amazonaws\.com\//i.test(row.url))
+        // Remove somente lixo temporário/externo do Bling. Storage permanente e imagem manual ficam intactos.
+        const externalIds = currentRows
+          .filter((row: any) => isExternalBlingImageUrl(row.url))
           .map((row: any) => row.id);
-        if (expiredBlingIds.length) {
+        if (externalIds.length) {
           const { error: deleteError } = await admin.from("product_images").delete()
-            .eq("tenant_id", context.tenantId).in("id", expiredBlingIds);
+            .eq("tenant_id", context.tenantId).in("id", externalIds);
           if (deleteError) throw new Error(deleteError.message);
         }
 
-        const alreadySaved = new Set(currentRows.map((row: any) => row.url));
-        const rows = permanentUrls.filter((url) => !alreadySaved.has(url)).map((url: string, index: number) => ({
+        const keptRows = currentRows.filter((row: any) => !externalIds.includes(row.id));
+        const hasPermanentPrimary = keptRows.some(
+          (row: any) => isPermanentStorageImageUrl(row.url) && row.is_primary,
+        );
+        const alreadySaved = new Set(keptRows.map((row: any) => String(row.url)));
+        const newUrls = permanentUrls.filter((url) => !alreadySaved.has(url));
+        const baseOrder = keptRows.length;
+        const rows = newUrls.map((url: string, index: number) => ({
           tenant_id: context.tenantId,
           product_id: productRow.id,
           url,
           alt: productRow.name || "Imagem do produto",
-          sort_order: index,
-          is_primary: index === 0 && !currentRows.some((row: any) => isUsableCatalogImage(row.url)),
+          sort_order: baseOrder + index,
+          is_primary: index === 0 && (cfg.image_overwrites_manual === true || !hasPermanentPrimary),
         }));
         if (rows.length) {
+          if (rows[0]?.is_primary) {
+            await admin.from("product_images").update({ is_primary: false })
+              .eq("tenant_id", context.tenantId).eq("product_id", productRow.id).eq("is_primary", true);
+          }
           const { error } = await admin.from("product_images").insert(rows);
           if (error) throw new Error(error.message);
+          await writeLog(sb, context.tenantId, {
+            entity: "imagem",
+            entity_id: productRow.id,
+            action: "media_persisted",
+            status: "sucesso",
+            message: `${rows.length} imagem(ns) permanente(s) copiada(s) e persistida(s) no Storage.`,
+            payload: { productId: productRow.id, copied: permanentUrls.length, persisted: rows.length },
+          });
         }
         imagesSaved += rows.length;
+
       } catch (error: any) {
         await writeLog(sb, context.tenantId, {
           entity: "imagem",
