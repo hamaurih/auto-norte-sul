@@ -1,29 +1,30 @@
 # Roadmap — Enriquecimento automático (piloto automático)
 
-## Concluído nesta rodada
-- [x] `src/lib/product-enrichment-autopilot.server.ts` — orquestrador do worker (lease → enqueue → claim → motor → cópia de imagens → autoaprovação → métricas).
-- [x] `src/routes/api/public/cron.enrichment.ts` — endpoint de cron protegido por `CRON_SECRET` (fail closed, comparação em tempo constante).
-- [x] `vercel.json` — Vercel Cron a cada 10 minutos em `/api/public/cron/enrichment`.
-- [x] `supabase/config.toml` — `verify_jwt = false` nas duas functions do motor (auth continua dentro delas; necessário para o modo worker com `sb_secret_`).
+## Estado final
 
-## Pendente (próxima rodada — em ordem)
-- [ ] Migration `supabase/migrations/2026090217xxxx_enrichment_autopilot.sql`:
-      trigger_source `'auto'`; `jobs.approval_mode`; `candidates.auto_approved` + `review_reason`;
-      tabela `product_enrichment_runs` (RLS select p/ owner|admin|manager|stock, grants, índice único parcial `status='running'` por tenant);
-      helpers `private.normalize_product_code` + `private.valid_gtin` (mod-10);
-      `private.promote_enrichment_candidate(candidate, reviewer, auto)` fatorada a partir da versão MAIS RECENTE de `approve_product_enrichment_candidate`
-      (ler antes em `supabase/migrations/20260831143000_enrichment_gallery_fitments.sql` e `20260831144500_enrichment_item_selection.sql` — NÃO usar a versão antiga de `supabase/manual/20260819...`);
-      RPCs service_role-only: `enqueue_product_enrichment_auto` (elegível = ativo + marca + manufacturer_code + fonte ativa da marca; falta imagem/aplicação/GTIN/descrição; cooldown 14d p/ failed; `on conflict ... where status in (queued,processing,review) do nothing`),
-      `claim_product_enrichment_jobs` (recupera presos >20min c/ backoff, `for update skip locked`, attempts+1),
-      `begin_product_enrichment_run`/`finish_product_enrichment_run` (lease c/ expiração 15min),
-      `auto_approve_product_enrichment_candidate(p_candidate_id, p_dry_run)` — gates: source_type=manufacturer, confiança>=98, domínio em `manufacturer_catalog_sources` ativa do mesmo tenant+marca, `specifications->>'matched_code'` normalizado == manufacturer_code do produto, código sugerido igual ou nulo, GTIN válido e sem divergência (divergente → review), imagens selecionadas todas com `storage_url`, aplicações selecionadas confiança>=95 e dados completos; nunca altera preço/estoque; grava `review_reason` quando inelegível.
-- [ ] `supabase/functions/process-manufacturer-enrichment/index.ts` — modo worker: bearer == SERVICE_ROLE_KEY (comparar via SHA-256), exige `jobIds` (já em `processing`, sem re-update de attempts), retry/backoff na falha (attempts<3 → `queued` c/ scheduled_at +30min/+3h, senão `failed`), scan budget reduzido (~18 páginas) no modo worker; modo humano intacto.
-- [ ] `supabase/functions/copy-product-enrichment-image/index.ts` — aceitar modo worker (mesmo bearer), pulando getUser/membership; resto intacto.
-- [ ] `src/lib/product-enrichment.functions.ts` — `getEnrichmentOverview` (counts head:true por status + approval_mode, último run, `automationConfigured = Boolean(process.env['CRON_SECRET'])`, try/catch se a tabela runs ainda não existir); acrescentar `approval_mode` / `auto_approved,review_reason` no select de `listProductEnrichmentJobs`.
-- [ ] `src/routes/_authenticated/admin.enriquecimento-produtos.tsx` — cards de métricas (Na fila, Processando, Em revisão, Autoaprovados, Aprovados manualmente, Falhas), linha "Automação ativa · último ciclo…", frase explicando que o robô roda em background, botões renomeados p/ contingência ("Processar agora"/"Enfileirar agora"), badge "Autoaprovado" (job.approval_mode==='auto' / c.auto_approved) e exibição de `review_reason`; filtro "processing".
-- [ ] `src/routes/_authenticated/admin.catalogo-fabricantes.tsx` (linha 43) — texto: fontes/regras alimentam o robô automático; só domínios cadastrados geram autoaprovação.
-- [ ] `vite.config.ts` — no bloco nitro, quando `isVercel`: `vercel: { functions: { maxDuration: 300 } }`.
-- [ ] `.env.example` — adicionar `CRON_SECRET=""` (comentário: usado pelo Vercel Cron).
-- [ ] `supabase/tests/product_enrichment_autopilot.sql` — begin/rollback no padrão dos testes existentes: enqueue idempotente (2ª chamada = 0), GTIN divergente não sobrescreve, imagem sem storage_url não promove, produto sem marca/código não enfileira, happy path marca `approval_mode='auto'`.
-- [ ] Rodar `bunx tsgo --noEmit` e `bun run build` ao final.
-- [ ] Resumo final: arquitetura, regra exata de autoaprovação, frequência (10 min), proteção (CRON_SECRET + service-role interno), arquivos/migrations, config externa (definir `CRON_SECRET` na Vercel, aplicar migration, redeploy das duas edge functions com o config.toml novo).
+### Concluído
+- [x] Orquestrador server-side: lease por tenant → enqueue idempotente → claim atômico → processamento em fonte oficial → cópia para Storage → autoaprovação conservadora → auditoria.
+- [x] Endpoint interno `/api/public/cron/enrichment` com autenticação `CRON_SECRET`, comparação em tempo constante e comportamento fail-closed.
+- [x] Vercel Cron configurado em `vercel.json` para executar a cada 10 minutos.
+- [x] Migration `20260902173000_enrichment_autopilot.sql` criada, versionada e aplicada no Supabase de produção.
+- [x] `product_enrichment_runs` criada com RLS e lease de execução por tenant.
+- [x] `approval_mode`, `auto_approved` e `review_reason` adicionados para distinguir aprovação automática, manual e exceções.
+- [x] RPC `enqueue_product_enrichment_auto`: somente produto ativo, com marca + manufacturer_code + fonte oficial ativa, sem job ativo duplicado e com cooldown após falha.
+- [x] RPC `claim_product_enrichment_jobs`: `FOR UPDATE SKIP LOCKED`, recuperação de jobs presos e controle de tentativas.
+- [x] RPC `auto_approve_product_enrichment_candidate`: fonte oficial/whitelist, confiança >= 98, código exato normalizado, GTIN válido e sem conflito, imagens próprias antes da promoção e aplicações selecionadas com confiança >= 95 e dados válidos.
+- [x] Motor `process-manufacturer-enrichment` com modo worker seguro por service-role, lote pequeno, scan conservador, retry/backoff e preservação do modo humano.
+- [x] `copy-product-enrichment-image` com modo worker seguro, validação SSRF, MIME + magic bytes e Storage `product-images`.
+- [x] As duas Edge Functions foram publicadas no Supabase (`process-manufacturer-enrichment` v8 e `copy-product-enrichment-image` v4), ambas com autenticação implementada dentro da função.
+- [x] Painel de enriquecimento atualizado com métricas: fila, processando, revisão, autoaprovados, aprovados manualmente e falhas; origem, confiança, imagens/aplicações e motivo de revisão.
+- [x] Catálogo de fabricantes documentado como whitelist que alimenta o robô automático.
+- [x] Duração de função Vercel configurada para até 300s no preset Nitro/Vercel.
+- [x] `.env.example` documenta `CRON_SECRET` como segredo server-side.
+- [x] Teste SQL versionado em `supabase/tests/product_enrichment_autopilot.sql`.
+- [x] Teste transacional executado em produção com rollback: `AUTOPILOT_TESTS_OK`.
+- [x] Teste de lease/claim/attempts executado com rollback: `WORKER_LOCK_TESTS_OK`.
+- [x] Último commit de testes gerou deployment de produção Vercel `READY`.
+
+### Única configuração externa ainda necessária
+- [ ] Definir `CRON_SECRET` no projeto **auto-norte-sul** da Vercel para os ambientes usados pelo cron (obrigatoriamente Production). A Vercel enviará automaticamente `Authorization: Bearer <CRON_SECRET>` nas execuções do Cron. Sem essa variável o endpoint retorna HTTP 503 por projeto de segurança e o robô não executa sozinho.
+
+> Esta variável não deve ser gravada no GitHub, `vercel.json`, frontend ou banco. Ela deve existir somente no cofre de Environment Variables da Vercel.
