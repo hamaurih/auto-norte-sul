@@ -16,6 +16,7 @@ export default defineConfig({
   // Vercel hosts production independently from Lovable.
   nitro: {
     preset: isVercel ? "vercel" : "cloudflare",
+    ...(isVercel ? { vercel: { functions: { maxDuration: 300 } } } : {}),
   },
   vite: {
     // The Lovable MCP plugin expects Lovable's OAuth issuer at runtime.
