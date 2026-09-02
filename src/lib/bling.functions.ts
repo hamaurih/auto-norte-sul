@@ -501,8 +501,8 @@ export const syncBlingImages = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
     const cfg = await getConfig(sb, context.tenantId);
-    const batchSize = Math.min(Math.max(data.batchSize ?? 20, 1), 25);
-    const scanLimit = Math.min(batchSize * 4, 100);
+    const batchSize = Math.min(Math.max(data.batchSize ?? 20, 1), 75);
+    const scanLimit = Math.min(batchSize * 4, 300);
 
     let productsQuery = admin
       .from("products")
@@ -555,7 +555,10 @@ export const syncBlingImages = createServerFn({ method: "POST" })
     let withImages = 0;
     let imagesSaved = 0;
     let failures = 0;
-    for (const productRow of candidates) {
+    // As chamadas ao Bling continuam serializadas por blingRateLimited (450 ms
+    // entre inícios), mas downloads e gravações já liberados podem avançar em
+    // paralelo. Isso preserva o limite da API sem bloquear o lote inteiro em I/O.
+    await Promise.all(candidates.map(async (productRow: any) => {
       processed += 1;
       try {
         const currentRows = (existingImages ?? []).filter((row: any) => row.product_id === productRow.id);
@@ -582,7 +585,7 @@ export const syncBlingImages = createServerFn({ method: "POST" })
           .map((row: any) => String(row.url ?? "").trim())
           .filter((value: string) => isExternalBlingImageUrl(value));
         const urls = Array.from(new Set([...apiUrls, ...legacyUrls]));
-        if (!urls.length) continue;
+        if (!urls.length) return;
         withImages += 1;
 
         // Download imediato + validação; nada é gravado se todas as cópias falharem.
@@ -606,7 +609,7 @@ export const syncBlingImages = createServerFn({ method: "POST" })
             message: `Download/validação da imagem falhou (URL temporária expirada ou inválida): ${downloadErrors.join(" | ")}`.slice(0, 400),
             payload: { productId: productRow.id, attempted: urls.length, errors: downloadErrors },
           });
-          continue;
+          return;
         }
 
         // Candidatas à remoção (só hosts do Bling/legado). A remoção ocorre APÓS confirmar persistência.
@@ -693,7 +696,7 @@ export const syncBlingImages = createServerFn({ method: "POST" })
           message: String(error?.message ?? error).slice(0, 400),
         });
       }
-    }
+    }));
 
     const lastScannedId =
       data.onlyMissing === false
