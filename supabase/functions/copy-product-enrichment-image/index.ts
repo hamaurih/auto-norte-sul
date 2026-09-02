@@ -6,7 +6,22 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
   headers: { "content-type": "application/json" },
 });
 
-const isPrivate = (ip: string) => /^(127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1$|fc|fd|fe80)/i.test(ip);
+const isPrivate = (ip: string) => /^(127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|::1$|::$|fc|fd|fe80)/i.test(ip);
+
+async function secureEqual(a: string, b: string) {
+  if (!a || !b) return false;
+  const encoder = new TextEncoder();
+  const [da, db] = await Promise.all([
+    crypto.subtle.digest("SHA-256", encoder.encode(a)),
+    crypto.subtle.digest("SHA-256", encoder.encode(b)),
+  ]);
+  const aa = new Uint8Array(da);
+  const bb = new Uint8Array(db);
+  if (aa.length !== bb.length) return false;
+  let diff = 0;
+  for (let i = 0; i < aa.length; i++) diff |= aa[i] ^ bb[i];
+  return diff === 0;
+}
 
 async function validatePublicHttps(source: URL) {
   if (source.protocol !== "https:" || ["localhost", "localhost.localdomain"].includes(source.hostname.toLowerCase())) {
@@ -26,7 +41,7 @@ async function copyImage(admin: ReturnType<typeof createClient>, sourceUrl: stri
   const response = await fetch(source, {
     redirect: "error",
     signal: AbortSignal.timeout(12000),
-    headers: { "user-agent": "AutoNorteSulCatalog/2.1 (+selective gallery copy)" },
+    headers: { "user-agent": "AutoNorteSulCatalog/2.2 (+selective gallery copy)" },
   });
   if (!response.ok) throw new Error(`A origem respondeu ${response.status}`);
 
@@ -42,7 +57,18 @@ async function copyImage(admin: ReturnType<typeof createClient>, sourceUrl: stri
   if (declared > 5 * 1024 * 1024) throw new Error("Imagem maior que 5 MB");
 
   const bytes = new Uint8Array(await response.arrayBuffer());
+  if (bytes.byteLength === 0) throw new Error("Imagem vazia");
   if (bytes.byteLength > 5 * 1024 * 1024) throw new Error("Imagem maior que 5 MB");
+
+  // Magic bytes: não confiar somente no Content-Type remoto.
+  const jpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const pngSig = [0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a];
+  const png = bytes.length >= 8 && pngSig.every((v, i) => bytes[i] === v);
+  const webp = bytes.length >= 12
+    && String.fromCharCode(...bytes.slice(0,4)) === "RIFF"
+    && String.fromCharCode(...bytes.slice(8,12)) === "WEBP";
+  const realMime = jpeg ? "image/jpeg" : png ? "image/png" : webp ? "image/webp" : null;
+  if (!realMime || realMime !== mime) throw new Error("Conteúdo da imagem não corresponde ao formato declarado");
 
   const path = `${pathBase}.${allowed[mime]}`;
   const { error: uploadError } = await admin.storage
@@ -59,17 +85,26 @@ Deno.serve(async (req) => {
 
     const url = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const auth = req.headers.get("authorization");
     if (!auth) return json({ error: "Não autenticado" }, 401);
 
-    const userClient = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: auth } },
-    });
-    const { data: { user } } = await userClient.auth.getUser();
-    if (!user) return json({ error: "Sessão inválida" }, 401);
+    const bearer = auth.replace(/^Bearer\s+/i, "").trim();
+    const workerMode = await secureEqual(bearer, serviceKey);
+    let userId: string | null = null;
 
-    const { candidateId } = await req.json();
-    if (!candidateId) return json({ error: "Sugestão obrigatória" }, 400);
+    // verify_jwt=false no gateway: validamos explicitamente cada chamada aqui.
+    if (!workerMode) {
+      const userClient = createClient(url, anonKey, {
+        global: { headers: { Authorization: auth } },
+      });
+      const { data: { user }, error: userError } = await userClient.auth.getUser();
+      if (userError || !user) return json({ error: "Sessão inválida" }, 401);
+      userId = user.id;
+    }
+
+    const { candidateId } = await req.json().catch(() => ({}));
+    if (!candidateId || typeof candidateId !== "string") return json({ error: "Sugestão obrigatória" }, 400);
 
     const admin = createClient(url, serviceKey);
     const { data: candidate, error } = await admin
@@ -79,15 +114,18 @@ Deno.serve(async (req) => {
       .single();
     if (error || !candidate) return json({ error: "Sugestão não encontrada" }, 404);
 
-    const { data: membership } = await admin
-      .from("tenant_memberships")
-      .select("role")
-      .eq("tenant_id", candidate.tenant_id)
-      .eq("user_id", user.id)
-      .eq("active", true)
-      .in("role", ["owner", "admin", "manager"])
-      .maybeSingle();
-    if (!membership) return json({ error: "Sem permissão" }, 403);
+    if (!workerMode) {
+      const { data: membership } = await admin
+        .from("tenant_memberships")
+        .select("role")
+        .eq("tenant_id", candidate.tenant_id)
+        .eq("user_id", userId!)
+        .eq("active", true)
+        .in("role", ["owner", "admin", "manager"])
+        .maybeSingle();
+      if (!membership) return json({ error: "Sem permissão" }, 403);
+    }
+
     if (candidate.status !== "pending") return json({ error: "Sugestão já revisada" }, 409);
 
     const { data: allGallery, error: galleryError } = await admin
