@@ -34,15 +34,16 @@ import {
 } from "@/lib/queries";
 import { useSession } from "@/lib/session";
 
+// Categories/brands are intentionally NOT prefetched here: they are
+// tenant-scoped and the active tenant is only known on the client, so
+// prefetching them without the tenant id would poison the cache.
 const HOME_QUERIES: { queryKey: readonly string[]; queryFn: () => Promise<unknown> }[] = [
   { queryKey: ["banners"], queryFn: fetchBanners },
   { queryKey: ["mini-banners"], queryFn: fetchMiniBanners },
-  { queryKey: ["categories"], queryFn: fetchCategories },
   { queryKey: ["offers"], queryFn: fetchOffers },
   { queryKey: ["new"], queryFn: fetchNewArrivals },
   { queryKey: ["best"], queryFn: fetchBestSellers },
   { queryKey: ["featured"], queryFn: fetchFeatured },
-  { queryKey: ["brands"], queryFn: fetchBrands },
 ];
 
 export const Route = createFileRoute("/")({
