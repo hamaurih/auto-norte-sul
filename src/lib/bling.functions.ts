@@ -498,9 +498,13 @@ export const syncBlingImages = createServerFn({ method: "POST" })
         const payload: any = await blingFetch(token, `/produtos/${encodeURIComponent(productRow.bling_id)}`);
         const product = payload?.data ?? payload;
         const images: any[] = product?.midia?.imagens?.externas ?? product?.midia?.imagens ?? product?.imagens ?? [];
-        const urls = images
-          .map((item: any) => String(item?.link ?? item?.url ?? item?.imagemURL ?? "").trim())
-          .filter((value: string) => /^https:\/\//i.test(value));
+        const urls = Array.from(
+          new Set(
+            images
+              .map((item: any) => String(item?.link ?? item?.url ?? item?.imagemURL ?? "").trim())
+              .filter((value: string) => /^https:\/\//i.test(value)),
+          ),
+        );
         if (!urls.length) continue;
         withImages += 1;
 
@@ -509,9 +513,10 @@ export const syncBlingImages = createServerFn({ method: "POST" })
         const downloadErrors: string[] = [];
         for (const [index, url] of urls.slice(0, 8).entries()) {
           try {
-            permanentUrls.push(await copyBlingImageToStorage(admin, context.tenantId, productRow.id, url, index));
+            const stored = await copyBlingImageToStorage(admin, context.tenantId, productRow.id, url, index);
+            if (!permanentUrls.includes(stored)) permanentUrls.push(stored);
           } catch (copyError: any) {
-            downloadErrors.push(String(copyError?.message ?? copyError).slice(0, 200));
+            downloadErrors.push(`${url}: ${String(copyError?.message ?? copyError)}`.slice(0, 200));
           }
         }
         if (!permanentUrls.length) {
@@ -539,9 +544,9 @@ export const syncBlingImages = createServerFn({ method: "POST" })
         }
 
         const keptRows = currentRows.filter((row: any) => !externalIds.includes(row.id));
-        const hasPermanentPrimary = keptRows.some(
-          (row: any) => isPermanentStorageImageUrl(row.url) && row.is_primary,
-        );
+        const overwriteManual = cfg.image_overwrites_manual === true;
+        // Qualquer primary mantida (inclusive manual em host/Storage legado) é preservada quando não há overwrite.
+        const hasKeptPrimary = keptRows.some((row: any) => row.is_primary === true);
         const alreadySaved = new Set(keptRows.map((row: any) => String(row.url)));
         const newUrls = permanentUrls.filter((url) => !alreadySaved.has(url));
         const baseOrder = keptRows.length;
@@ -551,8 +556,9 @@ export const syncBlingImages = createServerFn({ method: "POST" })
           url,
           alt: productRow.name || "Imagem do produto",
           sort_order: baseOrder + index,
-          is_primary: index === 0 && (cfg.image_overwrites_manual === true || !hasPermanentPrimary),
+          is_primary: index === 0 && (overwriteManual || !hasKeptPrimary),
         }));
+
         if (rows.length) {
           if (rows[0]?.is_primary) {
             await admin.from("product_images").update({ is_primary: false })
