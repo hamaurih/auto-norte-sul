@@ -7,7 +7,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { getBlingCredentials } from "@/lib/bling.functions";
 
 const TOKEN_URL = "https://api.bling.com.br/Api/v3/oauth/token";
-const OAUTH_STATE_COOKIE = "__Host-bling-oauth-state";
+const OAUTH_STATE_COOKIE = "__Secure-bling-oauth-state";
+const OAUTH_COOKIE_DOMAIN = ".nortesulauto.com.br";
 
 function escapeHtml(value: string): string {
   return value
@@ -31,7 +32,7 @@ function html(status: number, title: string, body: string, clearStateCookie = fa
   if (clearStateCookie) {
     headers.set(
       "Set-Cookie",
-      `${OAUTH_STATE_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`,
+      `${OAUTH_STATE_COOKIE}=; Path=/; Domain=${OAUTH_COOKIE_DOMAIN}; Max-Age=0; HttpOnly; Secure; SameSite=Lax`,
     );
   }
   return new Response(
