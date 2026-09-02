@@ -5,6 +5,7 @@ import { z } from "zod";
 import { fetchBrands, fetchCatalog, fetchCategories, type CatalogFilters } from "@/lib/queries";
 import { ProductCard } from "@/components/site/ProductCard";
 import { useSession } from "@/lib/session";
+import { useCompanyProfile } from "@/lib/company";
 import { Filter } from "lucide-react";
 
 const searchSchema = z.object({
@@ -30,6 +31,8 @@ function Catalog() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const { isB2BApproved } = useSession();
+  const { data: company } = useCompanyProfile();
+  const tenantId = company?.tenant_id;
   const [openFilters, setOpenFilters] = useState(false);
 
   const filters: CatalogFilters = {
