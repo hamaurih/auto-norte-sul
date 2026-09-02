@@ -1,10 +1,10 @@
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 import { useCompanyProfile } from "@/lib/company";
 
 export function CompanyTheme() {
   const { data } = useCompanyProfile();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!data) return;
 
     const root = document.documentElement;
@@ -14,6 +14,9 @@ export function CompanyTheme() {
     root.style.setProperty("--secondary", data.secondary_color);
     root.style.setProperty("--hot", data.accent_color);
     document.title = data.store_title || data.trade_name;
+
+    const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    themeColor?.setAttribute("content", data.primary_color);
 
     if (data.favicon_url) {
       document
