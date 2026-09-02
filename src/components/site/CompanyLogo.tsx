@@ -18,7 +18,7 @@ export function CompanyLogo({
   dark?: boolean;
   className?: string;
 }) {
-  const { data } = useCompanyProfile();
+  const { data, isFetched } = useCompanyProfile();
   const src =
     (dark ? data?.logo_dark_url : data?.logo_url) ||
     data?.logo_url ||
@@ -31,9 +31,11 @@ export function CompanyLogo({
       className={className}
       loading="eager"
       decoding="async"
+      style={{ visibility: isFetched ? "visible" : "hidden" }}
       onError={(event) => {
         if (event.currentTarget.src !== FALLBACK_LOGO) {
           event.currentTarget.src = FALLBACK_LOGO;
+          event.currentTarget.style.visibility = "visible";
         }
       }}
     />
