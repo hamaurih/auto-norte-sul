@@ -149,12 +149,25 @@ function isPermanentStorageImageUrl(url: unknown) {
   return value.startsWith(prefix);
 }
 
+/** Conservador: só URLs hospedadas no Bling/legado conhecido podem ser removidas. */
 function isExternalBlingImageUrl(url: unknown) {
   const value = String(url ?? "").trim();
   if (!value) return false;
   if (isPermanentStorageImageUrl(value)) return false;
-  return /orgbling\.s3\.amazonaws\.com|bling\.com\.br/i.test(value) || /[?&](Expires|X-Amz-Signature|token)=/i.test(value);
+  let host: string;
+  try {
+    host = new URL(value).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return (
+    host === "orgbling.s3.amazonaws.com" ||
+    host === "bling.com.br" ||
+    host === "www.bling.com.br" ||
+    host.endsWith(".bling.com.br")
+  );
 }
+
 
 
 async function shortHash(value: string) {
