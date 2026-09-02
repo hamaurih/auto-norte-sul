@@ -124,14 +124,64 @@ async function refreshTokenIfNeeded(sb: any, tenantId: string): Promise<string> 
   return payload.access_token as string;
 }
 
-async function blingFetch(token: string, path: string) {
-  const response = await fetch(`${BLING_API}${path}`, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json", "enable-jwt": "1" },
+/**
+ * Limite oficial do Bling: 3 req/s por conta. Serializamos TODAS as chamadas
+ * com intervalo seguro (>= 450ms) e tratamos HTTP 429 com retry.
+ */
+const BLING_MIN_INTERVAL_MS = 450;
+const BLING_MAX_ATTEMPTS = 4;
+let blingRateChain: Promise<void> = Promise.resolve();
+let blingLastRequestAt = 0;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
+
+/** Serializa a chamada respeitando o intervalo mínimo global. */
+function blingRateLimited<T>(task: () => Promise<T>): Promise<T> {
+  const scheduled = blingRateChain.then(async () => {
+    const wait = BLING_MIN_INTERVAL_MS - (Date.now() - blingLastRequestAt);
+    if (wait > 0) await sleep(wait);
+    blingLastRequestAt = Date.now();
   });
-  const payload: any = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(`Bling ${path} → HTTP ${response.status}`);
-  return payload;
+  blingRateChain = scheduled.catch(() => undefined);
+  return scheduled.then(task);
 }
+
+function retryDelayMs(response: Response, attempt: number) {
+  const header = response.headers.get("retry-after");
+  if (header) {
+    const seconds = Number(header);
+    if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, 30_000);
+    const dateValue = Date.parse(header);
+    if (!Number.isNaN(dateValue)) return Math.min(Math.max(dateValue - Date.now(), 0), 30_000);
+  }
+  const base = 1000 * 2 ** attempt; // 1s, 2s, 4s, 8s
+  return base + Math.floor(Math.random() * 400);
+}
+
+async function blingFetch(token: string, path: string) {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < BLING_MAX_ATTEMPTS; attempt += 1) {
+    const response = await blingRateLimited(() =>
+      fetch(`${BLING_API}${path}`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json", "enable-jwt": "1" },
+      }),
+    );
+    if (response.status === 429) {
+      lastError = new Error(`Bling ${path} → HTTP 429 (limite de requisições)`);
+      // Não falha no primeiro 429: aguarda e tenta novamente.
+      if (attempt < BLING_MAX_ATTEMPTS - 1) {
+        await sleep(retryDelayMs(response, attempt));
+        continue;
+      }
+      throw lastError;
+    }
+    const payload: any = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(`Bling ${path} → HTTP ${response.status}`);
+    return payload;
+  }
+  throw lastError ?? new Error(`Bling ${path} → falha desconhecida`);
+}
+
 
 const STORAGE_IMAGE_BUCKET = "product-images";
 
