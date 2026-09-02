@@ -110,7 +110,7 @@ function SaneamentoPage() {
 }
 
 // =========== TAB: SIMPLE LIST ===========
-function TabSimpleList({ problem, title, helpText }: { problem: Problem; title: string; helpText?: string }) {
+function TabSimpleList({ problem, title, helpText, actionLabel }: { problem: Problem; title: string; helpText?: string; actionLabel?: string }) {
   const [search, setSearch] = useState("");
   const fn = useServerFn(listProblemProducts);
   const q = useQuery({
@@ -132,17 +132,29 @@ function TabSimpleList({ problem, title, helpText }: { problem: Problem; title: 
               <th className="p-2 text-left">SKU</th>
               <th className="p-2 text-right">Preço</th>
               <th className="p-2 text-right">Estoque</th>
+              {actionLabel && <th className="p-2 text-right">Ação</th>}
             </tr></thead>
             <tbody>
               {(q.data?.rows ?? []).map((p: any) => (
                 <tr key={p.id} className="border-t border-border">
-                  <td className="p-2">{p.name}</td>
+                  <td className="p-2">
+                    {actionLabel ? (
+                      <Link to="/admin/produtos/$id" params={{ id: p.id }} className="hover:underline">{p.name}</Link>
+                    ) : p.name}
+                  </td>
                   <td className="p-2 font-mono text-xs">{p.sku ?? "—"}</td>
                   <td className="p-2 text-right">R$ {Number(p.price_b2c ?? 0).toFixed(2)}</td>
                   <td className="p-2 text-right">{p.stock ?? 0}</td>
+                  {actionLabel && (
+                    <td className="p-2 text-right">
+                      <Button asChild size="sm" variant="outline">
+                        <Link to="/admin/produtos/$id" params={{ id: p.id }}>{actionLabel}</Link>
+                      </Button>
+                    </td>
+                  )}
                 </tr>
               ))}
-              {(q.data?.rows ?? []).length === 0 && <tr><td colSpan={4} className="p-4 text-center text-sm text-muted-foreground">Nenhum produto encontrado.</td></tr>}
+              {(q.data?.rows ?? []).length === 0 && <tr><td colSpan={actionLabel ? 5 : 4} className="p-4 text-center text-sm text-muted-foreground">Nenhum produto encontrado.</td></tr>}
             </tbody>
           </table>
         </div>
