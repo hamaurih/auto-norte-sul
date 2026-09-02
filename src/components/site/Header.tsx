@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Search, ShoppingCart, User, Wrench, Menu, LogOut, Car, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchCategories, fetchSearchSuggestions } from "@/lib/queries";
+import { fetchSearchSuggestions } from "@/lib/queries";
 import { useCart } from "@/lib/cart-store";
 import { useSession } from "@/lib/session";
 import { brl } from "@/lib/format";
@@ -24,7 +24,26 @@ export function Header() {
     ? `https://wa.me/${company.whatsapp.replace(/\D/g, "")}`
     : "#";
   const { user, isStaff, isSalesRep, isB2BApproved } = useSession();
-  const { data: categories = [] } = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories", company?.tenant_id],
+    enabled: Boolean(company?.tenant_id),
+    queryFn: async () => {
+      if (!company?.tenant_id) return [];
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name, slug, icon, sort_order")
+        .eq("tenant_id", company.tenant_id)
+        .eq("active", true)
+        .is("parent_id", null)
+        .order("sort_order");
+      if (error) {
+        console.error("Erro ao carregar departamentos da loja", error);
+        return [];
+      }
+      return data ?? [];
+    },
+    staleTime: 60_000,
+  });
 
   // Debounce term (250ms)
   useEffect(() => {
