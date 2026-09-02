@@ -86,6 +86,10 @@ export const getEnrichmentOverview = createServerFn({ method: "GET" })
       // Durante a janela entre deploy e aplicação da migration, o painel segue funcional.
     }
 
+    const recentSchedulerRun = Boolean(
+      lastRun && Date.now() - new Date(lastRun.started_at).getTime() < 30 * 60 * 1000,
+    );
+
     return {
       queued,
       processing,
@@ -93,7 +97,7 @@ export const getEnrichmentOverview = createServerFn({ method: "GET" })
       approvedAuto,
       approvedManual,
       failed,
-      automationConfigured: Boolean(process.env["CRON_SECRET"]),
+      automationConfigured: Boolean(process.env["CRON_SECRET"]) || recentSchedulerRun,
       lastRun,
     };
   });
