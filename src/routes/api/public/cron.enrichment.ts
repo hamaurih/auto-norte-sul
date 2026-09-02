@@ -1,27 +1,40 @@
 /**
  * Endpoint interno de processamento em lote do enriquecimento de catálogo.
  *
- * Chamado pelo Vercel Cron (a cada 10 minutos) com
- * `Authorization: Bearer ${CRON_SECRET}` — o header é adicionado
- * automaticamente pela Vercel quando a variável CRON_SECRET existe no
- * projeto. Sem o segredo configurado o endpoint responde 503 e nunca
- * processa nada (fail closed). A comparação usa digest de tempo constante.
+ * Dois autenticadores server-side são aceitos:
+ *  1. CRON_SECRET da Vercel, quando configurado;
+ *  2. token do scheduler armazenado no Supabase Vault e validado por RPC
+ *     service-role-only. O token nunca fica no Git, frontend ou logs da app.
  */
 import { createFileRoute } from "@tanstack/react-router";
 
-async function handleCronRequest(request: Request): Promise<Response> {
-  const secret = process.env["CRON_SECRET"];
-  if (!secret) {
-    return Response.json(
-      { ok: false, error: "CRON_SECRET não configurado no servidor; automação desativada" },
-      { status: 503 },
-    );
-  }
-
-  const provided = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+async function safeEqual(a: string, b: string) {
+  if (!a || !b) return false;
   const { createHash, timingSafeEqual } = await import("node:crypto");
   const digest = (value: string) => createHash("sha256").update(value).digest();
-  if (!provided || !timingSafeEqual(digest(provided), digest(secret))) {
+  return timingSafeEqual(digest(a), digest(b));
+}
+
+async function isAuthorizedCronToken(provided: string): Promise<boolean> {
+  if (!provided) return false;
+
+  const vercelSecret = process.env["CRON_SECRET"];
+  if (vercelSecret && await safeEqual(provided, vercelSecret)) return true;
+
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await (supabaseAdmin as any).rpc("verify_enrichment_cron_token", {
+      p_token: provided,
+    });
+    return !error && data === true;
+  } catch {
+    return false;
+  }
+}
+
+async function handleCronRequest(request: Request): Promise<Response> {
+  const provided = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+  if (!await isAuthorizedCronToken(provided)) {
     return Response.json({ ok: false, error: "Não autorizado" }, { status: 401 });
   }
 
