@@ -21,14 +21,92 @@ export type EnrichmentCandidateInput = {
   matchReasons?: string[];
 };
 
+export type EnrichmentOverview = {
+  queued: number;
+  processing: number;
+  review: number;
+  approvedAuto: number;
+  approvedManual: number;
+  failed: number;
+  automationConfigured: boolean;
+  lastRun: null | {
+    id: string;
+    status: string;
+    trigger_source: string;
+    started_at: string;
+    finished_at: string | null;
+    enqueued: number;
+    claimed: number;
+    processed: number;
+    auto_approved: number;
+    sent_review: number;
+    failed: number;
+    images_copied: number;
+    last_error: string | null;
+  };
+};
+
+export const getEnrichmentOverview = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<EnrichmentOverview> => {
+    const sb = tdb(context.supabase);
+    await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_APPROVE_ROLES);
+    const db = sb as any;
+
+    const count = async (status: string, approvalMode?: "auto" | "manual") => {
+      let q = db.from("product_enrichment_jobs")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", context.tenantId)
+        .eq("status", status);
+      if (approvalMode) q = q.eq("approval_mode", approvalMode);
+      const { count: n, error } = await q;
+      if (error) throw new Error(error.message);
+      return Number(n ?? 0);
+    };
+
+    const [queued, processing, review, approvedAuto, approvedManual, failed] = await Promise.all([
+      count("queued"),
+      count("processing"),
+      count("review"),
+      count("approved", "auto"),
+      count("approved", "manual"),
+      count("failed"),
+    ]);
+
+    let lastRun: EnrichmentOverview["lastRun"] = null;
+    try {
+      const { data, error } = await db.from("product_enrichment_runs")
+        .select("id,status,trigger_source,started_at,finished_at,enqueued,claimed,processed,auto_approved,sent_review,failed,images_copied,last_error")
+        .eq("tenant_id", context.tenantId)
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!error && data) lastRun = data as EnrichmentOverview["lastRun"];
+    } catch {
+      // Durante a janela entre deploy e aplicação da migration, o painel segue funcional.
+    }
+
+    return {
+      queued,
+      processing,
+      review,
+      approvedAuto,
+      approvedManual,
+      failed,
+      automationConfigured: Boolean(process.env["CRON_SECRET"]),
+      lastRun,
+    };
+  });
+
 export const listProductEnrichmentJobs = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input?: { status?: string }) => input ?? {})
   .handler(async ({ data, context }) => {
     const sb = tdb(context.supabase);
     await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_APPROVE_ROLES);
-    let query = sb.from("product_enrichment_jobs")
-      .select("id,status,trigger_source,search_query,attempts,last_error,created_at,product:products(id,name,sku,gtin,manufacturer_code,description,short_description),candidates:product_enrichment_candidates(id,source_type,source_name,source_url,license_name,license_url,image_url,storage_url,suggested_name,suggested_short_description,suggested_description,suggested_gtin,suggested_manufacturer_code,confidence,match_reasons,status,gallery:product_enrichment_candidate_images(id,source_url,storage_url,alt,sort_order,is_primary,selected),applications:product_enrichment_candidate_applications(id,vehicle_make,vehicle_model,year_from,year_to,notes,source_text,confidence,selected))")
+    const db = sb as any;
+    let query = db.from("product_enrichment_jobs")
+      .select("id,status,trigger_source,approval_mode,search_query,attempts,last_error,started_at,finished_at,created_at,product:products(id,name,sku,gtin,manufacturer_code,description,short_description),candidates:product_enrichment_candidates(id,source_type,source_name,source_url,license_name,license_url,image_url,storage_url,suggested_name,suggested_short_description,suggested_description,suggested_gtin,suggested_manufacturer_code,confidence,match_reasons,status,auto_approved,review_reason,gallery:product_enrichment_candidate_images(id,source_url,storage_url,alt,sort_order,is_primary,selected),applications:product_enrichment_candidate_applications(id,vehicle_make,vehicle_model,year_from,year_to,notes,source_text,confidence,selected))")
       .eq("tenant_id", context.tenantId).order("created_at", { ascending: false }).limit(150);
     if (data.status && data.status !== "all") query = query.eq("status", data.status);
     const { data: rows, error } = await query;
