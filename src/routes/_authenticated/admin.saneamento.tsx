@@ -46,7 +46,14 @@ function Stat({ label, value, warn, total }: { label: string; value: number; war
 
 function SaneamentoPage() {
   const statsFn = useServerFn(getSaneamentoStats);
-  const stats = useQuery({ queryKey: ["san-stats"], queryFn: () => statsFn() });
+  const stats = useQuery({
+    queryKey: ["san-stats"],
+    queryFn: () => statsFn(),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchInterval: 15_000,
+  });
   const initLegacyFn = useServerFn(initStockFromLegacy);
   const qc = useQueryClient();
 
@@ -58,8 +65,16 @@ function SaneamentoPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-2xl font-bold uppercase">Saneamento do Catálogo</h1>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">
+            {stats.dataUpdatedAt ? `Atualizado às ${new Date(stats.dataUpdatedAt).toLocaleTimeString("pt-BR")}` : "Carregando indicadores…"}
+          </span>
+          <Button size="sm" variant="outline" onClick={() => stats.refetch()} disabled={stats.isFetching}>
+            {stats.isFetching ? "Atualizando…" : "Atualizar agora"}
+          </Button>
+        </div>
       </div>
 
       <section className="grid grid-cols-2 gap-2 md:grid-cols-5">
@@ -525,7 +540,10 @@ function TabApplications() {
   });
   const rm = useMutation({
     mutationFn: (id: string) => delFn({ data: { id } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["apps"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["apps"] });
+      qc.invalidateQueries({ queryKey: ["san-stats"] });
+    },
   });
 
   return (
