@@ -149,12 +149,25 @@ function isPermanentStorageImageUrl(url: unknown) {
   return value.startsWith(prefix);
 }
 
+/** Conservador: só URLs hospedadas no Bling/legado conhecido podem ser removidas. */
 function isExternalBlingImageUrl(url: unknown) {
   const value = String(url ?? "").trim();
   if (!value) return false;
   if (isPermanentStorageImageUrl(value)) return false;
-  return /orgbling\.s3\.amazonaws\.com|bling\.com\.br/i.test(value) || /[?&](Expires|X-Amz-Signature|token)=/i.test(value);
+  let host: string;
+  try {
+    host = new URL(value).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return (
+    host === "orgbling.s3.amazonaws.com" ||
+    host === "bling.com.br" ||
+    host === "www.bling.com.br" ||
+    host.endsWith(".bling.com.br")
+  );
 }
+
 
 
 async function shortHash(value: string) {
@@ -533,15 +546,10 @@ export const syncBlingImages = createServerFn({ method: "POST" })
         }
 
         const currentRows = (existingImages ?? []).filter((row: any) => row.product_id === productRow.id);
-        // Remove somente lixo temporário/externo do Bling. Storage permanente e imagem manual ficam intactos.
+        // Candidatas à remoção (só hosts do Bling/legado). A remoção ocorre APÓS confirmar persistência.
         const externalIds = currentRows
           .filter((row: any) => isExternalBlingImageUrl(row.url))
           .map((row: any) => row.id);
-        if (externalIds.length) {
-          const { error: deleteError } = await admin.from("product_images").delete()
-            .eq("tenant_id", context.tenantId).in("id", externalIds);
-          if (deleteError) throw new Error(deleteError.message);
-        }
 
         const keptRows = currentRows.filter((row: any) => !externalIds.includes(row.id));
         const overwriteManual = cfg.image_overwrites_manual === true;
@@ -549,33 +557,68 @@ export const syncBlingImages = createServerFn({ method: "POST" })
         const hasKeptPrimary = keptRows.some((row: any) => row.is_primary === true);
         const alreadySaved = new Set(keptRows.map((row: any) => String(row.url)));
         const newUrls = permanentUrls.filter((url) => !alreadySaved.has(url));
+        const alreadyPersisted = permanentUrls.filter((url) => alreadySaved.has(url));
         const baseOrder = keptRows.length;
+        // Insere sempre com is_primary:false para não abrir janela com duas primárias.
         const rows = newUrls.map((url: string, index: number) => ({
           tenant_id: context.tenantId,
           product_id: productRow.id,
           url,
           alt: productRow.name || "Imagem do produto",
           sort_order: baseOrder + index,
-          is_primary: index === 0 && (overwriteManual || !hasKeptPrimary),
+          is_primary: false,
         }));
 
+        let insertedUrls: string[] = [];
         if (rows.length) {
-          if (rows[0]?.is_primary) {
-            await admin.from("product_images").update({ is_primary: false })
-              .eq("tenant_id", context.tenantId).eq("product_id", productRow.id).eq("is_primary", true);
-          }
-          const { error } = await admin.from("product_images").insert(rows);
+          const { data: inserted, error } = await admin
+            .from("product_images")
+            .insert(rows)
+            .select("id,url");
           if (error) throw new Error(error.message);
-          await writeLog(sb, context.tenantId, {
-            entity: "imagem",
-            entity_id: productRow.id,
-            action: "media_persisted",
-            status: "sucesso",
-            message: `${rows.length} imagem(ns) permanente(s) copiada(s) e persistida(s) no Storage.`,
-            payload: { productId: productRow.id, copied: permanentUrls.length, persisted: rows.length },
-          });
+          insertedUrls = (inserted ?? []).map((row: any) => String(row.url));
         }
-        imagesSaved += rows.length;
+
+        // Confirmação: ao menos uma URL permanente copiada está registrada no banco.
+        const confirmedUrls = permanentUrls.filter(
+          (url) => insertedUrls.includes(url) || alreadySaved.has(url),
+        );
+        if (!confirmedUrls.length) {
+          throw new Error("Nenhuma URL permanente foi confirmada em product_images; nada foi removido.");
+        }
+
+        // Só agora é seguro remover o lixo temporário/externo do Bling.
+        if (externalIds.length) {
+          const { error: deleteError } = await admin.from("product_images").delete()
+            .eq("tenant_id", context.tenantId).in("id", externalIds);
+          if (deleteError) throw new Error(deleteError.message);
+        }
+
+        if (overwriteManual || !hasKeptPrimary) {
+          const primaryUrl = confirmedUrls[0];
+          await admin.from("product_images").update({ is_primary: false })
+            .eq("tenant_id", context.tenantId).eq("product_id", productRow.id).eq("is_primary", true);
+          const { error: primaryError } = await admin.from("product_images").update({ is_primary: true })
+            .eq("tenant_id", context.tenantId).eq("product_id", productRow.id).eq("url", primaryUrl);
+          if (primaryError) throw new Error(primaryError.message);
+        }
+
+        await writeLog(sb, context.tenantId, {
+          entity: "imagem",
+          entity_id: productRow.id,
+          action: "media_persisted",
+          status: "sucesso",
+          message: `${insertedUrls.length} nova(s) e ${alreadyPersisted.length} já existente(s) imagem(ns) permanente(s) confirmada(s) no Storage.${downloadErrors.length ? ` Falhas parciais: ${downloadErrors.length}.` : ""}`.slice(0, 400),
+          payload: {
+            productId: productRow.id,
+            copied: permanentUrls.length,
+            inserted: insertedUrls.length,
+            alreadyPersisted: alreadyPersisted.length,
+            partialErrors: downloadErrors,
+          },
+        });
+        imagesSaved += insertedUrls.length;
+
 
       } catch (error: any) {
         failures += 1;

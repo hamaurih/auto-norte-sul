@@ -482,7 +482,7 @@ function IntegrationDetail() {
                     <li key={l.id} className="flex items-start justify-between gap-3 p-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className={logStatusMeta[l.status as keyof typeof logStatusMeta]}>{l.status}</Badge>
+                          <Badge variant="outline" className={logStatusMeta[l.status]}>{l.status}</Badge>
                           <span className="font-mono text-xs">{l.event_type}</span>
                           <span className="text-xs text-muted-foreground">{formatDate(l.created_at)}</span>
                         </div>
