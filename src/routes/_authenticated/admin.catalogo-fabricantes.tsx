@@ -40,7 +40,7 @@ function Page() {
   const patterns = (data?.patterns ?? []) as any[];
 
   return <div className="mx-auto max-w-7xl space-y-6">
-    <header><h1 className="font-display text-2xl font-bold uppercase">Catálogo inteligente de fabricantes</h1><p className="mt-1 max-w-3xl text-sm text-muted-foreground">Memória própria de fontes oficiais e padrões de código. O Bling não é necessário e nenhuma informação é publicada sem revisão.</p></header>
+    <header><h1 className="font-display text-2xl font-bold uppercase">Catálogo inteligente de fabricantes</h1><p className="mt-1 max-w-4xl text-sm text-muted-foreground">Este cadastro é a memória de fontes oficiais e regras que alimenta o robô automático de enriquecimento. Somente domínios ativos cadastrados aqui podem sustentar autoaprovação; não é um catálogo duplicado de produtos e não depende do Bling.</p></header>
     <div className="grid gap-3 sm:grid-cols-3"><Metric label="Fontes cadastradas" value={sources.length}/><Metric label="Fontes ativas" value={sources.filter(s=>s.status==="active").length}/><Metric label="Regras de código" value={patterns.filter(p=>p.active).length}/></div>
     <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 text-sm"><ShieldCheck className="mr-2 inline h-4 w-4"/><strong>Governança:</strong> domínio permitido, prioridade, origem e regra ficam auditáveis; imagens exigem autorização de uso.</div>
 
