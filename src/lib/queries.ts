@@ -361,9 +361,15 @@ export interface SearchSuggestion {
   image: string | null;
 }
 
-export async function fetchSearchSuggestions(term: string, limit = 8): Promise<SearchSuggestion[]> {
+export async function fetchSearchSuggestions(
+  term: string,
+  limit = 8,
+  tenantId?: string | null,
+): Promise<SearchSuggestion[]> {
   const q = term.trim();
   if (q.length < 2) return [];
+  const tenant = await tenantScope(tenantId);
+  if (!tenant) return [];
   const safe = sanitizeOrQuery(sanitizeSearchTerm(q));
   const lower = q.toLowerCase();
 
@@ -371,6 +377,7 @@ export async function fetchSearchSuggestions(term: string, limit = 8): Promise<S
   const { data: brands } = await supabase
     .from("brands")
     .select("id, name, slug")
+    .eq("tenant_id", tenant)
     .or(`name.ilike.%${safe}%,slug.ilike.%${safe}%`)
     .limit(3);
   const brandMatch = (brands ?? []).find(
@@ -380,6 +387,7 @@ export async function fetchSearchSuggestions(term: string, limit = 8): Promise<S
   let query = supabase
     .from("products")
     .select("id, sku, name, slug, price_b2c, images:product_images(url, is_primary, sort_order)")
+    .eq("tenant_id", tenant)
     .eq("active", true)
     .is("deleted_at", null);
   if (brandMatch) {
@@ -388,11 +396,11 @@ export async function fetchSearchSuggestions(term: string, limit = 8): Promise<S
     // Tenta alias comercial antes do fallback textual
     const alias = await resolveAlias(q);
     if (alias?.target_type === "category" && alias.target_slug) {
-      const { data: cat } = await supabase.from("categories").select("id, parent_id").eq("slug", alias.target_slug).maybeSingle();
+      const cat = await findCategoryBySlug(alias.target_slug, tenant);
       if (cat) query = applyCategoryTarget(query, cat);
       else query = query.or(`name.ilike.%${safe}%,sku.ilike.%${safe}%`);
     } else if (alias?.target_type === "brand" && alias.target_slug) {
-      const { data: br } = await supabase.from("brands").select("id").eq("slug", alias.target_slug).maybeSingle();
+      const br = await findBrandBySlug(alias.target_slug, tenant);
       if (br) query = query.eq("brand_id", br.id);
       else query = query.or(`name.ilike.%${safe}%,sku.ilike.%${safe}%`);
     } else if (alias?.target_type === "product" && alias.target_id) {
