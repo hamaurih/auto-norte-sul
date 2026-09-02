@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { setCookie } from "@tanstack/react-start/server";
+import { getRequest, setCookie } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 import { requireTenantRole } from "@/lib/auth-guards";
 import { getBlingCredentials } from "@/lib/bling.functions";
@@ -7,11 +7,9 @@ import { getBlingCredentials } from "@/lib/bling.functions";
 const BLING_AUTHORIZE_URL = "https://www.bling.com.br/Api/v3/oauth/authorize";
 const CALLBACK_PATH = "/api/public/bling/callback";
 const OAUTH_STATE_COOKIE = "__Host-bling-oauth-state";
-const ALLOWED_CALLBACK_HOSTS = new Set([
-  "nortesulauto.com.br",
-  "www.nortesulauto.com.br",
-  "norte-sul-auto-hub.lovable.app",
-]);
+const CANONICAL_OAUTH_HOST = "www.nortesulauto.com.br";
+const CANONICAL_OAUTH_ORIGIN = `https://${CANONICAL_OAUTH_HOST}`;
+const ALLOWED_CALLBACK_HOSTS = new Set([CANONICAL_OAUTH_HOST]);
 
 function randomState(): string {
   return Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
@@ -41,6 +39,13 @@ export const getSecureBlingAuthUrl = createServerFn({ method: "POST" })
   .inputValidator((input: { redirectUri: string }) => input)
   .handler(async ({ data, context }) => {
     await requireTenantRole(context.supabase, context.userId, context.tenantId, ["owner", "admin"]);
+
+    const requestUrl = new URL(getRequest().url);
+    if (requestUrl.hostname !== CANONICAL_OAUTH_HOST) {
+      throw new Error(
+        `Por segurança, conecte o Bling somente pelo domínio oficial: ${CANONICAL_OAUTH_ORIGIN}/admin/ecossistema/bling`,
+      );
+    }
 
     const redirectUri = validateRedirectUri(data.redirectUri);
     const { data: cfg, error: cfgError } = await (context.supabase as any)
