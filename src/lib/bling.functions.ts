@@ -558,16 +558,23 @@ export const syncBlingImages = createServerFn({ method: "POST" })
     for (const productRow of candidates) {
       processed += 1;
       try {
+        const currentRows = (existingImages ?? []).filter((row: any) => row.product_id === productRow.id);
         const payload: any = await blingFetch(token, `/produtos/${encodeURIComponent(productRow.bling_id)}`);
         const product = payload?.data ?? payload;
         const images: any[] = product?.midia?.imagens?.externas ?? product?.midia?.imagens ?? product?.imagens ?? [];
-        const urls = Array.from(
+        const apiUrls = Array.from(
           new Set(
             images
               .map((item: any) => String(item?.link ?? item?.url ?? item?.imagemURL ?? "").trim())
               .filter((value: string) => /^https:\/\//i.test(value)),
           ),
         );
+        // A API v3 nem sempre devolve `midia` em cadastros antigos. Nesses casos,
+        // aproveita os links do Bling já importados no catálogo e os torna permanentes.
+        const legacyUrls = currentRows
+          .map((row: any) => String(row.url ?? "").trim())
+          .filter((value: string) => isExternalBlingImageUrl(value));
+        const urls = Array.from(new Set([...apiUrls, ...legacyUrls]));
         if (!urls.length) continue;
         withImages += 1;
 
@@ -595,7 +602,6 @@ export const syncBlingImages = createServerFn({ method: "POST" })
           continue;
         }
 
-        const currentRows = (existingImages ?? []).filter((row: any) => row.product_id === productRow.id);
         // Candidatas à remoção (só hosts do Bling/legado). A remoção ocorre APÓS confirmar persistência.
         const externalIds = currentRows
           .filter((row: any) => isExternalBlingImageUrl(row.url))
@@ -692,7 +698,9 @@ export const syncBlingImages = createServerFn({ method: "POST" })
       last_image_sync_product_id: lastScannedId,
       last_image_sync_at: new Date().toISOString(),
     }).eq("tenant_id", context.tenantId);
-    const remaining = (products?.length ?? 0) === scanLimit ? 1 : 0;
+    // Enquanto a consulta devolver qualquer produto, ainda pode haver outra página.
+    // A chamada seguinte confirma o fim, reinicia o cursor e retorna remaining=0.
+    const remaining = (products?.length ?? 0) > 0 ? 1 : 0;
     await writeLog(sb, context.tenantId, {
       entity: "imagem",
       action: "media_enrichment_batch",
