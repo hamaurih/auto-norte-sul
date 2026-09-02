@@ -1,14 +1,43 @@
 import { supabase } from "@/integrations/supabase/client";
+import { activeTenantSlug } from "@/integrations/supabase/tenant";
 import { normalizeTerm } from "./normalize";
 import { sanitizeSearchTerm, sanitizeOrQuery } from "./sanitize";
 
+/**
+ * Public catalog/taxonomy reads must never resolve a category, brand, alias or
+ * product that belongs to another tenant. Callers that already know the active
+ * tenant (Header, Home, Catálogo) pass it explicitly; loaders without React
+ * context fall back to resolving the tenant of the active storefront slug.
+ */
+let tenantIdPromise: Promise<string | null> | null = null;
+
+export async function resolveActiveTenantId(): Promise<string | null> {
+  if (!tenantIdPromise) {
+    tenantIdPromise = supabase
+      .from("tenant_storefronts")
+      .select("tenant_id")
+      .eq("slug", activeTenantSlug())
+      .maybeSingle()
+      .then(({ data }) => data?.tenant_id ?? null)
+      .catch(() => null);
+  }
+  return tenantIdPromise;
+}
+
+async function tenantScope(tenantId?: string | null): Promise<string | null> {
+  return tenantId ?? (await resolveActiveTenantId());
+}
+
 // Resolve termo → alias (categoria/marca/produto). Retorna o alias de maior peso ativo.
-export async function resolveAlias(term: string) {
+export async function resolveAlias(term: string, tenantId?: string | null) {
   const n = normalizeTerm(term);
   if (n.length < 2) return null;
+  const tenant = await tenantScope(tenantId);
+  if (!tenant) return null;
   const { data } = await supabase
     .from("search_aliases")
     .select("term, normalized_term, target_type, target_id, target_slug, target_label, weight")
+    .eq("tenant_id", tenant)
     .eq("is_active", true)
     .eq("normalized_term", n)
     .order("weight", { ascending: false })
