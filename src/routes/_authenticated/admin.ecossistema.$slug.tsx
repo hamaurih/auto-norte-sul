@@ -122,6 +122,36 @@ const specs: Record<string, IntegrationSpec> = {
       { key: "webhook_url", label: "URL de Webhook" },
     ],
   },
+  stone: {
+    intro:
+      "Conciliação oficial Stone: recebe arquivos Pix por webhook e importa vendas, taxas, cancelamentos e dados de liquidação. A captura do checkout/PDV usa credenciais separadas.",
+    fields: [
+      {
+        key: "api_key",
+        label: "Chave de API da Conciliação Stone",
+        type: "password",
+        is_secret: true,
+        help: "Chave Secreta criada no Portal Stone. É enviada como usuário no HTTP Basic Auth e nunca é reexibida.",
+      },
+      {
+        key: "merchant_document",
+        label: "CNPJ ou CPF do estabelecimento",
+        placeholder: "Somente números",
+      },
+      {
+        key: "webhook_url",
+        label: "URL pública do webhook",
+        placeholder: "https://www.nortesulauto.com.br/api/public/stone/conciliation/webhook",
+        help: "A URL deve usar HTTPS. O sistema acrescenta automaticamente um token secreto antes de cadastrá-la na Stone.",
+      },
+    ],
+    syncActions: [
+      { scope: "solicitar-pix-ontem", label: "Solicitar Pix de ontem" },
+      { scope: "processar-pix", label: "Importar arquivos recebidos" },
+    ],
+    warning:
+      "Esta conexão faz conciliação financeira. Para cobrar no site ainda é preciso habilitar a API transacional Stone/Pagar.me; no PDV, o produto TEF/SDK da Stone.",
+  },
   whatsapp: {
     fields: [
       { key: "phone_number_id", label: "Phone Number ID" },
@@ -482,7 +512,7 @@ function IntegrationDetail() {
                     <li key={l.id} className="flex items-start justify-between gap-3 p-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className={logStatusMeta[l.status as keyof typeof logStatusMeta]}>{l.status}</Badge>
+                          <Badge variant="outline" className={logStatusMeta[l.status]}>{l.status}</Badge>
                           <span className="font-mono text-xs">{l.event_type}</span>
                           <span className="text-xs text-muted-foreground">{formatDate(l.created_at)}</span>
                         </div>
