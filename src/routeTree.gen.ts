@@ -79,6 +79,7 @@ import { Route as AuthenticatedAdminNfeImportacaoIndexRouteImport } from './rout
 import { Route as AuthenticatedAdminEcossistemaIndexRouteImport } from './routes/_authenticated/admin.ecossistema.index'
 import { Route as ApiPublicCronEnrichmentRouteImport } from './routes/api/public/cron.enrichment'
 import { Route as ApiPublicBlingCallbackRouteImport } from './routes/api/public/bling.callback'
+import { Route as ApiPublicStoneConciliationWebhookRouteImport } from './routes/api/public/stone.conciliation.webhook'
 import { Route as AuthenticatedAdminVendedoresNovoRouteImport } from './routes/_authenticated/admin.vendedores.novo'
 import { Route as AuthenticatedAdminSaneamentoAliasesRouteImport } from './routes/_authenticated/admin.saneamento.aliases'
 import { Route as AuthenticatedAdminRecebimentosIdRouteImport } from './routes/_authenticated/admin.recebimentos.$id'
@@ -485,6 +486,12 @@ const ApiPublicBlingCallbackRoute = ApiPublicBlingCallbackRouteImport.update({
   path: '/api/public/bling/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicStoneConciliationWebhookRoute =
+  ApiPublicStoneConciliationWebhookRouteImport.update({
+    id: '/api/public/stone/conciliation/webhook',
+    path: '/api/public/stone/conciliation/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAdminVendedoresNovoRoute =
   AuthenticatedAdminVendedoresNovoRouteImport.update({
     id: '/novo',
@@ -633,6 +640,7 @@ export interface FileRoutesByFullPath {
   '/admin/saneamento/aliases': typeof AuthenticatedAdminSaneamentoAliasesRoute
   '/admin/vendedores/novo': typeof AuthenticatedAdminVendedoresNovoRoute
   '/api/public/bling/callback': typeof ApiPublicBlingCallbackRoute
+  '/api/public/stone/conciliation/webhook': typeof ApiPublicStoneConciliationWebhookRoute
   '/api/public/cron/enrichment': typeof ApiPublicCronEnrichmentRoute
   '/admin/ecossistema/': typeof AuthenticatedAdminEcossistemaIndexRoute
   '/admin/nfe-importacao/': typeof AuthenticatedAdminNfeImportacaoIndexRoute
@@ -713,6 +721,7 @@ export interface FileRoutesByTo {
   '/admin/saneamento/aliases': typeof AuthenticatedAdminSaneamentoAliasesRoute
   '/admin/vendedores/novo': typeof AuthenticatedAdminVendedoresNovoRoute
   '/api/public/bling/callback': typeof ApiPublicBlingCallbackRoute
+  '/api/public/stone/conciliation/webhook': typeof ApiPublicStoneConciliationWebhookRoute
   '/api/public/cron/enrichment': typeof ApiPublicCronEnrichmentRoute
   '/admin/ecossistema': typeof AuthenticatedAdminEcossistemaIndexRoute
   '/admin/nfe-importacao': typeof AuthenticatedAdminNfeImportacaoIndexRoute
@@ -798,6 +807,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/saneamento/aliases': typeof AuthenticatedAdminSaneamentoAliasesRoute
   '/_authenticated/admin/vendedores/novo': typeof AuthenticatedAdminVendedoresNovoRoute
   '/api/public/bling/callback': typeof ApiPublicBlingCallbackRoute
+  '/api/public/stone/conciliation/webhook': typeof ApiPublicStoneConciliationWebhookRoute
   '/api/public/cron/enrichment': typeof ApiPublicCronEnrichmentRoute
   '/_authenticated/admin/ecossistema/': typeof AuthenticatedAdminEcossistemaIndexRoute
   '/_authenticated/admin/nfe-importacao/': typeof AuthenticatedAdminNfeImportacaoIndexRoute
@@ -883,6 +893,7 @@ export interface FileRouteTypes {
     | '/admin/saneamento/aliases'
     | '/admin/vendedores/novo'
     | '/api/public/bling/callback'
+    | '/api/public/stone/conciliation/webhook'
     | '/api/public/cron/enrichment'
     | '/admin/ecossistema/'
     | '/admin/nfe-importacao/'
@@ -963,6 +974,7 @@ export interface FileRouteTypes {
     | '/admin/saneamento/aliases'
     | '/admin/vendedores/novo'
     | '/api/public/bling/callback'
+    | '/api/public/stone/conciliation/webhook'
     | '/api/public/cron/enrichment'
     | '/admin/ecossistema'
     | '/admin/nfe-importacao'
@@ -1047,6 +1059,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/saneamento/aliases'
     | '/_authenticated/admin/vendedores/novo'
     | '/api/public/bling/callback'
+    | '/api/public/stone/conciliation/webhook'
     | '/api/public/cron/enrichment'
     | '/_authenticated/admin/ecossistema/'
     | '/_authenticated/admin/nfe-importacao/'
@@ -1078,6 +1091,7 @@ export interface RootRouteChildren {
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicLoginRoute: typeof ApiPublicLoginRoute
   ApiPublicBlingCallbackRoute: typeof ApiPublicBlingCallbackRoute
+  ApiPublicStoneConciliationWebhookRoute: typeof ApiPublicStoneConciliationWebhookRoute
   ApiPublicCronEnrichmentRoute: typeof ApiPublicCronEnrichmentRoute
 }
 
@@ -1573,6 +1587,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicBlingCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/stone/conciliation/webhook': {
+      id: '/api/public/stone/conciliation/webhook'
+      path: '/api/public/stone/conciliation/webhook'
+      fullPath: '/api/public/stone/conciliation/webhook'
+      preLoaderRoute: typeof ApiPublicStoneConciliationWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/vendedores/novo': {
       id: '/_authenticated/admin/vendedores/novo'
       path: '/novo'
@@ -1901,6 +1922,8 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicLoginRoute: ApiPublicLoginRoute,
   ApiPublicBlingCallbackRoute: ApiPublicBlingCallbackRoute,
+  ApiPublicStoneConciliationWebhookRoute:
+    ApiPublicStoneConciliationWebhookRoute,
   ApiPublicCronEnrichmentRoute: ApiPublicCronEnrichmentRoute,
 }
 export const routeTree = rootRouteImport
