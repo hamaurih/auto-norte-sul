@@ -265,6 +265,42 @@ export const integrationTestConnection = createServerFn({ method: "POST" })
     await assertIntegrationAdmin(sb, context.userId, context.tenantId);
     const definition = await getDefinition(sb, context.tenantId, data.id);
 
+    if (definition.slug === "stone") {
+      const { configureStoneWebhook } = await import("@/lib/stone-conciliation.server");
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      try {
+        const result = await configureStoneWebhook(supabaseAdmin as any, context.tenantId);
+        await sb
+          .from("tenant_integration_states")
+          .update({
+            status: "connected",
+            active: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("tenant_id", context.tenantId)
+          .eq("integration_id", data.id);
+        await sb.from("integration_logs").insert({
+          tenant_id: context.tenantId,
+          integration_id: data.id,
+          event_type: "stone_webhook_configured",
+          status: "success",
+          message: "Chave validada e webhook de conciliação Pix atualizado na Stone.",
+          payload: { webhook_url: result.webhookUrl },
+        });
+        return { ok: true, message: "Stone conectada e webhook Pix configurado." };
+      } catch (cause: any) {
+        const message = String(cause?.message ?? cause).slice(0, 500);
+        await sb.from("integration_logs").insert({
+          tenant_id: context.tenantId,
+          integration_id: data.id,
+          event_type: "stone_connection_failed",
+          status: "error",
+          message,
+        });
+        throw new Error(message);
+      }
+    }
+
     const { data: settings, error } = await sb
       .from("integration_settings")
       .select("key,value_encrypted")
@@ -300,6 +336,46 @@ export const integrationRunSync = createServerFn({ method: "POST" })
     const definition = await getDefinition(sb, context.tenantId, data.id);
 
     const scope = String(data.scope ?? "manual").slice(0, 80);
+    if (definition.slug === "stone") {
+      const { processStonePixInbox, requestStonePixFile } = await import(
+        "@/lib/stone-conciliation.server"
+      );
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      if (scope === "solicitar-pix-ontem") {
+        const referenceDate = new Date(Date.now() - 86_400_000).toLocaleDateString("en-CA", {
+          timeZone: "America/Sao_Paulo",
+        });
+        await requestStonePixFile(supabaseAdmin as any, context.tenantId, referenceDate);
+        await sb.from("integration_logs").insert({
+          tenant_id: context.tenantId,
+          integration_id: data.id,
+          event_type: "stone_pix_requested",
+          status: "pending",
+          message: `Arquivo Pix de ${referenceDate} solicitado. A Stone o enviará ao webhook em até 30 minutos.`,
+          payload: { reference_date: referenceDate },
+        });
+        return { ok: true };
+      }
+      if (scope === "processar-pix") {
+        const result = await processStonePixInbox(supabaseAdmin as any, context.tenantId);
+        await sb.from("integration_logs").insert({
+          tenant_id: context.tenantId,
+          integration_id: data.id,
+          event_type: "stone_pix_imported",
+          status: "success",
+          message: `${result.files} arquivo(s) processado(s), ${result.imported} linha(s) conciliada(s).`,
+          payload: result,
+        });
+        await sb
+          .from("tenant_integration_states")
+          .update({ last_sync_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .eq("tenant_id", context.tenantId)
+          .eq("integration_id", data.id);
+        return { ok: true };
+      }
+      throw new Error("Ação de conciliação Stone inválida.");
+    }
+
     const { error: logError } = await sb.from("integration_logs").insert({
       tenant_id: context.tenantId,
       integration_id: data.id,
