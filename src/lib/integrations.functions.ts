@@ -266,10 +266,45 @@ export const integrationTestConnection = createServerFn({ method: "POST" })
     const definition = await getDefinition(sb, context.tenantId, data.id);
 
     if (definition.slug === "stone") {
-      const { configureStoneWebhook } = await import("@/lib/stone-conciliation.server");
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       try {
-        const result = await configureStoneWebhook(supabaseAdmin as any, context.tenantId);
+        const { data: stoneSettings, error: stoneSettingsError } = await sb
+          .from("integration_settings")
+          .select("key,value_encrypted")
+          .eq("tenant_id", context.tenantId)
+          .eq("integration_id", data.id)
+          .in("key", ["api_key", "transaction_secret_key"]);
+        if (stoneSettingsError) throw new Error(stoneSettingsError.message);
+
+        const hasKey = (key: string) =>
+          (stoneSettings ?? []).some(
+            (setting: any) => setting.key === key && Boolean(setting.value_encrypted),
+          );
+        const hasConciliationKey = hasKey("api_key");
+        const hasTransactionKey = hasKey("transaction_secret_key");
+
+        if (!hasConciliationKey && !hasTransactionKey) {
+          throw new Error(
+            "Configure ao menos uma credencial Stone: a chave de conciliação (api_key) ou a Secret Key transacional (transaction_secret_key).",
+          );
+        }
+
+        const validatedModules: string[] = [];
+        let webhookUrl: string | undefined;
+
+        if (hasTransactionKey) {
+          const { ensureStoneProviderReady } = await import("@/lib/stone-payments.server");
+          await ensureStoneProviderReady(supabaseAdmin as any, context.tenantId);
+          validatedModules.push("payments");
+        }
+
+        if (hasConciliationKey) {
+          const { configureStoneWebhook } = await import("@/lib/stone-conciliation.server");
+          const result = await configureStoneWebhook(supabaseAdmin as any, context.tenantId);
+          webhookUrl = result.webhookUrl;
+          validatedModules.push("conciliation");
+        }
+
         await sb
           .from("tenant_integration_states")
           .update({
@@ -282,12 +317,18 @@ export const integrationTestConnection = createServerFn({ method: "POST" })
         await sb.from("integration_logs").insert({
           tenant_id: context.tenantId,
           integration_id: data.id,
-          event_type: "stone_webhook_configured",
+          event_type: "stone_connection_validated",
           status: "success",
-          message: "Chave validada e webhook de conciliação Pix atualizado na Stone.",
-          payload: { webhook_url: result.webhookUrl },
+          message: `Credenciais Stone validadas: ${validatedModules.join(", ")}.`,
+          payload: {
+            modules: validatedModules,
+            ...(webhookUrl ? { webhook_url: webhookUrl } : {}),
+          },
         });
-        return { ok: true, message: "Stone conectada e webhook Pix configurado." };
+        return {
+          ok: true,
+          message: `Stone conectada. Módulos validados: ${validatedModules.join(", ")}.`,
+        };
       } catch (cause: any) {
         const message = String(cause?.message ?? cause).slice(0, 500);
         await sb.from("integration_logs").insert({
