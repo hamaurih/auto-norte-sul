@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { supabaseUrl } from "@/integrations/supabase/env";
 import { checkInternalCodeDuplicate, productUpsert, type ProductInput } from "@/lib/products.functions";
 import { importProductImageUrl } from "@/lib/product-images.functions";
 
@@ -13,7 +14,7 @@ import { Trash2, ArrowUp, ArrowDown, Star, Plus, Upload, Loader2 } from "lucide-
 
 type Img = { url: string; alt?: string | null; is_primary?: boolean };
 
-const STORAGE_PUBLIC_PREFIX = `${(import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? ""}/storage/v1/object/`;
+const STORAGE_PUBLIC_PREFIX = `${supabaseUrl()}/storage/v1/object/`;
 
 /** Já hospedada por nós (bucket público `product-images` desta instância). */
 function isOwnStorageUrl(url: string) {
@@ -121,328 +122,190 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
     }
     setUploading(true);
     try {
-      const bucket = supabase.storage.from("product-images");
       const uploaded: Img[] = [];
       for (const file of arr) {
         const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-        const path = `${form.sku || "novo"}/${crypto.randomUUID()}.${ext}`;
-        const up = await bucket.upload(path, file, {
-          contentType: file.type,
-          cacheControl: "31536000",
+        const key = `manual/${crypto.randomUUID()}.${ext}`;
+        const { error } = await supabase.storage.from("product-images").upload(key, file, {
           upsert: false,
+          contentType: file.type,
         });
-        if (up.error) throw up.error;
-        // Bucket público: URL permanente, sem expiração, pronta para marketplaces.
-        const publicUrl = bucket.getPublicUrl(path).data.publicUrl;
-        uploaded.push({ url: publicUrl, alt: file.name, is_primary: false });
+        if (error) throw error;
+        const { data } = supabase.storage.from("product-images").getPublicUrl(key);
+        uploaded.push({ url: data.publicUrl, alt: form.name || file.name, is_primary: false });
       }
       setForm((f) => {
-        const existing = f.images ?? [];
-        const merged = [...existing, ...uploaded];
-        // Se não havia principal, primeira nova vira principal
-        if (!existing.some((i) => i.is_primary) && merged.length > 0) {
-          merged[0] = { ...merged[0], is_primary: true };
-        }
-        return { ...f, images: merged };
+        const current = f.images ?? [];
+        const hasPrimary = current.some((img) => img.is_primary);
+        const next = uploaded.map((img, idx) => ({
+          ...img,
+          is_primary: !hasPrimary && current.length === 0 && idx === 0,
+        }));
+        return { ...f, images: [...current, ...next] };
       });
       toast.success(`${uploaded.length} imagem(ns) enviada(s)`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Falha no upload");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao enviar imagem");
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
-
-  async function verifyInternalCode() {
-    const code = normalizeCode(form.internal_code);
-    if (!code) { setDupWarning(null); return; }
-    try {
-      const res = await checkDup({ data: { internal_code: code, excludeId: form.id ?? null } });
-      setDupWarning(
-        res.duplicate
-          ? `Atenção: código interno já usado em ${res.products.map((p) => p.name).join(", ")}`
-          : null,
-      );
-    } catch { setDupWarning(null); }
-  }
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function save() {
     setSaving(true);
     try {
-      const name = normalizeName(form.name);
-      if (!name) { toast.error("Nome do produto é obrigatório"); setSaving(false); return; }
-
-      const current = (form.images ?? []).filter((i) => i.url.trim().length > 0);
-      const hasExternal = current.some((i) => !isOwnStorageUrl(i.url));
-      let images = current;
-
-      if (hasExternal) {
-        setImporting(true);
-        try {
-          images = [];
-          for (const img of current) {
-            const url = img.url.trim();
-            if (isOwnStorageUrl(url)) {
-              images.push({ ...img, url });
-              continue;
-            }
-            const res = await importImage({
-              data: { sourceUrl: url, sku: form.sku || null, productId: form.id ?? null },
-            });
-            images.push({ ...img, url: res.publicUrl });
-          }
-          setForm((f) => ({ ...f, images }));
-        } catch (importErr) {
-          toast.error(
-            importErr instanceof Error
-              ? `Não foi possível importar a imagem: ${importErr.message}`
-              : "Não foi possível importar as imagens externas",
-          );
-          return;
-        } finally {
-          setImporting(false);
-        }
-      }
+      const cleanName = normalizeName(form.name);
+      if (!cleanName) throw new Error("Nome do produto é obrigatório");
+      const cleanSku = normalizeCode(form.sku);
+      const cleanInternal = normalizeCode(form.internal_code ?? "");
+      const cleanManufacturer = normalizeCode(form.manufacturer_code ?? "");
 
       const payload: ProductInput = {
         ...form,
-        name,
-        sku: normalizeCode(form.sku) ?? form.sku,
-        internal_code: normalizeCode(form.internal_code),
-        manufacturer_code: normalizeCode(form.manufacturer_code),
-        slug: form.slug || slugify(name),
-        images,
+        name: cleanName,
+        sku: cleanSku,
+        internal_code: cleanInternal,
+        manufacturer_code: cleanManufacturer,
+        slug: form.slug?.trim() || slugify(cleanName),
+        price_b2c: Number(form.price_b2c ?? 0),
+        stock: Number(form.stock ?? 0),
+        min_stock: Number(form.min_stock ?? 0),
+        images: (form.images ?? []).filter((img) => img.url.trim()).map((img) => ({
+          ...img,
+          url: img.url.trim(),
+          alt: img.alt?.trim() || cleanName,
+        })),
       };
-      const res = await upsert({ data: payload });
+
+      if (cleanInternal) {
+        const duplicate = await checkDup({ data: { internal_code: cleanInternal, product_id: form.id ?? null } });
+        if (duplicate?.duplicate) {
+          setDupWarning(`Código interno já usado por ${duplicate.name ?? "outro produto"}`);
+          throw new Error("Código interno duplicado");
+        }
+      }
+      setDupWarning(null);
+      const result = await upsert({ data: payload });
+      if (!result?.id) throw new Error("Produto não salvo");
       toast.success(form.id ? "Produto atualizado" : "Produto criado");
-      if (!form.id && res.id) navigate({ to: "/admin/produtos/$id", params: { id: res.id } });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao salvar");
+      navigate({ to: "/admin/produtos" });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao salvar produto");
     } finally {
       setSaving(false);
     }
   }
 
-
-  const tabs = [
-    { id: "geral", label: "Geral" },
-    { id: "precos", label: "Preços & Promoção" },
-    { id: "estoque", label: "Estoque" },
-    { id: "imagens", label: "Imagens" },
-  ] as const;
+  async function importUrl(i: number) {
+    const img = (form.images ?? [])[i];
+    if (!img?.url) return;
+    if (isOwnStorageUrl(img.url)) {
+      toast.info("Essa imagem já está no armazenamento oficial");
+      return;
+    }
+    setImporting(true);
+    try {
+      const result = await importImage({ data: { url: img.url, alt: img.alt ?? form.name } });
+      if (!result?.url) throw new Error("Imagem não importada");
+      updateImg(i, { url: result.url });
+      toast.success("Imagem copiada para o armazenamento oficial");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao importar imagem");
+    } finally {
+      setImporting(false);
+    }
+  }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2 border-b border-border">
-        {tabs.map((t) => (
+    <div className="space-y-6">
+      <div className="flex flex-wrap gap-2 border-b border-border pb-3">
+        {([
+          ["geral", "Geral"],
+          ["precos", "Preços"],
+          ["estoque", "Estoque"],
+          ["imagens", "Imagens"],
+        ] as const).map(([value, label]) => (
           <button
-            key={t.id}
+            key={value}
             type="button"
-            onClick={() => setTab(t.id)}
-            className={`border-b-2 px-3 py-2 text-sm font-bold uppercase ${
-              tab === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground"
-            }`}
+            onClick={() => setTab(value)}
+            className={`rounded-md px-3 py-2 text-sm font-semibold ${tab === value ? "bg-primary text-primary-foreground" : "bg-muted"}`}
           >
-            {t.label}
+            {label}
           </button>
         ))}
-        <div className="ml-auto flex items-center gap-2">
-          <button type="submit" disabled={saving} className="rounded bg-primary px-4 py-2 text-sm font-bold uppercase text-primary-foreground disabled:opacity-50">
-            {importing ? "Importando imagens..." : saving ? "Salvando..." : form.id ? "Salvar alterações" : "Criar produto"}
-          </button>
-        </div>
       </div>
 
       {tab === "geral" && (
         <div className="grid gap-4 md:grid-cols-2">
-          <L label="Código interno" >
-            <input
-              value={form.internal_code ?? ""}
-              onChange={(e) => update("internal_code", e.target.value.toUpperCase())}
-              onBlur={verifyInternalCode}
-              className={`${inp} font-mono`}
-              placeholder="Ex.: AZ1234 ou F-YH05050ZL"
-            />
-            <span className="mt-1 block text-[11px] text-muted-foreground">Código da Norte Sul. Pode repetir? Não — avisamos se já existir.</span>
-            {dupWarning && <span className="mt-1 block text-[11px] font-bold text-hot">{dupWarning}</span>}
-          </L>
-          <L label="Código do fabricante">
-            <input
-              value={form.manufacturer_code ?? ""}
-              onChange={(e) => update("manufacturer_code", e.target.value.toUpperCase())}
-              className={`${inp} font-mono`}
-              placeholder="Ex.: 001CP"
-            />
-            <span className="mt-1 block text-[11px] text-muted-foreground">Código do fornecedor/fabricante. Pode repetir entre marcas.</span>
-          </L>
-          <L label="Nome *">
-            <input
-              required
-              value={form.name}
-              onChange={(e) => {
-                update("name", e.target.value);
-                if (!form.id && !form.slug) update("slug", slugify(e.target.value));
-              }}
-              className={inp}
-            />
-          </L>
-          <L label="Slug (URL)"><input value={form.slug} onChange={(e) => update("slug", slugify(e.target.value))} className={inp} /></L>
-          <L label="Marca">
-            <select value={form.brand_id ?? ""} onChange={(e) => update("brand_id", e.target.value || null)} className={inp}>
-              <option value="">—</option>
-              {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
-          </L>
-          <L label="Categoria">
-            <select value={form.category_id ?? ""} onChange={(e) => { update("category_id", e.target.value || null); update("subcategory_id", null); }} className={inp}>
-              <option value="">—</option>
-              {parentCats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </L>
-          <L label="Subcategoria">
-            <select value={form.subcategory_id ?? ""} onChange={(e) => update("subcategory_id", e.target.value || null)} className={inp} disabled={subCats.length === 0}>
-              <option value="">—</option>
-              {subCats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </L>
-          <L label="Descrição curta" full>
-            <input value={form.short_description ?? ""} onChange={(e) => update("short_description", e.target.value)} className={inp} maxLength={200} />
-          </L>
-          <L label="Descrição completa" full>
-            <textarea value={form.description ?? ""} onChange={(e) => update("description", e.target.value)} rows={6} className={inp} />
-          </L>
-          <L label="SKU / Bling (campo técnico) *" full>
-            <input required value={form.sku} onChange={(e) => update("sku", e.target.value.toUpperCase())} className={`${inp} font-mono`} />
-            <span className="mt-1 block text-[11px] text-muted-foreground">
-              Identificador técnico de integração com o Bling. Não é o código interno nem o do fabricante; mantenha como está salvo.
-            </span>
-          </L>
-          <div className="md:col-span-2 flex flex-wrap gap-4 rounded border border-border p-3">
-            <Chk label="Ativo" checked={form.active ?? true} onChange={(v) => update("active", v)} />
-            <Chk label="Destaque" checked={form.featured ?? false} onChange={(v) => update("featured", v)} />
-            <Chk label="Lançamento" checked={form.is_new ?? false} onChange={(v) => update("is_new", v)} />
-            <Chk label="Mais vendido" checked={form.is_bestseller ?? false} onChange={(v) => update("is_bestseller", v)} />
-            <Chk label="Oferta" checked={form.is_offer ?? false} onChange={(v) => update("is_offer", v)} />
-          </div>
+          <label className="space-y-1 md:col-span-2"><span className="text-sm font-medium">Nome</span><input className="input" value={form.name} onChange={(e) => update("name", e.target.value)} /></label>
+          <label className="space-y-1"><span className="text-sm font-medium">SKU</span><input className="input" value={form.sku} onChange={(e) => update("sku", e.target.value)} /></label>
+          <label className="space-y-1"><span className="text-sm font-medium">Código interno</span><input className="input" value={form.internal_code ?? ""} onChange={(e) => update("internal_code", e.target.value)} /></label>
+          <label className="space-y-1"><span className="text-sm font-medium">Código fabricante</span><input className="input" value={form.manufacturer_code ?? ""} onChange={(e) => update("manufacturer_code", e.target.value)} /></label>
+          <label className="space-y-1"><span className="text-sm font-medium">Slug</span><input className="input" value={form.slug ?? ""} onChange={(e) => update("slug", e.target.value)} /></label>
+          <label className="space-y-1"><span className="text-sm font-medium">Marca</span><select className="input" value={form.brand_id ?? ""} onChange={(e) => update("brand_id", e.target.value || null)}><option value="">Sem marca</option>{brands.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
+          <label className="space-y-1"><span className="text-sm font-medium">Categoria</span><select className="input" value={form.category_id ?? ""} onChange={(e) => { update("category_id", e.target.value || null); update("subcategory_id", null); }}><option value="">Sem categoria</option>{parentCats.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+          <label className="space-y-1"><span className="text-sm font-medium">Subcategoria</span><select className="input" value={form.subcategory_id ?? ""} onChange={(e) => update("subcategory_id", e.target.value || null)}><option value="">Sem subcategoria</option>{subCats.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+          <label className="space-y-1 md:col-span-2"><span className="text-sm font-medium">Descrição curta</span><input className="input" value={form.short_description ?? ""} onChange={(e) => update("short_description", e.target.value)} /></label>
+          <label className="space-y-1 md:col-span-2"><span className="text-sm font-medium">Descrição</span><textarea className="input min-h-32" value={form.description ?? ""} onChange={(e) => update("description", e.target.value)} /></label>
+          {dupWarning && <div className="md:col-span-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{dupWarning}</div>}
         </div>
       )}
 
       {tab === "precos" && (
         <div className="grid gap-4 md:grid-cols-2">
-          <L label="Preço B2C *"><input required type="number" step="0.01" value={form.price_b2c} onChange={(e) => update("price_b2c", Number(e.target.value))} className={inp} /></L>
-          <L label="Preço B2B"><input type="number" step="0.01" value={form.price_b2b ?? ""} onChange={(e) => update("price_b2b", e.target.value ? Number(e.target.value) : null)} className={inp} /></L>
-          <L label="Preço 'de' (comparação)"><input type="number" step="0.01" value={form.compare_at_price ?? ""} onChange={(e) => update("compare_at_price", e.target.value ? Number(e.target.value) : null)} className={inp} /></L>
-          <L label="Preço promocional B2C"><input type="number" step="0.01" value={form.sale_price_b2c ?? ""} onChange={(e) => update("sale_price_b2c", e.target.value ? Number(e.target.value) : null)} className={inp} /></L>
-          <L label="Promoção — início">
-            <input type="datetime-local" value={toInput(form.sale_starts_at)} onChange={(e) => update("sale_starts_at", e.target.value ? new Date(e.target.value).toISOString() : null)} className={inp} />
-          </L>
-          <L label="Promoção — fim">
-            <input type="datetime-local" value={toInput(form.sale_ends_at)} onChange={(e) => update("sale_ends_at", e.target.value ? new Date(e.target.value).toISOString() : null)} className={inp} />
-          </L>
+          <label className="space-y-1"><span className="text-sm font-medium">Preço B2C</span><input className="input" type="number" step="0.01" value={form.price_b2c} onChange={(e) => update("price_b2c", Number(e.target.value))} /></label>
+          <label className="space-y-1"><span className="text-sm font-medium">Preço B2B</span><input className="input" type="number" step="0.01" value={form.price_b2b ?? ""} onChange={(e) => update("price_b2b", e.target.value ? Number(e.target.value) : null)} /></label>
+          <label className="space-y-1"><span className="text-sm font-medium">Preço de comparação</span><input className="input" type="number" step="0.01" value={form.compare_at_price ?? ""} onChange={(e) => update("compare_at_price", e.target.value ? Number(e.target.value) : null)} /></label>
+          <label className="space-y-1"><span className="text-sm font-medium">Preço promocional</span><input className="input" type="number" step="0.01" value={form.sale_price_b2c ?? ""} onChange={(e) => update("sale_price_b2c", e.target.value ? Number(e.target.value) : null)} /></label>
+          <label className="space-y-1"><span className="text-sm font-medium">Início promoção</span><input className="input" type="datetime-local" value={toInput(form.sale_starts_at)} onChange={(e) => update("sale_starts_at", e.target.value ? new Date(e.target.value).toISOString() : null)} /></label>
+          <label className="space-y-1"><span className="text-sm font-medium">Fim promoção</span><input className="input" type="datetime-local" value={toInput(form.sale_ends_at)} onChange={(e) => update("sale_ends_at", e.target.value ? new Date(e.target.value).toISOString() : null)} /></label>
         </div>
       )}
 
       {tab === "estoque" && (
         <div className="grid gap-4 md:grid-cols-2">
-          <L label="Estoque"><input type="number" value={form.stock} onChange={(e) => update("stock", Number(e.target.value))} className={inp} /></L>
-          <L label="Estoque mínimo (alerta)"><input type="number" value={form.min_stock ?? 0} onChange={(e) => update("min_stock", Number(e.target.value))} className={inp} /></L>
-          <L label="Peso (kg)"><input type="number" step="0.001" value={form.weight_kg ?? ""} onChange={(e) => update("weight_kg", e.target.value ? Number(e.target.value) : null)} className={inp} /></L>
-          <div className="md:col-span-2">
-            <Chk label="Ocultar quando esgotado" checked={form.hide_when_out_of_stock ?? false} onChange={(v) => update("hide_when_out_of_stock", v)} />
-          </div>
+          <label className="space-y-1"><span className="text-sm font-medium">Estoque</span><input className="input" type="number" value={form.stock} onChange={(e) => update("stock", Number(e.target.value))} /></label>
+          <label className="space-y-1"><span className="text-sm font-medium">Estoque mínimo</span><input className="input" type="number" value={form.min_stock} onChange={(e) => update("min_stock", Number(e.target.value))} /></label>
+          <label className="flex items-center gap-2"><input type="checkbox" checked={Boolean(form.hide_when_out_of_stock)} onChange={(e) => update("hide_when_out_of_stock", e.target.checked)} /> Ocultar sem estoque</label>
+          <label className="flex items-center gap-2"><input type="checkbox" checked={Boolean(form.active)} onChange={(e) => update("active", e.target.checked)} /> Ativo</label>
+          <label className="flex items-center gap-2"><input type="checkbox" checked={Boolean(form.featured)} onChange={(e) => update("featured", e.target.checked)} /> Destaque</label>
+          <label className="flex items-center gap-2"><input type="checkbox" checked={Boolean(form.is_new)} onChange={(e) => update("is_new", e.target.checked)} /> Lançamento</label>
+          <label className="flex items-center gap-2"><input type="checkbox" checked={Boolean(form.is_bestseller)} onChange={(e) => update("is_bestseller", e.target.checked)} /> Mais vendido</label>
+          <label className="flex items-center gap-2"><input type="checkbox" checked={Boolean(form.is_offer)} onChange={(e) => update("is_offer", e.target.checked)} /> Oferta</label>
         </div>
       )}
 
       {tab === "imagens" && (
-        <div className="space-y-3">
-          <div
-            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
-            onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files?.length) uploadFiles(e.dataTransfer.files); }}
-            className="rounded-lg border-2 border-dashed border-border bg-muted/30 p-6 text-center"
-          >
-            <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
-            <p className="mt-2 text-sm font-semibold">Arraste imagens aqui ou clique em enviar</p>
-            <p className="mt-1 text-xs text-muted-foreground">JPG, PNG ou WebP · Múltiplos arquivos permitidos</p>
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="inline-flex items-center gap-2 rounded bg-primary px-4 py-2 text-sm font-bold uppercase text-primary-foreground disabled:opacity-50"
-              >
-                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                {uploading ? "Enviando..." : "Enviar do computador"}
-              </button>
-              <button
-                type="button"
-                onClick={addImg}
-                className="inline-flex items-center gap-2 rounded border border-border px-4 py-2 text-sm"
-              >
-                <Plus className="h-4 w-4" /> Adicionar por URL
-              </button>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(e) => { if (e.target.files?.length) uploadFiles(e.target.files); }}
-            />
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn" onClick={addImg}><Plus className="h-4 w-4" /> Adicionar URL</button>
+            <button type="button" className="btn" onClick={() => fileInputRef.current?.click()} disabled={uploading}><Upload className="h-4 w-4" /> {uploading ? "Enviando..." : "Enviar arquivo"}</button>
+            <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => e.target.files && uploadFiles(e.target.files)} />
           </div>
-          <p className="rounded bg-muted p-3 text-xs text-muted-foreground">
-            💡 Imagens sincronizadas do Bling já aparecem aqui automaticamente após rodar
-            <strong> Ecossistema → Bling → Sincronizar imagens</strong>. Você também pode enviar
-            fotos do computador ou colar URLs externas: ao salvar, toda URL externa é
-            <strong> copiada para a nossa biblioteca</strong> e substituída por um link permanente
-            nosso — o site de origem não fica como dependência e a imagem já serve para
-            Mercado Livre/Shopee. Formatos aceitos: JPEG, PNG ou WebP até 5 MB.
-          </p>
-
           {(form.images ?? []).map((img, i) => (
-            <div key={i} className="flex items-start gap-2 rounded border border-border p-3">
-              <img src={img.url || "/placeholder.svg"} alt="" className="h-16 w-16 rounded object-cover bg-muted" />
-              <div className="flex-1 space-y-2">
-                <input placeholder="https://..." value={img.url} onChange={(e) => updateImg(i, { url: e.target.value })} className={inp} />
-                <input placeholder="Texto alternativo (alt)" value={img.alt ?? ""} onChange={(e) => updateImg(i, { alt: e.target.value })} className={inp} />
+            <div key={`${i}-${img.url}`} className="grid gap-3 rounded-lg border border-border p-3 md:grid-cols-[88px_1fr_auto] md:items-center">
+              <div className="h-20 w-20 overflow-hidden rounded bg-muted">{img.url ? <img src={img.url} alt={img.alt ?? form.name} className="h-full w-full object-contain" /> : null}</div>
+              <div className="space-y-2">
+                <input className="input" placeholder="URL da imagem" value={img.url} onChange={(e) => updateImg(i, { url: e.target.value })} />
+                <input className="input" placeholder="Texto alternativo" value={img.alt ?? ""} onChange={(e) => updateImg(i, { alt: e.target.value })} />
+                {!isOwnStorageUrl(img.url) && img.url ? <button type="button" className="text-xs font-semibold text-primary" onClick={() => importUrl(i)} disabled={importing}>{importing ? <Loader2 className="mr-1 inline h-3 w-3 animate-spin" /> : null}Copiar para armazenamento oficial</button> : null}
               </div>
-              <div className="flex flex-col gap-1">
-                <button type="button" title="Principal" onClick={() => setPrimary(i)} className={`rounded p-1 ${img.is_primary ? "bg-primary text-primary-foreground" : "bg-muted"}`}><Star className="h-4 w-4" /></button>
-                <button type="button" onClick={() => moveImg(i, -1)} className="rounded bg-muted p-1"><ArrowUp className="h-4 w-4" /></button>
-                <button type="button" onClick={() => moveImg(i, 1)} className="rounded bg-muted p-1"><ArrowDown className="h-4 w-4" /></button>
-                <button type="button" onClick={() => removeImg(i)} className="rounded bg-destructive p-1 text-destructive-foreground"><Trash2 className="h-4 w-4" /></button>
+              <div className="flex gap-1">
+                <button type="button" title="Principal" onClick={() => setPrimary(i)} className={img.is_primary ? "text-amber-500" : "text-muted-foreground"}><Star className="h-4 w-4" /></button>
+                <button type="button" title="Subir" onClick={() => moveImg(i, -1)}><ArrowUp className="h-4 w-4" /></button>
+                <button type="button" title="Descer" onClick={() => moveImg(i, 1)}><ArrowDown className="h-4 w-4" /></button>
+                <button type="button" title="Excluir" onClick={() => removeImg(i)}><Trash2 className="h-4 w-4 text-destructive" /></button>
               </div>
             </div>
           ))}
-          {(form.images ?? []).length === 0 && (
-            <div className="rounded border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-              Nenhuma imagem adicionada ainda.
-            </div>
-          )}
         </div>
       )}
-    </form>
-  );
-}
 
-const inp = "w-full rounded border border-border bg-background p-2 text-sm";
-
-function L({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
-  return (
-    <label className={`block text-sm ${full ? "md:col-span-2" : ""}`}>
-      <span className="mb-1 block text-xs font-bold uppercase text-muted-foreground">{label}</span>
-      {children}
-    </label>
-  );
-}
-function Chk({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <label className="inline-flex items-center gap-2 text-sm">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-      {label}
-    </label>
+      <div className="flex justify-end">
+        <button type="button" className="btn-primary" disabled={saving} onClick={save}>{saving ? "Salvando..." : "Salvar produto"}</button>
+      </div>
+    </div>
   );
 }
