@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 const OFFICIAL_URL = "https://pzwjbitjersngordgcsh.supabase.co";
 const LEGACY_URL = "https://pleuoxzocgoajmymipqi.supabase.co";
+const BRIDGE_URL = `${OFFICIAL_URL}/functions/v1/server-admin-bridge`;
 
 function decodeJwtRef(value: string | undefined): string | null {
   if (!value || !value.includes(".")) return null;
@@ -31,6 +32,25 @@ async function canUseServiceRole(baseUrl: string, key: string | undefined): Prom
   }
 }
 
+async function canUseOfficialBridge(key: string | undefined): Promise<boolean> {
+  if (!key) return false;
+  try {
+    const response = await fetch(BRIDGE_URL, {
+      method: "POST",
+      headers: {
+        "x-cutover-key": key,
+        "x-proxy-target": `${OFFICIAL_URL}/rest/v1/tenants?select=id&limit=1`,
+        "x-proxy-method": "GET",
+        "x-forward-accept": "application/json",
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 export const Route = createFileRoute("/api/public/cutover-runtime-check")({
   server: {
     handlers: {
@@ -38,9 +58,10 @@ export const Route = createFileRoute("/api/public/cutover-runtime-check")({
         const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
         const configuredUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "").trim();
         const keyRef = decodeJwtRef(key);
-        const [officialAdminOk, legacyAdminOk] = await Promise.all([
+        const [officialAdminOk, legacyAdminOk, officialBridgeOk] = await Promise.all([
           canUseServiceRole(OFFICIAL_URL, key),
           canUseServiceRole(LEGACY_URL, key),
+          canUseOfficialBridge(key),
         ]);
         return Response.json(
           {
@@ -49,6 +70,7 @@ export const Route = createFileRoute("/api/public/cutover-runtime-check")({
             configuredUrlProject: configuredUrl.includes("pzwjbitjersngordgcsh") ? "official" : configuredUrl.includes("pleuoxzocgoajmymipqi") ? "legacy" : configuredUrl ? "other" : "unset",
             officialAdminOk,
             legacyAdminOk,
+            officialBridgeOk,
           },
           { headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } },
         );
