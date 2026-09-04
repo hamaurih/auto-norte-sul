@@ -17,13 +17,17 @@ function decodeJwtRef(value: string | undefined): string | null {
   }
 }
 
-async function canUseServiceRole(baseUrl: string, key: string | undefined): Promise<boolean> {
-  if (!key) return false;
+function keyHeaders(key: string): Headers {
   const headers = new Headers({ apikey: key });
   if (!key.startsWith("sb_secret_")) headers.set("Authorization", `Bearer ${key}`);
+  return headers;
+}
+
+async function canUseServiceRole(baseUrl: string, key: string | undefined): Promise<boolean> {
+  if (!key) return false;
   try {
     const response = await fetch(`${baseUrl}/rest/v1/tenants?select=id&limit=1`, {
-      headers,
+      headers: keyHeaders(key),
       signal: AbortSignal.timeout(3000),
     });
     return response.ok;
@@ -32,8 +36,21 @@ async function canUseServiceRole(baseUrl: string, key: string | undefined): Prom
   }
 }
 
-async function canUseOfficialBridge(key: string | undefined): Promise<boolean> {
+async function canReadServiceOnlyTable(key: string | undefined): Promise<boolean> {
   if (!key) return false;
+  try {
+    const response = await fetch(`${LEGACY_URL}/rest/v1/oauth_authorization_states?select=id&limit=1`, {
+      headers: keyHeaders(key),
+      signal: AbortSignal.timeout(3000),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function bridgeProbe(key: string | undefined): Promise<{ ok: boolean; status: number }> {
+  if (!key) return { ok: false, status: 0 };
   try {
     const response = await fetch(BRIDGE_URL, {
       method: "POST",
@@ -45,9 +62,9 @@ async function canUseOfficialBridge(key: string | undefined): Promise<boolean> {
       },
       signal: AbortSignal.timeout(8000),
     });
-    return response.ok;
+    return { ok: response.ok, status: response.status };
   } catch {
-    return false;
+    return { ok: false, status: -1 };
   }
 }
 
@@ -58,10 +75,11 @@ export const Route = createFileRoute("/api/public/cutover-runtime-check")({
         const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
         const configuredUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "").trim();
         const keyRef = decodeJwtRef(key);
-        const [officialAdminOk, legacyAdminOk, officialBridgeOk] = await Promise.all([
+        const [officialAdminOk, legacyAdminOk, legacyServiceOnlyOk, bridge] = await Promise.all([
           canUseServiceRole(OFFICIAL_URL, key),
           canUseServiceRole(LEGACY_URL, key),
-          canUseOfficialBridge(key),
+          canReadServiceOnlyTable(key),
+          bridgeProbe(key),
         ]);
         return Response.json(
           {
@@ -70,7 +88,9 @@ export const Route = createFileRoute("/api/public/cutover-runtime-check")({
             configuredUrlProject: configuredUrl.includes("pzwjbitjersngordgcsh") ? "official" : configuredUrl.includes("pleuoxzocgoajmymipqi") ? "legacy" : configuredUrl ? "other" : "unset",
             officialAdminOk,
             legacyAdminOk,
-            officialBridgeOk,
+            legacyServiceOnlyOk,
+            officialBridgeOk: bridge.ok,
+            bridgeStatus: bridge.status,
           },
           { headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } },
         );
