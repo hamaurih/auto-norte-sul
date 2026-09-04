@@ -11,20 +11,18 @@ export const Route = createFileRoute("/api/health")({
       GET: async () => {
         let dbOk = false;
         try {
-          const url = process.env.SUPABASE_URL || supabaseUrl();
-          const key = process.env.SUPABASE_PUBLISHABLE_KEY || supabasePublishableKey();
-          if (url && key) {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 2500);
-            try {
-              const res = await fetch(`${url}/rest/v1/brands?select=id&limit=1`, {
-                headers: { apikey: key },
-                signal: controller.signal,
-              });
-              dbOk = res.ok;
-            } finally {
-              clearTimeout(timeout);
-            }
+          const url = supabaseUrl();
+          const key = supabasePublishableKey();
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 2500);
+          try {
+            const res = await fetch(`${url}/rest/v1/brands?select=id&limit=1`, {
+              headers: { apikey: key },
+              signal: controller.signal,
+            });
+            dbOk = res.ok;
+          } finally {
+            clearTimeout(timeout);
           }
         } catch {
           dbOk = false;
