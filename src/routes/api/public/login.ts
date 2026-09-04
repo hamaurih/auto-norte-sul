@@ -5,12 +5,9 @@ const ACCOUNT_WINDOW_MINUTES = 15;
 const ACCOUNT_MAX_FAILURES = 5;
 const IP_MAX_FAILURES = 25;
 
-// Transitional credential bridge. The legacy publishable key is public by design;
-// no service-role credential from the legacy project is used here. A password is
-// only checked there when the same login fails against the official Auth project.
-// On success the password is immediately re-established in the official project.
 const LEGACY_SUPABASE_URL = "https://pleuoxzocgoajmymipqi.supabase.co";
 const LEGACY_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_gLG1B4vn7B3xcqd8Dci4Sw_MyEY3PPn";
+const OFFICIAL_ADMIN_BRIDGE_URL = "https://pzwjbitjersngordgcsh.supabase.co/functions/v1/server-admin-bridge";
 
 function json(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
@@ -55,6 +52,35 @@ function validSession(result: { response: Response; body: Record<string, any> })
   return result.response.ok && Boolean(result.body.access_token) && Boolean(result.body.refresh_token);
 }
 
+async function officialAdminBridge(
+  credential: string,
+  path: string,
+  method: "GET" | "PATCH",
+  body?: Record<string, unknown>,
+) {
+  const headers = new Headers({
+    "x-cutover-key": credential,
+    "x-proxy-path": path,
+    "x-proxy-method": method,
+    "x-forward-accept": "application/json",
+  });
+  if (body) headers.set("x-forward-content-type", "application/json");
+
+  const response = await fetch(OFFICIAL_ADMIN_BRIDGE_URL, {
+    method: "POST",
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+    cache: "no-store",
+    signal: AbortSignal.timeout(10_000),
+  });
+  const payload = (await response.json().catch(() => ({}))) as Record<string, any>;
+  return { response, body: payload };
+}
+
+function bridgedUser(payload: Record<string, any>) {
+  return payload?.user && typeof payload.user === "object" ? payload.user : payload;
+}
+
 export const Route = createFileRoute("/api/public/login")({
   server: {
     handlers: {
@@ -79,9 +105,9 @@ export const Route = createFileRoute("/api/public/login")({
           return json(400, { error: "Credenciais inválidas." });
         }
 
-        const pepper = process.env.AUTH_RATE_LIMIT_PEPPER || process.env.SUPABASE_SERVICE_ROLE_KEY;
-        if (!pepper || pepper.length < 32) {
-          console.error("[Auth] AUTH_RATE_LIMIT_PEPPER/SUPABASE_SERVICE_ROLE_KEY ausente.");
+        const serverCredential = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.AUTH_RATE_LIMIT_PEPPER;
+        if (!serverCredential || serverCredential.length < 32) {
+          console.error("[Auth] server credential ausente.");
           return json(503, { error: "Autenticação temporariamente indisponível." });
         }
 
@@ -89,8 +115,8 @@ export const Route = createFileRoute("/api/public/login")({
         const attempts = (supabaseAdmin as any).from("auth_login_attempts");
         const ip = clientIp(request);
         const [identifierHash, ipHash] = await Promise.all([
-          secureHash(email, pepper),
-          secureHash(ip, pepper),
+          secureHash(email, serverCredential),
+          secureHash(ip, serverCredential),
         ]);
         const since = new Date(Date.now() - ACCOUNT_WINDOW_MINUTES * 60_000).toISOString();
 
@@ -138,10 +164,6 @@ export const Route = createFileRoute("/api/public/login")({
 
         let authResult = await passwordGrant(supabaseUrl(), supabasePublishableKey(), email, password);
 
-        // Password hashes cannot be safely copied through application code during a
-        // cross-project Auth cutover. If the official credential is stale, prove the
-        // user's existing password against the legacy Auth service, then set that same
-        // password through the official Admin API and retry the official login.
         if (!validSession(authResult)) {
           try {
             const legacyResult = await passwordGrant(
@@ -158,26 +180,34 @@ export const Route = createFileRoute("/api/public/login")({
                 : "";
 
               if (legacyUserId && legacyEmail === email) {
-                const { data: officialUserResult, error: officialUserError } = await (supabaseAdmin as any)
-                  .auth.admin.getUserById(legacyUserId);
-                const officialEmail = typeof officialUserResult?.user?.email === "string"
-                  ? officialUserResult.user.email.trim().toLowerCase()
+                const getResult = await officialAdminBridge(
+                  serverCredential,
+                  `/auth/v1/admin/users/${encodeURIComponent(legacyUserId)}`,
+                  "GET",
+                );
+                const officialUser = bridgedUser(getResult.body);
+                const officialEmail = typeof officialUser?.email === "string"
+                  ? officialUser.email.trim().toLowerCase()
                   : "";
 
-                if (!officialUserError && officialEmail === email) {
-                  const { error: updateError } = await (supabaseAdmin as any)
-                    .auth.admin.updateUserById(legacyUserId, { password });
+                if (getResult.response.ok && officialEmail === email) {
+                  const updateResult = await officialAdminBridge(
+                    serverCredential,
+                    `/auth/v1/admin/users/${encodeURIComponent(legacyUserId)}`,
+                    "PATCH",
+                    { password },
+                  );
 
-                  if (!updateError) {
+                  if (updateResult.response.ok) {
                     authResult = await passwordGrant(supabaseUrl(), supabasePublishableKey(), email, password);
                     if (validSession(authResult)) {
                       console.info("[Auth cutover] Credential migrated to official project.");
                     }
                   } else {
-                    console.error("[Auth cutover] Failed to update official credential:", updateError.message);
+                    console.error("[Auth cutover] Official credential update failed.", updateResult.response.status);
                   }
                 } else {
-                  console.error("[Auth cutover] Official identity validation failed.");
+                  console.error("[Auth cutover] Official identity validation failed.", getResult.response.status);
                 }
               }
             }
@@ -198,15 +228,12 @@ export const Route = createFileRoute("/api/public/login")({
           return json(401, { error: "E-mail ou senha inválidos." });
         }
 
-        // A successful login resets the account failure window. IP failures are
-        // intentionally retained briefly so distributed account probing is still limited.
         await (supabaseAdmin as any)
           .from("auth_login_attempts")
           .delete()
           .eq("identifier_hash", identifierHash)
           .eq("success", false);
 
-        // Opportunistic retention cleanup; no raw e-mail/IP is ever persisted.
         const retentionCutoff = new Date(Date.now() - 48 * 60 * 60_000).toISOString();
         void (supabaseAdmin as any)
           .from("auth_login_attempts")
