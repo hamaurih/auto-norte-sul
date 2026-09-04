@@ -5,6 +5,13 @@ const ACCOUNT_WINDOW_MINUTES = 15;
 const ACCOUNT_MAX_FAILURES = 5;
 const IP_MAX_FAILURES = 25;
 
+// Transitional credential bridge. The legacy publishable key is public by design;
+// no service-role credential from the legacy project is used here. A password is
+// only checked there when the same login fails against the official Auth project.
+// On success the password is immediately re-established in the official project.
+const LEGACY_SUPABASE_URL = "https://pleuoxzocgoajmymipqi.supabase.co";
+const LEGACY_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_gLG1B4vn7B3xcqd8Dci4Sw_MyEY3PPn";
+
 function json(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
     status,
@@ -27,6 +34,25 @@ async function secureHash(value: string, pepper: string): Promise<string> {
   const bytes = new TextEncoder().encode(`${pepper}:${value}`);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function passwordGrant(url: string, publishableKey: string, email: string, password: string) {
+  const response = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: {
+      apikey: publishableKey,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ email, password }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  const body = (await response.json().catch(() => ({}))) as Record<string, any>;
+  return { response, body };
+}
+
+function validSession(result: { response: Response; body: Record<string, any> }) {
+  return result.response.ok && Boolean(result.body.access_token) && Boolean(result.body.refresh_token);
 }
 
 export const Route = createFileRoute("/api/public/login")({
@@ -110,18 +136,60 @@ export const Route = createFileRoute("/api/public/login")({
           );
         }
 
-        const authResponse = await fetch(`${supabaseUrl()}/auth/v1/token?grant_type=password`, {
-          method: "POST",
-          headers: {
-            apikey: supabasePublishableKey(),
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify({ email, password }),
-        });
+        let authResult = await passwordGrant(supabaseUrl(), supabasePublishableKey(), email, password);
 
-        const authBody = (await authResponse.json().catch(() => ({}))) as Record<string, any>;
-        if (!authResponse.ok || !authBody.access_token || !authBody.refresh_token) {
+        // Password hashes cannot be safely copied through application code during a
+        // cross-project Auth cutover. If the official credential is stale, prove the
+        // user's existing password against the legacy Auth service, then set that same
+        // password through the official Admin API and retry the official login.
+        if (!validSession(authResult)) {
+          try {
+            const legacyResult = await passwordGrant(
+              LEGACY_SUPABASE_URL,
+              LEGACY_SUPABASE_PUBLISHABLE_KEY,
+              email,
+              password,
+            );
+
+            if (validSession(legacyResult)) {
+              const legacyUserId = typeof legacyResult.body.user?.id === "string" ? legacyResult.body.user.id : "";
+              const legacyEmail = typeof legacyResult.body.user?.email === "string"
+                ? legacyResult.body.user.email.trim().toLowerCase()
+                : "";
+
+              if (legacyUserId && legacyEmail === email) {
+                const { data: officialUserResult, error: officialUserError } = await (supabaseAdmin as any)
+                  .auth.admin.getUserById(legacyUserId);
+                const officialEmail = typeof officialUserResult?.user?.email === "string"
+                  ? officialUserResult.user.email.trim().toLowerCase()
+                  : "";
+
+                if (!officialUserError && officialEmail === email) {
+                  const { error: updateError } = await (supabaseAdmin as any)
+                    .auth.admin.updateUserById(legacyUserId, { password });
+
+                  if (!updateError) {
+                    authResult = await passwordGrant(supabaseUrl(), supabasePublishableKey(), email, password);
+                    if (validSession(authResult)) {
+                      console.info("[Auth cutover] Credential migrated to official project.");
+                    }
+                  } else {
+                    console.error("[Auth cutover] Failed to update official credential:", updateError.message);
+                  }
+                } else {
+                  console.error("[Auth cutover] Official identity validation failed.");
+                }
+              }
+            }
+          } catch (migrationError) {
+            console.error(
+              "[Auth cutover] Legacy credential validation failed safely:",
+              migrationError instanceof Error ? migrationError.message : "unknown",
+            );
+          }
+        }
+
+        if (!validSession(authResult)) {
           await (supabaseAdmin as any).from("auth_login_attempts").insert({
             identifier_hash: identifierHash,
             ip_hash: ipHash,
@@ -146,10 +214,10 @@ export const Route = createFileRoute("/api/public/login")({
           .lt("created_at", retentionCutoff);
 
         return json(200, {
-          access_token: authBody.access_token,
-          refresh_token: authBody.refresh_token,
-          expires_in: authBody.expires_in,
-          token_type: authBody.token_type,
+          access_token: authResult.body.access_token,
+          refresh_token: authResult.body.refresh_token,
+          expires_in: authResult.body.expires_in,
+          token_type: authResult.body.token_type,
         });
       },
     },
