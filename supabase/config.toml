@@ -1,12 +1,13 @@
-project_id = "pleuoxzocgoajmymipqi"
+project_id = "pzwjbitjersngordgcsh"
 
 # O motor de enriquecimento aceita dois modos de chamada:
 #  - modo humano: JWT do usuário validado dentro da própria função;
-#  - modo worker: bearer igual à service role key (cron interno do app).
-# A service role key nova (sb_secret_...) não é um JWT, então a validação
-# fica dentro da função e o gateway não deve exigir JWT.
+#  - modo worker: autenticação server-side validada dentro da função.
 [functions.process-manufacturer-enrichment]
 verify_jwt = false
 
 [functions.copy-product-enrichment-image]
+verify_jwt = false
+
+[functions.server-admin-bridge]
 verify_jwt = false
