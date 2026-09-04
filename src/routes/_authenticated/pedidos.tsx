@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { brl } from "@/lib/format";
 import { cancelOrder } from "@/lib/order.functions";
+import { createPaymentIntent } from "@/lib/payment.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/pedidos")({
@@ -22,13 +23,31 @@ function Pedidos() {
     },
     onError: (error: Error) => toast.error(error.message),
   });
+  const paymentMutation = useMutation({
+    mutationFn: (orderId: string) =>
+      createPaymentIntent({
+        data: {
+          orderId,
+          idempotencyKey: crypto.randomUUID(),
+          providerCode: "stone",
+        },
+      }),
+    onSuccess: (payment) => {
+      if (!payment.checkoutUrl) {
+        toast.error("A Stone não retornou o link de pagamento.");
+        return;
+      }
+      window.location.assign(payment.checkoutUrl);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["orders", user?.id],
     enabled: !!user,
     queryFn: async () => {
       const { data } = await supabase
         .from("orders")
-        .select("id, status, total, created_at, bling_number, order_items(sku, name, quantity)")
+        .select("id, status, total, payment_method, created_at, bling_number, order_items(sku, name, quantity)")
         .order("created_at", { ascending: false });
       return data ?? [];
     },
@@ -62,14 +81,26 @@ function Pedidos() {
                 ))}
               </ul>
               {o.status === "aguardando_pagamento" && (
-                <button
-                  type="button"
-                  disabled={cancelMutation.isPending}
-                  onClick={() => cancelMutation.mutate(o.id)}
-                  className="mt-3 rounded-md border border-destructive px-3 py-1.5 text-xs font-semibold text-destructive disabled:opacity-50"
-                >
-                  Cancelar pedido
-                </button>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {["pix", "cartao"].includes(String(o.payment_method)) && (
+                    <button
+                      type="button"
+                      disabled={paymentMutation.isPending}
+                      onClick={() => paymentMutation.mutate(o.id)}
+                      className="rounded-md bg-primary px-3 py-1.5 text-xs font-bold uppercase text-primary-foreground disabled:opacity-50"
+                    >
+                      {paymentMutation.isPending ? "Abrindo Stone…" : "Pagar com Stone"}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={cancelMutation.isPending || paymentMutation.isPending}
+                    onClick={() => cancelMutation.mutate(o.id)}
+                    className="rounded-md border border-destructive px-3 py-1.5 text-xs font-semibold text-destructive disabled:opacity-50"
+                  >
+                    Cancelar pedido
+                  </button>
+                </div>
               )}
               {o.bling_number && <div className="mt-2 text-xs">Bling: <b>{o.bling_number}</b></div>}
             </div>
