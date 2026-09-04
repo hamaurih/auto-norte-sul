@@ -21,6 +21,8 @@ const CLAIM_LIMIT = 2;
 const ENGINE_TIMEOUT_MS = 235_000;
 const COPY_TIMEOUT_MS = 90_000;
 const MAX_DETAILS = 20;
+const OFFICIAL_SUPABASE_URL = "https://pzwjbitjersngordgcsh.supabase.co";
+const ADMIN_BRIDGE_URL = `${OFFICIAL_SUPABASE_URL}/functions/v1/server-admin-bridge`;
 
 type EngineJobResult = {
   jobId: string;
@@ -55,23 +57,25 @@ export type AutopilotResult = {
   tenants: AutopilotTenantSummary[];
 };
 
-function edgeCredentials() {
-  const url = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"];
-  const key = process.env["SUPABASE_SERVICE_ROLE_KEY"];
-  if (!url || !key) {
-    throw new Error("SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY precisam estar configurados no servidor");
+function bridgeCredential() {
+  const key = process.env["SUPABASE_SERVICE_ROLE_KEY"] || process.env["AUTH_RATE_LIMIT_PEPPER"];
+  if (!key || key.length < 32) {
+    throw new Error("Credencial server-only da ponte oficial não configurada");
   }
-  return { url: url.replace(/\/+$/, ""), key };
+  return key;
 }
 
 async function invokeEdgeFunction<T>(name: string, payload: unknown, timeoutMs: number): Promise<T> {
-  const { url, key } = edgeCredentials();
-  const response = await fetch(`${url}/functions/v1/${name}`, {
+  if (!/^[a-z0-9-]+$/.test(name)) throw new Error("Nome de Edge Function inválido");
+  const key = bridgeCredential();
+  const response = await fetch(ADMIN_BRIDGE_URL, {
     method: "POST",
     headers: {
-      authorization: `Bearer ${key}`,
-      apikey: key,
-      "content-type": "application/json",
+      "x-cutover-key": key,
+      "x-proxy-path": `/functions/v1/${name}`,
+      "x-proxy-method": "POST",
+      "x-forward-content-type": "application/json",
+      "x-forward-accept": "application/json",
     },
     body: JSON.stringify(payload),
     signal: AbortSignal.timeout(timeoutMs),
@@ -136,7 +140,6 @@ export async function runEnrichmentAutopilot(options: {
       if (summary.details.length < MAX_DETAILS) summary.details.push(detail);
     };
 
-    // 1) Lease de execução: um único worker por tenant por vez.
     const { data: runId, error: beginError } = await admin.rpc("begin_product_enrichment_run", {
       p_tenant_id: tenantId,
       p_trigger: options.trigger,
@@ -152,7 +155,6 @@ export async function runEnrichmentAutopilot(options: {
     summary.runId = runId as string;
 
     try {
-      // 2) Enfileiramento idempotente de produtos incompletos elegíveis.
       const { data: enqueued, error: enqueueError } = await admin.rpc("enqueue_product_enrichment_auto", {
         p_tenant_id: tenantId,
         p_limit: ENQUEUE_LIMIT,
@@ -160,7 +162,6 @@ export async function runEnrichmentAutopilot(options: {
       if (enqueueError) throw new Error(enqueueError.message);
       summary.enqueued = Number(enqueued ?? 0);
 
-      // 3) Claim atômico de um lote pequeno (recupera jobs presos antes).
       const { data: claimedRows, error: claimError } = await admin.rpc("claim_product_enrichment_jobs", {
         p_tenant_id: tenantId,
         p_limit: CLAIM_LIMIT,
@@ -171,7 +172,6 @@ export async function runEnrichmentAutopilot(options: {
 
       let results: EngineJobResult[] = [];
       if (jobIds.length) {
-        // 4) Motor oficial de fontes de fabricante, em modo worker.
         const engine = await invokeEdgeFunction<{ ok?: boolean; results?: EngineJobResult[] }>(
           "process-manufacturer-enrichment",
           { jobIds },
@@ -194,7 +194,6 @@ export async function runEnrichmentAutopilot(options: {
         }
         if (result.status !== "review") continue;
 
-        // 5) Autoaprovação conservadora: o Postgres revalida todos os critérios.
         const { data: candidate } = await admin
           .from("product_enrichment_candidates")
           .select("id")
