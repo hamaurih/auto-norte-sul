@@ -124,7 +124,7 @@ const specs: Record<string, IntegrationSpec> = {
   },
   stone: {
     intro:
-      "Conciliação oficial Stone: recebe arquivos Pix por webhook e importa vendas, taxas, cancelamentos e dados de liquidação. A captura do checkout/PDV usa credenciais separadas.",
+      "Conciliação oficial Stone: recebe arquivos Pix por webhook e importa vendas, taxas, cancelamentos e dados de liquidação. A captura transacional (PIX/cartão no checkout e PDV) usa uma credencial Stone/Pagar.me diferente — são sistemas separados.",
     fields: [
       {
         key: "api_key",
@@ -132,6 +132,14 @@ const specs: Record<string, IntegrationSpec> = {
         type: "password",
         is_secret: true,
         help: "Chave Secreta criada no Portal Stone. É enviada como usuário no HTTP Basic Auth e nunca é reexibida.",
+      },
+      {
+        key: "transaction_secret_key",
+        label: "Secret Key transacional Stone/Pagar.me",
+        type: "password",
+        is_secret: true,
+        placeholder: "sk_test_... ou sk_...",
+        help: "Chave da API Pagar.me V5 da conta Stone usada para cobranças de PIX e cartão no checkout. É diferente da chave de conciliação e nunca é reexibida.",
       },
       {
         key: "merchant_document",
@@ -150,7 +158,7 @@ const specs: Record<string, IntegrationSpec> = {
       { scope: "processar-pix", label: "Importar arquivos recebidos" },
     ],
     warning:
-      "Esta conexão faz conciliação financeira. Para cobrar no site ainda é preciso habilitar a API transacional Stone/Pagar.me; no PDV, o produto TEF/SDK da Stone.",
+      "Atenção: conciliação e cobrança transacional são credenciais separadas. A chave de conciliação importa extratos Pix; a Secret Key transacional cobra no checkout/PDV. Não confundir as duas.",
   },
   whatsapp: {
     fields: [
