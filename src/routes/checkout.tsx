@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { createStorefrontOrder } from "@/lib/order.functions";
+import { createPaymentIntent } from "@/lib/payment.functions";
 import { useCart, cartStore } from "@/lib/cart-store";
 import { useSession } from "@/lib/session";
 import { brl } from "@/lib/format";
@@ -31,7 +32,7 @@ const schema = z.object({
   shipping_neighborhood:  z.string().trim().min(2).max(120),
   shipping_city:          z.string().trim().min(2).max(120),
   shipping_state:         z.string().trim().length(2, "UF (2 letras)"),
-  payment_method:         z.enum(["pix", "cartao", "boleto", "faturado_b2b"]),
+  payment_method:         z.enum(["pix", "cartao", "faturado_b2b"]),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -161,9 +162,36 @@ function Checkout() {
         },
       });
       if (!result.id) throw new Error("Pedido não retornado");
+
       idempotencyKey.current = crypto.randomUUID();
       cartStore.clear();
-      toast.success("Pedido criado e estoque reservado.");
+
+      if (parsed.data.payment_method === "pix" || parsed.data.payment_method === "cartao") {
+        try {
+          const payment = await createPaymentIntent({
+            data: {
+              orderId: result.id,
+              idempotencyKey: crypto.randomUUID(),
+              providerCode: "stone",
+            },
+          });
+          if (payment.checkoutUrl) {
+            toast.success("Pedido criado. Abrindo pagamento seguro Stone…");
+            window.location.assign(payment.checkoutUrl);
+            return;
+          }
+          throw new Error("A Stone não retornou o link de pagamento.");
+        } catch (paymentError: any) {
+          console.error(paymentError);
+          toast.warning("Pedido criado e estoque reservado. O pagamento pode ser concluído em Meus Pedidos.", {
+            description: paymentError?.message,
+          });
+          navigate({ to: "/pedidos" });
+          return;
+        }
+      }
+
+      toast.success("Pedido B2B criado e estoque reservado.");
       navigate({ to: "/pedidos" });
     } catch (err: any) {
       console.error(err);
@@ -255,9 +283,8 @@ function Checkout() {
             <legend className="px-2 font-display text-sm font-bold uppercase">Pagamento</legend>
             <div className="grid gap-2 sm:grid-cols-2">
               {[
-                { v: "pix",          label: `PIX — 5% de desconto (${brl(pixDiscount > 0 ? pixDiscount : subtotal * PIX_DISCOUNT)})` },
-                { v: "cartao",       label: "Cartão — 10× sem juros" },
-                { v: "boleto",       label: "Boleto bancário" },
+                { v: "pix",          label: `PIX Stone — 5% de desconto (${brl(pixDiscount > 0 ? pixDiscount : subtotal * PIX_DISCOUNT)})` },
+                { v: "cartao",       label: "Cartão Stone — até 10×" },
                 ...(isB2BApproved ? [{ v: "faturado_b2b", label: "Faturado 28 dias (B2B)" }] : []),
               ].map((o) => (
                 <label key={o.v} className={`cursor-pointer rounded-md border p-3 text-sm ${form.payment_method === o.v ? "border-primary bg-primary/5" : "border-border"}`}>
