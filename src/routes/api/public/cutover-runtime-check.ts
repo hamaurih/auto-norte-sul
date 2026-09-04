@@ -2,63 +2,67 @@ import { createFileRoute } from "@tanstack/react-router";
 
 const OFFICIAL_URL = "https://pzwjbitjersngordgcsh.supabase.co";
 const LEGACY_URL = "https://pleuoxzocgoajmymipqi.supabase.co";
+const BRIDGE_URL = `${OFFICIAL_URL}/functions/v1/server-admin-bridge`;
 
-function decodeJwt(value: string | undefined): Record<string, unknown> | null {
-  if (!value || !value.includes(".")) return null;
+async function bridgeProbe(key: string | undefined): Promise<{ ok: boolean; status: number }> {
+  if (!key || key.length < 32) return { ok: false, status: 0 };
   try {
-    const payload = value.split(".")[1];
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
-    return JSON.parse(Buffer.from(padded, "base64").toString("utf8"));
+    const response = await fetch(BRIDGE_URL, {
+      method: "POST",
+      headers: {
+        "x-cutover-key": key,
+        "x-proxy-path": "/rest/v1/products?select=id&deleted_at=is.null&limit=1",
+        "x-proxy-method": "GET",
+        "x-forward-accept": "application/json",
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+    return { ok: response.ok, status: response.status };
   } catch {
-    return null;
+    return { ok: false, status: -1 };
   }
 }
 
-function keyHeaders(key: string): Headers {
-  const headers = new Headers({ apikey: key });
-  if (!key.startsWith("sb_secret_")) headers.set("Authorization", `Bearer ${key}`);
-  return headers;
-}
-
-async function canUseServiceRole(baseUrl: string, key: string | undefined): Promise<boolean> {
-  if (!key) return false;
+async function adminClientProbe(): Promise<{ ok: boolean; currentProducts: number | null; error?: string }> {
   try {
-    const response = await fetch(`${baseUrl}/rest/v1/tenants?select=id&limit=1`, {
-      headers: keyHeaders(key), signal: AbortSignal.timeout(3000),
-    });
-    return response.ok;
-  } catch { return false; }
-}
-
-async function canReadServiceOnlyTable(key: string | undefined): Promise<boolean> {
-  if (!key) return false;
-  try {
-    const response = await fetch(`${LEGACY_URL}/rest/v1/oauth_authorization_states?select=id&limit=1`, {
-      headers: keyHeaders(key), signal: AbortSignal.timeout(3000),
-    });
-    return response.ok;
-  } catch { return false; }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const result = await (supabaseAdmin as any)
+      .from("products")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null);
+    return {
+      ok: !result.error && typeof result.count === "number",
+      currentProducts: typeof result.count === "number" ? result.count : null,
+      error: result.error?.message,
+    };
+  } catch (error) {
+    return { ok: false, currentProducts: null, error: error instanceof Error ? error.message : "unknown" };
+  }
 }
 
 export const Route = createFileRoute("/api/public/cutover-runtime-check")({
   server: {
     handlers: {
       GET: async () => {
-        const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.AUTH_RATE_LIMIT_PEPPER;
         const configuredUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "").trim();
-        const keyClaims = decodeJwt(key);
-        const oidcClaims = decodeJwt(process.env.VERCEL_OIDC_TOKEN);
-        const [officialAdminOk, legacyAdminOk, legacyServiceOnlyOk] = await Promise.all([
-          canUseServiceRole(OFFICIAL_URL, key), canUseServiceRole(LEGACY_URL, key), canReadServiceOnlyTable(key),
-        ]);
+        const [bridge, admin] = await Promise.all([bridgeProbe(key), adminClientProbe()]);
+
         return Response.json({
-          serviceRoleConfigured: Boolean(key),
-          keyProject: keyClaims?.ref === "pzwjbitjersngordgcsh" ? "official" : keyClaims?.ref === "pleuoxzocgoajmymipqi" ? "legacy" : keyClaims?.ref ? "other" : "opaque-or-unknown",
-          configuredUrlProject: configuredUrl.includes("pzwjbitjersngordgcsh") ? "official" : configuredUrl.includes("pleuoxzocgoajmymipqi") ? "legacy" : configuredUrl ? "other" : "unset",
-          officialAdminOk, legacyAdminOk, legacyServiceOnlyOk,
-          oidcConfigured: Boolean(process.env.VERCEL_OIDC_TOKEN),
-          oidc: oidcClaims ? { iss: oidcClaims.iss, aud: oidcClaims.aud, sub: oidcClaims.sub, environment: oidcClaims.environment, project: oidcClaims.project } : null,
+          officialProject: "pzwjbitjersngordgcsh",
+          configuredEnvProject: configuredUrl.includes("pzwjbitjersngordgcsh")
+            ? "official"
+            : configuredUrl.includes("pleuoxzocgoajmymipqi")
+              ? "legacy"
+              : configuredUrl
+                ? "other"
+                : "unset",
+          legacyProject: LEGACY_URL.includes("pleuoxzocgoajmymipqi") ? "pleuoxzocgoajmymipqi" : null,
+          officialBridgeOk: bridge.ok,
+          bridgeStatus: bridge.status,
+          officialAdminClientOk: admin.ok,
+          currentProducts: admin.currentProducts,
+          adminError: admin.error || null,
         }, { headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
       },
     },
