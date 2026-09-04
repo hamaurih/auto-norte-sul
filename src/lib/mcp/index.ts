@@ -1,24 +1,6 @@
 import { defineMcp, auth } from "@lovable.dev/mcp-js";
 
-const DEFAULT_SUPABASE_URL = "https://pleuoxzocgoajmymipqi.supabase.co";
-
-function resolveSupabaseUrl(): string {
-  const candidate = (
-    process.env.SUPABASE_URL ||
-    process.env.VITE_SUPABASE_URL ||
-    DEFAULT_SUPABASE_URL
-  ).trim();
-
-  try {
-    const url = new URL(candidate);
-    if (url.protocol !== "https:") return DEFAULT_SUPABASE_URL;
-    return url.origin;
-  } catch {
-    return DEFAULT_SUPABASE_URL;
-  }
-}
-
-const SUPABASE_URL = resolveSupabaseUrl();
+const SUPABASE_URL = "https://pzwjbitjersngordgcsh.supabase.co";
 
 import searchProductsTool from "./tools/search-products";
 import getProductTool from "./tools/get-product";
