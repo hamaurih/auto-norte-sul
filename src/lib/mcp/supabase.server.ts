@@ -1,22 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 
-// Projeto Supabase atualmente usado por nortesulauto.com.br.
-// A chave publishable é adequada para ferramentas MCP somente de leitura;
-// service_role nunca deve ser exposta a chamadas externas.
-const DEFAULT_SUPABASE_URL = "https://pleuoxzocgoajmymipqi.supabase.co";
-const DEFAULT_SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_gLG1B4vn7B3xcqd8Dci4Sw_MyEY3PPn";
+// Banco oficial da Norte Sul. Variáveis antigas da Vercel não podem mais
+// redirecionar as ferramentas MCP para o projeto legado.
+const OFFICIAL_SUPABASE_URL = "https://pzwjbitjersngordgcsh.supabase.co";
+const OFFICIAL_SUPABASE_PUBLISHABLE_KEY =
+  "sb_publishable_8lqjNzJHLqVmGWSJoxHqQA_jSYMzoqX";
 const DEFAULT_TENANT_SLUG = "norte-sul-real";
-
-function resolveHttpsUrl(value: string | undefined): string {
-  const candidate = value?.trim() || DEFAULT_SUPABASE_URL;
-  try {
-    const url = new URL(candidate);
-    return url.protocol === "https:" ? url.origin : DEFAULT_SUPABASE_URL;
-  } catch {
-    return DEFAULT_SUPABASE_URL;
-  }
-}
 
 function resolveTenantSlug(): string {
   return (
@@ -28,13 +17,7 @@ function resolveTenantSlug(): string {
 }
 
 export function createMcpSupabase() {
-  const url = resolveHttpsUrl(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
-  const key =
-    process.env.SUPABASE_PUBLISHABLE_KEY?.trim() ||
-    process.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ||
-    DEFAULT_SUPABASE_PUBLISHABLE_KEY;
-
-  return createClient(url, key, {
+  return createClient(OFFICIAL_SUPABASE_URL, OFFICIAL_SUPABASE_PUBLISHABLE_KEY, {
     global: { headers: { "x-tenant-slug": resolveTenantSlug() } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
