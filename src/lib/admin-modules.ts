@@ -87,6 +87,7 @@ export const adminModules: AdminModule[] = [
     shortcuts: [
       { to: "/admin/produtos", label: "Produtos", description: "Listar e editar", icon: Package },
       { to: "/admin/produtos/novo", label: "Novo produto", description: "Cadastrar peça", icon: PlusCircle },
+      { to: "/admin/formacao-precos", label: "Formação de preços", description: "Margem B2B → B2C e reajustes", icon: BadgeDollarSign, adminOnly: true },
       { to: "/admin/categorias", label: "Categorias", description: "Árvore de categorias", icon: FolderTree },
       { to: "/admin/marcas", label: "Marcas", description: "Fabricantes", icon: Tag },
       { to: "/admin/aplicacoes-veiculares", label: "Aplicações veiculares", description: "Validar compatibilidade peça × veículo", icon: ClipboardCheck, adminOnly: true },
