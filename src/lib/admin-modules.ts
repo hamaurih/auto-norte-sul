@@ -89,6 +89,7 @@ export const adminModules: AdminModule[] = [
       { to: "/admin/produtos/novo", label: "Novo produto", description: "Cadastrar peça", icon: PlusCircle },
       { to: "/admin/categorias", label: "Categorias", description: "Árvore de categorias", icon: FolderTree },
       { to: "/admin/marcas", label: "Marcas", description: "Fabricantes", icon: Tag },
+      { to: "/admin/aplicacoes-veiculares", label: "Aplicações veiculares", description: "Validar compatibilidade peça × veículo", icon: ClipboardCheck, adminOnly: true },
       { to: "/admin/revisao-codigos", label: "Revisão de códigos", description: "Corrigir códigos internos e de fabricante", icon: Tag, adminOnly: true },
       { to: "/admin/enriquecimento-produtos", label: "Enriquecer produtos", description: "Imagens e descrições com fonte e aprovação", icon: Images, adminOnly: true },
       { to: "/admin/catalogo-fabricantes", label: "Catálogo de fabricantes", description: "Fontes oficiais e regras de códigos", icon: Images, adminOnly: true },
@@ -174,7 +175,7 @@ export const adminQuickActions: AdminShortcut[] = [
   { to: "/admin/pdv", label: "Nova venda", description: "Abrir frente de caixa", icon: ScanLine },
   { to: "/admin/pedidos", label: "Pedidos", description: "Acompanhar vendas", icon: ShoppingBag },
   { to: "/admin/expedicao", label: "Expedição", description: "Separar e despachar", icon: Truck },
-  { to: "/admin/pedidos-compra/novo", label: "Nova compra", description: "Comprar de fornecedor", icon: ShoppingCart },
+  { to: "/admin/pedidos-compra/novo", label: "Nova compra", description: "Comprar do fornecedor", icon: ShoppingCart },
   { to: "/admin/recebimentos", label: "Recebimentos", description: "Dar entrada em mercadoria", icon: PackageCheck },
   { to: "/admin/estoque", label: "Estoque", description: "Consultar e ajustar saldos", icon: Warehouse },
 ];
