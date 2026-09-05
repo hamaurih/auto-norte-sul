@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ProductForm } from "@/components/admin/ProductForm";
+import "@/components/admin/product-form.css";
 
 export const Route = createFileRoute("/_authenticated/admin/produtos/$id")({
   head: () => ({ meta: [{ title: "Editar produto · Admin" }] }),
