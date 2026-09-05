@@ -11,22 +11,17 @@ async function requirePricingRole(supabase: any, userId: string, tenantId: strin
 export const getPricingCenter = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const sb = tdb(context.supabase);
   await requirePricingRole(sb, context.userId, context.tenantId);
-  const [settings, products, rules, brands, categories, history] = await Promise.all([
+  const [settings, summary, brands, categories, history] = await Promise.all([
     sb.from("tenant_pricing_settings").select("default_b2c_markup_pct,price_rounding,auto_recalculate_b2c").eq("tenant_id", context.tenantId).maybeSingle(),
-    sb.from("products").select("id,price_b2b,price_b2c,active").eq("tenant_id", context.tenantId).is("deleted_at", null),
-    sb.from("product_b2c_price_rules").select("mode", { count: "exact", head: true }).eq("tenant_id", context.tenantId),
+    sb.rpc("get_pricing_center_summary", { p_tenant_id: context.tenantId }),
     sb.from("brands").select("id,name").eq("tenant_id", context.tenantId).order("name"),
     sb.from("categories").select("id,name,parent_id").eq("tenant_id", context.tenantId).order("name"),
     sb.from("price_adjustment_batches").select("id,target,adjustment_pct,affected_count,average_before,average_after,created_at").eq("tenant_id", context.tenantId).order("created_at", { ascending: false }).limit(10),
   ]);
-  for (const result of [settings, products, rules, brands, categories, history]) if (result.error) throw new Error(result.error.message);
-  const rows = products.data ?? [];
-  const withB2b = rows.filter((p: any) => Number(p.price_b2b ?? 0) > 0);
-  const withB2c = rows.filter((p: any) => Number(p.price_b2c ?? 0) > 0);
-  const avg = (items: any[], field: string) => items.length ? items.reduce((sum, item) => sum + Number(item[field] ?? 0), 0) / items.length : 0;
+  for (const result of [settings, summary, brands, categories, history]) if (result.error) throw new Error(result.error.message);
   return {
     settings: settings.data ?? { default_b2c_markup_pct: 0, price_rounding: "cent", auto_recalculate_b2c: true },
-    summary: { total: rows.length, active: rows.filter((p: any) => p.active).length, withB2b: withB2b.length, avgB2b: avg(withB2b, "price_b2b"), avgB2c: avg(withB2c, "price_b2c"), exceptions: rules.count ?? 0 },
+    summary: summary.data ?? { total: 0, active: 0, withB2b: 0, avgB2b: 0, avgB2c: 0, exceptions: 0 },
     brands: brands.data ?? [], categories: categories.data ?? [], history: history.data ?? [],
   };
 });
