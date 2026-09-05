@@ -10,11 +10,12 @@ export const Route = createFileRoute("/_authenticated/admin/produtos/novo")({
 function NewProduct() {
   return (
     <div>
-      <div className="mb-4 flex items-center gap-2">
-        <Link to="/admin/produtos" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Voltar
+      <div className="mx-auto mb-4 flex max-w-[1500px] items-center gap-2 text-sm">
+        <Link to="/admin/produtos" className="inline-flex items-center gap-1.5 font-semibold text-slate-500 transition hover:text-slate-950">
+          <ArrowLeft className="h-4 w-4" /> Produtos
         </Link>
-        <h1 className="ml-2 font-display text-2xl font-bold uppercase">Novo Produto</h1>
+        <span className="text-slate-300">/</span>
+        <span className="font-semibold text-slate-700">Novo produto</span>
       </div>
       <ProductForm />
     </div>
