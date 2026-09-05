@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { ProductForm } from "@/components/admin/ProductForm";
+import "@/components/admin/product-form.css";
 
 export const Route = createFileRoute("/_authenticated/admin/produtos/novo")({
   head: () => ({ meta: [{ title: "Novo produto · Admin" }] }),
