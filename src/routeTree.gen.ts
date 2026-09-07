@@ -55,6 +55,7 @@ import { Route as AuthenticatedAdminIaAesBusinessRouteImport } from './routes/_a
 import { Route as AuthenticatedAdminHomologacaoRouteImport } from './routes/_authenticated/admin.homologacao'
 import { Route as AuthenticatedAdminHistoricoCustosRouteImport } from './routes/_authenticated/admin.historico-custos'
 import { Route as AuthenticatedAdminFornecedoresRouteImport } from './routes/_authenticated/admin.fornecedores'
+import { Route as AuthenticatedAdminFormacaoPrecosRouteImport } from './routes/_authenticated/admin.formacao-precos'
 import { Route as AuthenticatedAdminFiscalProdutosRouteImport } from './routes/_authenticated/admin.fiscal-produtos'
 import { Route as AuthenticatedAdminFiscalRouteImport } from './routes/_authenticated/admin.fiscal'
 import { Route as AuthenticatedAdminFiliaisRouteImport } from './routes/_authenticated/admin.filiais'
@@ -71,6 +72,7 @@ import { Route as AuthenticatedAdminCadastrosB2bRouteImport } from './routes/_au
 import { Route as AuthenticatedAdminBlingRouteImport } from './routes/_authenticated/admin.bling'
 import { Route as AuthenticatedAdminBannersRouteImport } from './routes/_authenticated/admin.banners'
 import { Route as AuthenticatedAdminAuditoriaRouteImport } from './routes/_authenticated/admin.auditoria'
+import { Route as AuthenticatedAdminAplicacoesVeicularesRouteImport } from './routes/_authenticated/admin.aplicacoes-veiculares'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedAdminRecebimentosIndexRouteImport } from './routes/_authenticated/admin.recebimentos.index'
 import { Route as AuthenticatedAdminProdutosIndexRouteImport } from './routes/_authenticated/admin.produtos.index'
@@ -345,6 +347,12 @@ const AuthenticatedAdminFornecedoresRoute =
     path: '/fornecedores',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminFormacaoPrecosRoute =
+  AuthenticatedAdminFormacaoPrecosRouteImport.update({
+    id: '/formacao-precos',
+    path: '/formacao-precos',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminFiscalProdutosRoute =
   AuthenticatedAdminFiscalProdutosRouteImport.update({
     id: '/fiscal-produtos',
@@ -438,6 +446,12 @@ const AuthenticatedAdminAuditoriaRoute =
   AuthenticatedAdminAuditoriaRouteImport.update({
     id: '/auditoria',
     path: '/auditoria',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminAplicacoesVeicularesRoute =
+  AuthenticatedAdminAplicacoesVeicularesRouteImport.update({
+    id: '/aplicacoes-veiculares',
+    path: '/aplicacoes-veiculares',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
@@ -588,6 +602,7 @@ export interface FileRoutesByFullPath {
   '/brand/social.webp': typeof BrandSocialDotwebpRoute
   '/produto/$slug': typeof ProdutoSlugRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/admin/aplicacoes-veiculares': typeof AuthenticatedAdminAplicacoesVeicularesRoute
   '/admin/auditoria': typeof AuthenticatedAdminAuditoriaRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/bling': typeof AuthenticatedAdminBlingRoute
@@ -604,6 +619,7 @@ export interface FileRoutesByFullPath {
   '/admin/filiais': typeof AuthenticatedAdminFiliaisRoute
   '/admin/fiscal': typeof AuthenticatedAdminFiscalRoute
   '/admin/fiscal-produtos': typeof AuthenticatedAdminFiscalProdutosRoute
+  '/admin/formacao-precos': typeof AuthenticatedAdminFormacaoPrecosRoute
   '/admin/fornecedores': typeof AuthenticatedAdminFornecedoresRoute
   '/admin/historico-custos': typeof AuthenticatedAdminHistoricoCustosRoute
   '/admin/homologacao': typeof AuthenticatedAdminHomologacaoRoute
@@ -670,6 +686,7 @@ export interface FileRoutesByTo {
   '/brand/social.webp': typeof BrandSocialDotwebpRoute
   '/produto/$slug': typeof ProdutoSlugRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/admin/aplicacoes-veiculares': typeof AuthenticatedAdminAplicacoesVeicularesRoute
   '/admin/auditoria': typeof AuthenticatedAdminAuditoriaRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/bling': typeof AuthenticatedAdminBlingRoute
@@ -685,6 +702,7 @@ export interface FileRoutesByTo {
   '/admin/filiais': typeof AuthenticatedAdminFiliaisRoute
   '/admin/fiscal': typeof AuthenticatedAdminFiscalRoute
   '/admin/fiscal-produtos': typeof AuthenticatedAdminFiscalProdutosRoute
+  '/admin/formacao-precos': typeof AuthenticatedAdminFormacaoPrecosRoute
   '/admin/fornecedores': typeof AuthenticatedAdminFornecedoresRoute
   '/admin/historico-custos': typeof AuthenticatedAdminHistoricoCustosRoute
   '/admin/homologacao': typeof AuthenticatedAdminHomologacaoRoute
@@ -755,6 +773,7 @@ export interface FileRoutesById {
   '/brand/social.webp': typeof BrandSocialDotwebpRoute
   '/produto/$slug': typeof ProdutoSlugRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/_authenticated/admin/aplicacoes-veiculares': typeof AuthenticatedAdminAplicacoesVeicularesRoute
   '/_authenticated/admin/auditoria': typeof AuthenticatedAdminAuditoriaRoute
   '/_authenticated/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/_authenticated/admin/bling': typeof AuthenticatedAdminBlingRoute
@@ -771,6 +790,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/filiais': typeof AuthenticatedAdminFiliaisRoute
   '/_authenticated/admin/fiscal': typeof AuthenticatedAdminFiscalRoute
   '/_authenticated/admin/fiscal-produtos': typeof AuthenticatedAdminFiscalProdutosRoute
+  '/_authenticated/admin/formacao-precos': typeof AuthenticatedAdminFormacaoPrecosRoute
   '/_authenticated/admin/fornecedores': typeof AuthenticatedAdminFornecedoresRoute
   '/_authenticated/admin/historico-custos': typeof AuthenticatedAdminHistoricoCustosRoute
   '/_authenticated/admin/homologacao': typeof AuthenticatedAdminHomologacaoRoute
@@ -841,6 +861,7 @@ export interface FileRouteTypes {
     | '/brand/social.webp'
     | '/produto/$slug'
     | '/.mcp/invoke-tool/$tool'
+    | '/admin/aplicacoes-veiculares'
     | '/admin/auditoria'
     | '/admin/banners'
     | '/admin/bling'
@@ -857,6 +878,7 @@ export interface FileRouteTypes {
     | '/admin/filiais'
     | '/admin/fiscal'
     | '/admin/fiscal-produtos'
+    | '/admin/formacao-precos'
     | '/admin/fornecedores'
     | '/admin/historico-custos'
     | '/admin/homologacao'
@@ -923,6 +945,7 @@ export interface FileRouteTypes {
     | '/brand/social.webp'
     | '/produto/$slug'
     | '/.mcp/invoke-tool/$tool'
+    | '/admin/aplicacoes-veiculares'
     | '/admin/auditoria'
     | '/admin/banners'
     | '/admin/bling'
@@ -938,6 +961,7 @@ export interface FileRouteTypes {
     | '/admin/filiais'
     | '/admin/fiscal'
     | '/admin/fiscal-produtos'
+    | '/admin/formacao-precos'
     | '/admin/fornecedores'
     | '/admin/historico-custos'
     | '/admin/homologacao'
@@ -1007,6 +1031,7 @@ export interface FileRouteTypes {
     | '/brand/social.webp'
     | '/produto/$slug'
     | '/.mcp/invoke-tool/$tool'
+    | '/_authenticated/admin/aplicacoes-veiculares'
     | '/_authenticated/admin/auditoria'
     | '/_authenticated/admin/banners'
     | '/_authenticated/admin/bling'
@@ -1023,6 +1048,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/filiais'
     | '/_authenticated/admin/fiscal'
     | '/_authenticated/admin/fiscal-produtos'
+    | '/_authenticated/admin/formacao-precos'
     | '/_authenticated/admin/fornecedores'
     | '/_authenticated/admin/historico-custos'
     | '/_authenticated/admin/homologacao'
@@ -1419,6 +1445,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminFornecedoresRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/formacao-precos': {
+      id: '/_authenticated/admin/formacao-precos'
+      path: '/formacao-precos'
+      fullPath: '/admin/formacao-precos'
+      preLoaderRoute: typeof AuthenticatedAdminFormacaoPrecosRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/fiscal-produtos': {
       id: '/_authenticated/admin/fiscal-produtos'
       path: '/fiscal-produtos'
@@ -1529,6 +1562,13 @@ declare module '@tanstack/react-router' {
       path: '/auditoria'
       fullPath: '/admin/auditoria'
       preLoaderRoute: typeof AuthenticatedAdminAuditoriaRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/aplicacoes-veiculares': {
+      id: '/_authenticated/admin/aplicacoes-veiculares'
+      path: '/aplicacoes-veiculares'
+      fullPath: '/admin/aplicacoes-veiculares'
+      preLoaderRoute: typeof AuthenticatedAdminAplicacoesVeicularesRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/.mcp/invoke-tool/$tool': {
@@ -1747,6 +1787,7 @@ const AuthenticatedAdminVendedoresRouteWithChildren =
   )
 
 interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminAplicacoesVeicularesRoute: typeof AuthenticatedAdminAplicacoesVeicularesRoute
   AuthenticatedAdminAuditoriaRoute: typeof AuthenticatedAdminAuditoriaRoute
   AuthenticatedAdminBannersRoute: typeof AuthenticatedAdminBannersRoute
   AuthenticatedAdminBlingRoute: typeof AuthenticatedAdminBlingRoute
@@ -1763,6 +1804,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminFiliaisRoute: typeof AuthenticatedAdminFiliaisRoute
   AuthenticatedAdminFiscalRoute: typeof AuthenticatedAdminFiscalRoute
   AuthenticatedAdminFiscalProdutosRoute: typeof AuthenticatedAdminFiscalProdutosRoute
+  AuthenticatedAdminFormacaoPrecosRoute: typeof AuthenticatedAdminFormacaoPrecosRoute
   AuthenticatedAdminFornecedoresRoute: typeof AuthenticatedAdminFornecedoresRoute
   AuthenticatedAdminHistoricoCustosRoute: typeof AuthenticatedAdminHistoricoCustosRoute
   AuthenticatedAdminHomologacaoRoute: typeof AuthenticatedAdminHomologacaoRoute
@@ -1796,6 +1838,8 @@ interface AuthenticatedAdminRouteChildren {
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminAplicacoesVeicularesRoute:
+    AuthenticatedAdminAplicacoesVeicularesRoute,
   AuthenticatedAdminAuditoriaRoute: AuthenticatedAdminAuditoriaRoute,
   AuthenticatedAdminBannersRoute: AuthenticatedAdminBannersRoute,
   AuthenticatedAdminBlingRoute: AuthenticatedAdminBlingRoute,
@@ -1815,6 +1859,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminFiliaisRoute: AuthenticatedAdminFiliaisRoute,
   AuthenticatedAdminFiscalRoute: AuthenticatedAdminFiscalRoute,
   AuthenticatedAdminFiscalProdutosRoute: AuthenticatedAdminFiscalProdutosRoute,
+  AuthenticatedAdminFormacaoPrecosRoute: AuthenticatedAdminFormacaoPrecosRoute,
   AuthenticatedAdminFornecedoresRoute: AuthenticatedAdminFornecedoresRoute,
   AuthenticatedAdminHistoricoCustosRoute:
     AuthenticatedAdminHistoricoCustosRoute,
