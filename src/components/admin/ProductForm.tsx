@@ -93,6 +93,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
   const upsert = useServerFn(productUpsert);
   const checkDup = useServerFn(checkInternalCodeDuplicate);
   const importImage = useServerFn(importProductImageUrl);
+  const createUploadUrl = useServerFn(createProductImageUploadUrl);
   const [dupWarning, setDupWarning] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>("geral");
   const [saving, setSaving] = useState(false);
