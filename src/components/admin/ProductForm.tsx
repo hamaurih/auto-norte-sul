@@ -211,15 +211,24 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
     try {
       const uploaded: Img[] = [];
       for (const file of arr) {
-        const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-        const key = `manual/${crypto.randomUUID()}.${ext}`;
-        const { error } = await supabase.storage.from("product-images").upload(key, file, {
-          upsert: false,
-          contentType: file.type,
+        const signed = await createUploadUrl({
+          data: {
+            fileName: file.name,
+            contentType: file.type,
+            size: file.size,
+            sku: form.sku || null,
+            productId: form.id ?? null,
+          },
         });
+        if (!signed?.token || !signed?.path) throw new Error("Não foi possível preparar o upload");
+        const { error } = await supabase.storage
+          .from("product-images")
+          .uploadToSignedUrl(signed.path, signed.token, file, {
+            contentType: signed.contentType || file.type,
+            cacheControl: "31536000",
+          });
         if (error) throw error;
-        const { data } = supabase.storage.from("product-images").getPublicUrl(key);
-        uploaded.push({ url: data.publicUrl, alt: form.name || file.name, is_primary: false });
+        uploaded.push({ url: signed.publicUrl, alt: form.name || file.name, is_primary: false });
       }
       setForm((f) => {
         const current = f.images ?? [];
