@@ -45,6 +45,9 @@ export type ProductInput = {
   is_bestseller?: boolean;
   is_offer?: boolean;
   weight_kg?: number | null;
+  height_cm?: number | null;
+  width_cm?: number | null;
+  length_cm?: number | null;
   images?: { url: string; alt?: string | null; is_primary?: boolean }[];
 };
 
