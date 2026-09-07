@@ -259,6 +259,14 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
       const cleanInternal = normalizeCode(form.internal_code ?? "");
       const cleanManufacturer = normalizeCode(form.manufacturer_code ?? "");
 
+      const positive = (value: number | null | undefined, label: string) => {
+        if (value === null || value === undefined || value === ("" as unknown as number)) return null;
+        const num = Number(value);
+        if (!Number.isFinite(num)) throw new Error(`${label} inválido`);
+        if (num <= 0) throw new Error(`${label} deve ser maior que zero`);
+        return num;
+      };
+
       const payload: ProductInput = {
         ...form,
         name: cleanName,
@@ -269,12 +277,17 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
         price_b2c: Number(form.price_b2c ?? 0),
         stock: Number(form.stock ?? 0),
         min_stock: Number(form.min_stock ?? 0),
+        weight_kg: positive(form.weight_kg, "Peso (kg)"),
+        height_cm: positive(form.height_cm, "Altura (cm)"),
+        width_cm: positive(form.width_cm, "Largura (cm)"),
+        length_cm: positive(form.length_cm, "Comprimento (cm)"),
         images: (form.images ?? []).filter((img) => img.url.trim()).map((img) => ({
           ...img,
           url: img.url.trim(),
           alt: img.alt?.trim() || cleanName,
         })),
       };
+
 
       if (cleanInternal) {
         const duplicate = await checkDup({ data: { internal_code: cleanInternal, excludeId: form.id ?? null } });
