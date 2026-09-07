@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { supabaseUrl } from "@/integrations/supabase/env";
 import { checkInternalCodeDuplicate, productUpsert, type ProductInput } from "@/lib/products.functions";
-import { importProductImageUrl } from "@/lib/product-images.functions";
+import { createProductImageUploadUrl, importProductImageUrl } from "@/lib/product-images.functions";
 import { normalizeCode, normalizeName } from "@/lib/product-codes";
 import { slugify } from "@/lib/format";
 import {
