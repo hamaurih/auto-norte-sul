@@ -128,6 +128,9 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
     is_bestseller: initial?.is_bestseller ?? false,
     is_offer: initial?.is_offer ?? false,
     weight_kg: initial?.weight_kg ?? null,
+    height_cm: initial?.height_cm ?? null,
+    width_cm: initial?.width_cm ?? null,
+    length_cm: initial?.length_cm ?? null,
     images: initial?.images ?? [],
   });
 
