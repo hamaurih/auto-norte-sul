@@ -4565,6 +4565,9 @@ export type Database = {
           tenant_id: string
           updated_at: string
           weight_kg: number | null
+          height_cm: number | null
+          width_cm: number | null
+          length_cm: number | null
         }
         Insert: {
           active?: boolean
@@ -4603,6 +4606,9 @@ export type Database = {
           tenant_id: string
           updated_at?: string
           weight_kg?: number | null
+          height_cm?: number | null
+          width_cm?: number | null
+          length_cm?: number | null
         }
         Update: {
           active?: boolean
@@ -4641,6 +4647,9 @@ export type Database = {
           tenant_id?: string
           updated_at?: string
           weight_kg?: number | null
+          height_cm?: number | null
+          width_cm?: number | null
+          length_cm?: number | null
         }
         Relationships: [
           {
