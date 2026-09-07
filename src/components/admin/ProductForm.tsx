@@ -449,13 +449,31 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
                       <span className="text-sm font-semibold text-slate-700">Slug / URL</span>
                       <input className={fieldClass} value={form.slug ?? ""} onChange={(e) => update("slug", e.target.value)} placeholder="Gerado automaticamente" />
                     </label>
-                    <label>
-                      <span className="text-sm font-semibold text-slate-700">Peso (kg)</span>
-                      <input className={fieldClass} type="number" step="0.001" min="0" value={form.weight_kg ?? ""} onChange={(e) => update("weight_kg", e.target.value ? Number(e.target.value) : null)} placeholder="0,000" />
-                    </label>
                   </div>
                 ) : null}
               </SectionCard>
+
+              <SectionCard icon={Package} title="Peso e dimensões para frete" description="Usado no cálculo de frete. Opcional, mas quando preenchido precisa ser maior que zero.">
+                <div className="grid gap-x-5 gap-y-5 sm:grid-cols-2 xl:grid-cols-4">
+                  <label>
+                    <span className="text-sm font-semibold text-slate-700">Peso (kg)</span>
+                    <input className={fieldClass} type="number" step="0.001" min="0" value={form.weight_kg ?? ""} onChange={(e) => update("weight_kg", e.target.value === "" ? null : Number(e.target.value))} placeholder="0,000" />
+                  </label>
+                  <label>
+                    <span className="text-sm font-semibold text-slate-700">Altura (cm)</span>
+                    <input className={fieldClass} type="number" step="0.01" min="0" value={form.height_cm ?? ""} onChange={(e) => update("height_cm", e.target.value === "" ? null : Number(e.target.value))} placeholder="0,00" />
+                  </label>
+                  <label>
+                    <span className="text-sm font-semibold text-slate-700">Largura (cm)</span>
+                    <input className={fieldClass} type="number" step="0.01" min="0" value={form.width_cm ?? ""} onChange={(e) => update("width_cm", e.target.value === "" ? null : Number(e.target.value))} placeholder="0,00" />
+                  </label>
+                  <label>
+                    <span className="text-sm font-semibold text-slate-700">Comprimento (cm)</span>
+                    <input className={fieldClass} type="number" step="0.01" min="0" value={form.length_cm ?? ""} onChange={(e) => update("length_cm", e.target.value === "" ? null : Number(e.target.value))} placeholder="0,00" />
+                  </label>
+                </div>
+              </SectionCard>
+
 
               <SectionCard icon={Tag} title="Descrição" description="Texto que ajuda a equipe e o cliente a entenderem o produto.">
                 <div className="space-y-5">
