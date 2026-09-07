@@ -294,9 +294,11 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
     }
     setImporting(true);
     try {
-      const result = await importImage({ data: { url: img.url, alt: img.alt ?? form.name } });
-      if (!result?.url) throw new Error("Imagem não importada");
-      updateImg(i, { url: result.url });
+      const result = await importImage({
+        data: { sourceUrl: img.url.trim(), sku: form.sku || null, productId: form.id ?? null },
+      });
+      if (!result?.publicUrl) throw new Error("Imagem não importada");
+      updateImg(i, { url: result.publicUrl, alt: img.alt?.trim() || form.name || null });
       toast.success("Imagem copiada para o armazenamento oficial");
     } catch (e: any) {
       toast.error(e?.message ?? "Erro ao importar imagem");
