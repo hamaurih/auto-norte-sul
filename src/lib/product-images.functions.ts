@@ -151,6 +151,66 @@ async function requireCatalogMembership(supabase: any, userId: string, tenantId:
   if (!membership) throw new Error("Usuário sem permissão para administrar o catálogo");
 }
 
+export type CreateUploadUrlInput = {
+  fileName?: string | null;
+  contentType: string;
+  size: number;
+  sku?: string | null;
+  productId?: string | null;
+};
+
+/**
+ * Gera uma URL de upload assinada para o bucket `product-images`.
+ * A autorização acontece no servidor (tenant + papéis de catálogo), então o
+ * navegador não depende de RLS de upload direto.
+ */
+export const createProductImageUploadUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: CreateUploadUrlInput) => {
+    const contentType = String(input?.contentType ?? "").split(";")[0]!.trim().toLowerCase();
+    if (!ALLOWED_MIME[contentType]) throw new Error(`Formato de imagem não permitido: ${contentType || "desconhecido"}`);
+    const size = Number(input?.size ?? 0);
+    if (!Number.isFinite(size) || size <= 0) throw new Error("Arquivo de imagem vazio");
+    if (size > MAX_BYTES) throw new Error("Imagem maior que 5 MB");
+    return {
+      contentType,
+      size,
+      fileName: input?.fileName ?? null,
+      sku: input?.sku ?? null,
+      productId: input?.productId ?? null,
+    };
+  })
+  .handler(async ({ data, context }) => {
+    const supabase = tdb(context.supabase);
+    const tenantId = context.tenantId;
+    await requireCatalogMembership(supabase, context.userId, tenantId);
+
+    if (data.productId) {
+      const { data: product } = await supabase
+        .from("products")
+        .select("id")
+        .eq("id", data.productId)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (!product) throw new Error("Produto não encontrado neste ambiente");
+    }
+
+    const ext = ALLOWED_MIME[data.contentType]!;
+    const scope = data.productId || (data.sku ? sanitizeSegment(data.sku) : "") || "manual";
+    const path = `${tenantId}/${scope}/manual/${crypto.randomUUID()}.${ext}`;
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: signed, error } = await (supabaseAdmin as any).storage
+      .from(BUCKET)
+      .createSignedUploadUrl(path);
+    if (error || !signed?.token) throw new Error(error?.message ?? "Não foi possível preparar o upload");
+
+    const publicUrl: string = (supabaseAdmin as any).storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+    if (!publicUrl?.startsWith("https://")) throw new Error("URL pública inválida gerada pelo Storage");
+
+    return { ok: true, path, token: signed.token as string, publicUrl, contentType: data.contentType };
+  });
+
 export type ImportProductImageInput = {
   sourceUrl: string;
   sku?: string | null;
