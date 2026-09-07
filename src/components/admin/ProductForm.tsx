@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { supabaseUrl } from "@/integrations/supabase/env";
 import { checkInternalCodeDuplicate, productUpsert, type ProductInput } from "@/lib/products.functions";
-import { importProductImageUrl } from "@/lib/product-images.functions";
+import { createProductImageUploadUrl, importProductImageUrl } from "@/lib/product-images.functions";
 import { normalizeCode, normalizeName } from "@/lib/product-codes";
 import { slugify } from "@/lib/format";
 import {
@@ -93,6 +93,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
   const upsert = useServerFn(productUpsert);
   const checkDup = useServerFn(checkInternalCodeDuplicate);
   const importImage = useServerFn(importProductImageUrl);
+  const createUploadUrl = useServerFn(createProductImageUploadUrl);
   const [dupWarning, setDupWarning] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>("geral");
   const [saving, setSaving] = useState(false);
@@ -127,6 +128,9 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
     is_bestseller: initial?.is_bestseller ?? false,
     is_offer: initial?.is_offer ?? false,
     weight_kg: initial?.weight_kg ?? null,
+    height_cm: initial?.height_cm ?? null,
+    width_cm: initial?.width_cm ?? null,
+    length_cm: initial?.length_cm ?? null,
     images: initial?.images ?? [],
   });
 
@@ -211,15 +215,24 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
     try {
       const uploaded: Img[] = [];
       for (const file of arr) {
-        const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-        const key = `manual/${crypto.randomUUID()}.${ext}`;
-        const { error } = await supabase.storage.from("product-images").upload(key, file, {
-          upsert: false,
-          contentType: file.type,
+        const signed = await createUploadUrl({
+          data: {
+            fileName: file.name,
+            contentType: file.type,
+            size: file.size,
+            sku: form.sku || null,
+            productId: form.id ?? null,
+          },
         });
+        if (!signed?.token || !signed?.path) throw new Error("Não foi possível preparar o upload");
+        const { error } = await supabase.storage
+          .from("product-images")
+          .uploadToSignedUrl(signed.path, signed.token, file, {
+            contentType: signed.contentType || file.type,
+            cacheControl: "31536000",
+          });
         if (error) throw error;
-        const { data } = supabase.storage.from("product-images").getPublicUrl(key);
-        uploaded.push({ url: data.publicUrl, alt: form.name || file.name, is_primary: false });
+        uploaded.push({ url: signed.publicUrl, alt: form.name || file.name, is_primary: false });
       }
       setForm((f) => {
         const current = f.images ?? [];
@@ -246,6 +259,14 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
       const cleanInternal = normalizeCode(form.internal_code ?? "");
       const cleanManufacturer = normalizeCode(form.manufacturer_code ?? "");
 
+      const positive = (value: number | null | undefined, label: string) => {
+        if (value === null || value === undefined || value === ("" as unknown as number)) return null;
+        const num = Number(value);
+        if (!Number.isFinite(num)) throw new Error(`${label} inválido`);
+        if (num <= 0) throw new Error(`${label} deve ser maior que zero`);
+        return num;
+      };
+
       const payload: ProductInput = {
         ...form,
         name: cleanName,
@@ -256,12 +277,17 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
         price_b2c: Number(form.price_b2c ?? 0),
         stock: Number(form.stock ?? 0),
         min_stock: Number(form.min_stock ?? 0),
+        weight_kg: positive(form.weight_kg, "Peso (kg)"),
+        height_cm: positive(form.height_cm, "Altura (cm)"),
+        width_cm: positive(form.width_cm, "Largura (cm)"),
+        length_cm: positive(form.length_cm, "Comprimento (cm)"),
         images: (form.images ?? []).filter((img) => img.url.trim()).map((img) => ({
           ...img,
           url: img.url.trim(),
           alt: img.alt?.trim() || cleanName,
         })),
       };
+
 
       if (cleanInternal) {
         const duplicate = await checkDup({ data: { internal_code: cleanInternal, excludeId: form.id ?? null } });
@@ -294,9 +320,11 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
     }
     setImporting(true);
     try {
-      const result = await importImage({ data: { url: img.url, alt: img.alt ?? form.name } });
-      if (!result?.url) throw new Error("Imagem não importada");
-      updateImg(i, { url: result.url });
+      const result = await importImage({
+        data: { sourceUrl: img.url.trim(), sku: form.sku || null, productId: form.id ?? null },
+      });
+      if (!result?.publicUrl) throw new Error("Imagem não importada");
+      updateImg(i, { url: result.publicUrl, alt: img.alt?.trim() || form.name || null });
       toast.success("Imagem copiada para o armazenamento oficial");
     } catch (e: any) {
       toast.error(e?.message ?? "Erro ao importar imagem");
@@ -437,13 +465,31 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
                       <span className="text-sm font-semibold text-slate-700">Slug / URL</span>
                       <input className={fieldClass} value={form.slug ?? ""} onChange={(e) => update("slug", e.target.value)} placeholder="Gerado automaticamente" />
                     </label>
-                    <label>
-                      <span className="text-sm font-semibold text-slate-700">Peso (kg)</span>
-                      <input className={fieldClass} type="number" step="0.001" min="0" value={form.weight_kg ?? ""} onChange={(e) => update("weight_kg", e.target.value ? Number(e.target.value) : null)} placeholder="0,000" />
-                    </label>
                   </div>
                 ) : null}
               </SectionCard>
+
+              <SectionCard icon={Package} title="Peso e dimensões para frete" description="Usado no cálculo de frete. Opcional, mas quando preenchido precisa ser maior que zero.">
+                <div className="grid gap-x-5 gap-y-5 sm:grid-cols-2 xl:grid-cols-4">
+                  <label>
+                    <span className="text-sm font-semibold text-slate-700">Peso (kg)</span>
+                    <input className={fieldClass} type="number" step="0.001" min="0" value={form.weight_kg ?? ""} onChange={(e) => update("weight_kg", e.target.value === "" ? null : Number(e.target.value))} placeholder="0,000" />
+                  </label>
+                  <label>
+                    <span className="text-sm font-semibold text-slate-700">Altura (cm)</span>
+                    <input className={fieldClass} type="number" step="0.01" min="0" value={form.height_cm ?? ""} onChange={(e) => update("height_cm", e.target.value === "" ? null : Number(e.target.value))} placeholder="0,00" />
+                  </label>
+                  <label>
+                    <span className="text-sm font-semibold text-slate-700">Largura (cm)</span>
+                    <input className={fieldClass} type="number" step="0.01" min="0" value={form.width_cm ?? ""} onChange={(e) => update("width_cm", e.target.value === "" ? null : Number(e.target.value))} placeholder="0,00" />
+                  </label>
+                  <label>
+                    <span className="text-sm font-semibold text-slate-700">Comprimento (cm)</span>
+                    <input className={fieldClass} type="number" step="0.01" min="0" value={form.length_cm ?? ""} onChange={(e) => update("length_cm", e.target.value === "" ? null : Number(e.target.value))} placeholder="0,00" />
+                  </label>
+                </div>
+              </SectionCard>
+
 
               <SectionCard icon={Tag} title="Descrição" description="Texto que ajuda a equipe e o cliente a entenderem o produto.">
                 <div className="space-y-5">
