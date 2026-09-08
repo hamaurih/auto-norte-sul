@@ -259,7 +259,9 @@ function OrcamentoDetailPage() {
       {proposalLocked && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 print:hidden">
           <p className="font-semibold">
-            {converted ? "Venda fechada — conteúdo bloqueado" : "Proposta enviada — conteúdo bloqueado"}
+            {converted
+              ? "Venda fechada — esta versão está bloqueada para edição."
+              : "Proposta enviada — esta versão está bloqueada para edição."}
           </p>
           <p className="mt-1">
             Este documento é um registro comercial definitivo. Para mudar cliente, itens, quantidades,
