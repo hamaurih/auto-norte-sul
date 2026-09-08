@@ -12,6 +12,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 import { tdb } from "@/integrations/supabase/tenant-db";
 import { escapeLike, sanitizeOrQuery } from "@/lib/sanitize";
+import { isQuoteCommerciallyLocked, QUOTE_LOCKED_MESSAGE } from "@/lib/quotes-ui";
 
 // ─── Autorização ───────────────────────────────────────────────────────────
 
