@@ -12,7 +12,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 import { tdb } from "@/integrations/supabase/tenant-db";
 import { escapeLike, sanitizeOrQuery } from "@/lib/sanitize";
-import { isQuoteCommerciallyLocked, QUOTE_LOCKED_MESSAGE } from "@/lib/quotes-ui";
+import { isQuoteCommerciallyLocked, QUOTE_LOCKED_MESSAGE } from "@/lib/quote-lock";
 
 // ─── Autorização ───────────────────────────────────────────────────────────
 
@@ -474,7 +474,7 @@ export const upsertQuote = createServerFn({ method: "POST" })
     const membership = await requireCommercial(sb, context.userId, context.tenantId);
     const tenantId = membership.tenant_id;
 
-    // Proposta enviada é snapshot imutável: nada é atualizado nem apagado aqui.
+    // Documento enviado/encerrado é snapshot imutável: nada é atualizado nem apagado aqui.
     let existing: any = null;
     if (data.id) {
       existing = await loadQuoteOrThrow(sb, tenantId, data.id);
@@ -702,6 +702,19 @@ export const createQuoteRevision = createServerFn({ method: "POST" })
     const tenantId = membership.tenant_id;
     const source = await loadQuoteOrThrow(sb, tenantId, data.id);
 
+    // Evita versões duplicadas quando várias revisões partem do mesmo documento.
+    const chainRootId = (source.parent_quote_id as string | null) ?? source.id;
+    const { data: chain } = await sb
+      .from("quotes")
+      .select("version")
+      .eq("tenant_id", tenantId)
+      .or(`id.eq.${chainRootId},parent_quote_id.eq.${chainRootId},id.eq.${source.id},parent_quote_id.eq.${source.id}`);
+    const nextVersion =
+      Math.max(
+        Number(source.version ?? 1),
+        ...(chain ?? []).map((r: any) => Number(r.version ?? 1)),
+      ) + 1;
+
     const row = {
       tenant_id: tenantId,
       title: source.title ?? null,
@@ -714,7 +727,7 @@ export const createQuoteRevision = createServerFn({ method: "POST" })
       origin: source.origin,
       status: "rascunho",
       document_type: "orcamento",
-      version: Number(source.version ?? 1) + 1,
+      version: nextVersion,
       parent_quote_id: source.id,
       subtotal: source.subtotal ?? 0,
       discount: source.discount ?? 0,
@@ -725,7 +738,7 @@ export const createQuoteRevision = createServerFn({ method: "POST" })
       internal_notes: source.internal_notes ?? null,
       customer_notes: source.customer_notes ?? null,
       valid_until: source.valid_until ?? null,
-      follow_up_at: source.follow_up_at ?? null,
+      follow_up_at: null,
       sent_at: null,
       approved_at: null,
       closed_at: null,
