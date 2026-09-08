@@ -397,8 +397,8 @@ function OrcamentoDetailPage() {
               Confirmar fechamento
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogFooter>
         </AlertDialogContent>
+
       </AlertDialog>
     </div>
   );
