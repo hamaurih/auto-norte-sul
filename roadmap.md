@@ -35,3 +35,5 @@ Nenhuma para o scheduler atual. `CRON_SECRET` permanece opcional apenas se, no f
 
 ## Módulo comercial de Orçamentos (2026-09-08)
 - [x] Banco de produção atualizado: fluxo orçamento/proposta, histórico `quote_events`, versionamento, follow-up e vínculo idempotente `sales_orders.quote_id` aplicados com RLS multi-tenant. Migration oficial versionada em `supabase/migrations/20260908180000_commercial_quotes_module.sql`.
+- [x] Hardening de imutabilidade concluído: proposta enviada é snapshot definitivo (bloqueio no servidor e na interface), alterações só por revisão versionada.
+- [x] Módulo comercial de Orçamentos concluído e operacional, sem pendências de banco ou migration.
