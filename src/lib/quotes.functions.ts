@@ -12,6 +12,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 import { tdb } from "@/integrations/supabase/tenant-db";
 import { escapeLike, sanitizeOrQuery } from "@/lib/sanitize";
+import { isQuoteCommerciallyLocked, QUOTE_LOCKED_MESSAGE } from "@/lib/quotes-ui";
 
 // ─── Autorização ───────────────────────────────────────────────────────────
 
@@ -473,6 +474,14 @@ export const upsertQuote = createServerFn({ method: "POST" })
     const membership = await requireCommercial(sb, context.userId, context.tenantId);
     const tenantId = membership.tenant_id;
 
+    // Proposta enviada é snapshot imutável: nada é atualizado nem apagado aqui.
+    let existing: any = null;
+    if (data.id) {
+      existing = await loadQuoteOrThrow(sb, tenantId, data.id);
+      if (isQuoteCommerciallyLocked(existing)) throw new Error(QUOTE_LOCKED_MESSAGE);
+    }
+
+
     const items = data.items ?? [];
     await assertProductsInTenant(sb, tenantId, items);
 
@@ -546,18 +555,7 @@ export const upsertQuote = createServerFn({ method: "POST" })
     let created = false;
 
     if (quoteId) {
-      const current = await loadQuoteOrThrow(sb, tenantId, quoteId);
-      if (["convertido"].includes(current.status)) {
-        throw new Error("Orçamento já convertido em pedido. Crie uma revisão para negociar de novo.");
-      }
-      if (
-        current.document_type === "proposta" &&
-        (current.sent_at || ["enviado", "em_negociacao", "aprovado", "recusado"].includes(current.status))
-      ) {
-        throw new Error(
-          "Esta proposta já foi enviada e está bloqueada para edição. Crie uma revisão para alterar condições ou itens.",
-        );
-      }
+      if (!existing || isQuoteCommerciallyLocked(existing)) throw new Error(QUOTE_LOCKED_MESSAGE);
       const { error } = await sb.from("quotes").update(row).eq("id", quoteId).eq("tenant_id", tenantId);
 
       if (error) throw new Error(error.message);
@@ -727,6 +725,12 @@ export const createQuoteRevision = createServerFn({ method: "POST" })
       internal_notes: source.internal_notes ?? null,
       customer_notes: source.customer_notes ?? null,
       valid_until: source.valid_until ?? null,
+      follow_up_at: source.follow_up_at ?? null,
+      sent_at: null,
+      approved_at: null,
+      closed_at: null,
+      lost_reason: null,
+      converted_sales_order_id: null,
       created_by: context.userId,
     };
 
