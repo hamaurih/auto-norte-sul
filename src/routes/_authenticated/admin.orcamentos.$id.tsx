@@ -256,29 +256,40 @@ function OrcamentoDetailPage() {
         </div>
       )}
 
-      <Tabs defaultValue={converted ? "proposta" : proposalLocked ? "proposta" : "editar"}>
+      {proposalLocked && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 print:hidden">
+          <p className="font-semibold">
+            {converted ? "Venda fechada — conteúdo bloqueado" : "Proposta enviada — conteúdo bloqueado"}
+          </p>
+          <p className="mt-1">
+            Este documento é um registro comercial definitivo. Para mudar cliente, itens, quantidades,
+            preços, descontos, frete, validade ou condições, crie uma revisão e edite a nova versão.
+          </p>
+          <Button
+            className="mt-3"
+            size="sm"
+            disabled={working}
+            onClick={() =>
+              run(async () => {
+                const result = await revisionFn({ data: { id } });
+                navigate({ to: "/admin/orcamentos/$id", params: { id: result.id } });
+              }, "Revisão criada.")
+            }
+          >
+            <Copy className="mr-2 h-4 w-4" /> Criar revisão
+          </Button>
+        </div>
+      )}
+
+      <Tabs defaultValue={editable ? "editar" : "proposta"}>
         <TabsList className="print:hidden">
-          <TabsTrigger value="editar" disabled={converted || proposalLocked}>
-            Editar
-          </TabsTrigger>
+          {editable && <TabsTrigger value="editar">Editar</TabsTrigger>}
           <TabsTrigger value="proposta">Proposta</TabsTrigger>
           <TabsTrigger value="historico">Histórico</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="editar" className="mt-4 print:hidden">
-          {converted ? (
-            <p className="text-sm text-muted-foreground">
-              Documento fechado e imutável. Crie uma revisão para negociar novamente.
-            </p>
-          ) : proposalLocked ? (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-              <p className="font-semibold">Proposta enviada — edição bloqueada</p>
-              <p className="mt-1">
-                Esta proposta é um snapshot comercial e não pode ser alterada. Para mudar preços,
-                quantidades, condições ou itens, use o botão <strong>Criar revisão</strong>.
-              </p>
-            </div>
-          ) : (
+        {editable && (
+          <TabsContent value="editar" className="mt-4 print:hidden">
             <QuoteForm
               initial={quote}
               status={quote.status}
@@ -286,8 +297,9 @@ function OrcamentoDetailPage() {
               onGenerateProposal={(quoteId) => run(() => proposalFn({ data: { id: quoteId } }), "Proposta gerada.")}
               generating={working}
             />
-          )}
-        </TabsContent>
+          </TabsContent>
+        )}
+
 
 
         <TabsContent value="proposta" className="mt-4">
