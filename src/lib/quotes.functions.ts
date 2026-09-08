@@ -725,6 +725,12 @@ export const createQuoteRevision = createServerFn({ method: "POST" })
       internal_notes: source.internal_notes ?? null,
       customer_notes: source.customer_notes ?? null,
       valid_until: source.valid_until ?? null,
+      follow_up_at: source.follow_up_at ?? null,
+      sent_at: null,
+      approved_at: null,
+      closed_at: null,
+      lost_reason: null,
+      converted_sales_order_id: null,
       created_by: context.userId,
     };
 
