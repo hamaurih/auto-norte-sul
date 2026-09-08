@@ -474,6 +474,14 @@ export const upsertQuote = createServerFn({ method: "POST" })
     const membership = await requireCommercial(sb, context.userId, context.tenantId);
     const tenantId = membership.tenant_id;
 
+    // Proposta enviada é snapshot imutável: nada é atualizado nem apagado aqui.
+    let existing: any = null;
+    if (data.id) {
+      existing = await loadQuoteOrThrow(sb, tenantId, data.id);
+      if (isQuoteCommerciallyLocked(existing)) throw new Error(QUOTE_LOCKED_MESSAGE);
+    }
+
+
     const items = data.items ?? [];
     await assertProductsInTenant(sb, tenantId, items);
 
