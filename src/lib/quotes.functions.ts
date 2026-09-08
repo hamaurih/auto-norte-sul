@@ -693,6 +693,62 @@ export const generateProposal = createServerFn({ method: "POST" })
 
 // ─── Revisões ──────────────────────────────────────────────────────────────
 
+/**
+ * Descobre a maior versão existente na cadeia de revisões (tenant-scoped) e devolve a próxima.
+ * Sobe por parent_quote_id até a raiz e percorre os descendentes em largura, com limites de segurança.
+ */
+async function nextChainVersion(sb: any, tenantId: string, source: any): Promise<number> {
+  const MAX_HOPS = 50;
+  const MAX_NODES = 500;
+
+  // 1) Sobe até a raiz da cadeia.
+  let rootId = source.id as string;
+  let parentId = (source.parent_quote_id as string | null) ?? null;
+  for (let hop = 0; hop < MAX_HOPS && parentId; hop += 1) {
+    const { data: parent } = await sb
+      .from("quotes")
+      .select("id, parent_quote_id")
+      .eq("tenant_id", tenantId)
+      .eq("id", parentId)
+      .maybeSingle();
+    if (!parent) break;
+    rootId = parent.id as string;
+    parentId = (parent.parent_quote_id as string | null) ?? null;
+  }
+
+  // 2) Percorre os descendentes da raiz.
+  const { data: root } = await sb
+    .from("quotes")
+    .select("id, version")
+    .eq("tenant_id", tenantId)
+    .eq("id", rootId)
+    .maybeSingle();
+
+  let maxVersion = Math.max(Number(source.version ?? 1), Number(root?.version ?? 1));
+  const seen = new Set<string>([rootId]);
+  let frontier = [rootId];
+
+  for (let depth = 0; depth < MAX_HOPS && frontier.length > 0 && seen.size < MAX_NODES; depth += 1) {
+    const { data: children } = await sb
+      .from("quotes")
+      .select("id, version")
+      .eq("tenant_id", tenantId)
+      .in("parent_quote_id", frontier);
+    const next: string[] = [];
+    for (const child of children ?? []) {
+      const childId = child.id as string;
+      if (seen.has(childId)) continue;
+      seen.add(childId);
+      maxVersion = Math.max(maxVersion, Number(child.version ?? 1));
+      next.push(childId);
+      if (seen.size >= MAX_NODES) break;
+    }
+    frontier = next;
+  }
+
+  return maxVersion + 1;
+}
+
 export const createQuoteRevision = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
@@ -702,18 +758,7 @@ export const createQuoteRevision = createServerFn({ method: "POST" })
     const tenantId = membership.tenant_id;
     const source = await loadQuoteOrThrow(sb, tenantId, data.id);
 
-    // Evita versões duplicadas quando várias revisões partem do mesmo documento.
-    const chainRootId = (source.parent_quote_id as string | null) ?? source.id;
-    const { data: chain } = await sb
-      .from("quotes")
-      .select("version")
-      .eq("tenant_id", tenantId)
-      .or(`id.eq.${chainRootId},parent_quote_id.eq.${chainRootId},id.eq.${source.id},parent_quote_id.eq.${source.id}`);
-    const nextVersion =
-      Math.max(
-        Number(source.version ?? 1),
-        ...(chain ?? []).map((r: any) => Number(r.version ?? 1)),
-      ) + 1;
+    const nextVersion = await nextChainVersion(sb, tenantId, source);
 
     const row = {
       tenant_id: tenantId,

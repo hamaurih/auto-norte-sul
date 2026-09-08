@@ -13,7 +13,7 @@ export type QuoteLockShape = {
 };
 
 export const QUOTE_LOCKED_MESSAGE =
-  "Esta proposta já foi enviada e não pode ser alterada. Crie uma revisão para negociar novas condições.";
+  "Este documento comercial já foi enviado ou encerrado e está bloqueado para edição. Crie uma revisão para alterar condições, itens ou preços.";
 
 export function isQuoteCommerciallyLocked(quote: QuoteLockShape | null | undefined): boolean {
   if (!quote) return false;
