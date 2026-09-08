@@ -150,7 +150,7 @@ async function assertProductsInTenant(sb: any, tenantId: string, items: QuoteIte
   if ((data ?? []).length !== ids.length) {
     throw new Error("Um ou mais produtos não pertencem a este ambiente.");
   }
-  return new Map((data ?? []).map((row: any) => [row.id, row]));
+  return new Map<string, any>((data ?? []).map((row: any) => [row.id as string, row]));
 }
 
 /** Saldo disponível por produto (product_stock é a fonte canônica). */
@@ -904,7 +904,7 @@ export const convertQuoteToSalesOrder = createServerFn({ method: "POST" })
 
     // Produtos e estoque revalidados no servidor.
     const productMap = await assertProductsInTenant(sb, tenantId, items as QuoteItemInput[]);
-    const productIds = [...productMap.keys()];
+    const productIds = [...productMap.keys()] as string[];
     const stock = await availableStock(sb, tenantId, productIds);
     const shortages: string[] = [];
     const neededByProduct = new Map<string, number>();
