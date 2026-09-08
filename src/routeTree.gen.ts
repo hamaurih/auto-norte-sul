@@ -76,6 +76,7 @@ import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[
 import { Route as AuthenticatedAdminRecebimentosIndexRouteImport } from './routes/_authenticated/admin.recebimentos.index'
 import { Route as AuthenticatedAdminProdutosIndexRouteImport } from './routes/_authenticated/admin.produtos.index'
 import { Route as AuthenticatedAdminPedidosCompraIndexRouteImport } from './routes/_authenticated/admin.pedidos-compra.index'
+import { Route as AuthenticatedAdminOrcamentosIndexRouteImport } from './routes/_authenticated/admin.orcamentos.index'
 import { Route as AuthenticatedAdminNfeImportacaoIndexRouteImport } from './routes/_authenticated/admin.nfe-importacao.index'
 import { Route as AuthenticatedAdminEcossistemaIndexRouteImport } from './routes/_authenticated/admin.ecossistema.index'
 import { Route as ApiPublicCronEnrichmentRouteImport } from './routes/api/public/cron.enrichment'
@@ -88,6 +89,7 @@ import { Route as AuthenticatedAdminProdutosIdRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminPedidosIdRouteImport } from './routes/_authenticated/admin.pedidos.$id'
 import { Route as AuthenticatedAdminPedidosCompraNovoRouteImport } from './routes/_authenticated/admin.pedidos-compra.novo'
 import { Route as AuthenticatedAdminPedidosCompraIdRouteImport } from './routes/_authenticated/admin.pedidos-compra.$id'
+import { Route as AuthenticatedAdminOrcamentosNovoRouteImport } from './routes/_authenticated/admin.orcamentos.novo'
 import { Route as AuthenticatedAdminNfeImportacaoIdRouteImport } from './routes/_authenticated/admin.nfe-importacao.$id'
 import { Route as AuthenticatedAdminEcossistemaBlingRouteImport } from './routes/_authenticated/admin.ecossistema.bling'
 import { Route as AuthenticatedAdminEcossistemaSlugRouteImport } from './routes/_authenticated/admin.ecossistema.$slug'
@@ -471,6 +473,12 @@ const AuthenticatedAdminPedidosCompraIndexRoute =
     path: '/pedidos-compra/',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminOrcamentosIndexRoute =
+  AuthenticatedAdminOrcamentosIndexRouteImport.update({
+    id: '/orcamentos/',
+    path: '/orcamentos/',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminNfeImportacaoIndexRoute =
   AuthenticatedAdminNfeImportacaoIndexRouteImport.update({
     id: '/nfe-importacao/',
@@ -539,6 +547,12 @@ const AuthenticatedAdminPedidosCompraIdRoute =
   AuthenticatedAdminPedidosCompraIdRouteImport.update({
     id: '/pedidos-compra/$id',
     path: '/pedidos-compra/$id',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminOrcamentosNovoRoute =
+  AuthenticatedAdminOrcamentosNovoRouteImport.update({
+    id: '/orcamentos/novo',
+    path: '/orcamentos/novo',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminNfeImportacaoIdRoute =
@@ -639,6 +653,7 @@ export interface FileRoutesByFullPath {
   '/admin/ecossistema/$slug': typeof AuthenticatedAdminEcossistemaSlugRoute
   '/admin/ecossistema/bling': typeof AuthenticatedAdminEcossistemaBlingRoute
   '/admin/nfe-importacao/$id': typeof AuthenticatedAdminNfeImportacaoIdRoute
+  '/admin/orcamentos/novo': typeof AuthenticatedAdminOrcamentosNovoRoute
   '/admin/pedidos-compra/$id': typeof AuthenticatedAdminPedidosCompraIdRoute
   '/admin/pedidos-compra/novo': typeof AuthenticatedAdminPedidosCompraNovoRoute
   '/admin/pedidos/$id': typeof AuthenticatedAdminPedidosIdRoute
@@ -651,6 +666,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/enrichment': typeof ApiPublicCronEnrichmentRoute
   '/admin/ecossistema/': typeof AuthenticatedAdminEcossistemaIndexRoute
   '/admin/nfe-importacao/': typeof AuthenticatedAdminNfeImportacaoIndexRoute
+  '/admin/orcamentos/': typeof AuthenticatedAdminOrcamentosIndexRoute
   '/admin/pedidos-compra/': typeof AuthenticatedAdminPedidosCompraIndexRoute
   '/admin/produtos/': typeof AuthenticatedAdminProdutosIndexRoute
   '/admin/recebimentos/': typeof AuthenticatedAdminRecebimentosIndexRoute
@@ -721,6 +737,7 @@ export interface FileRoutesByTo {
   '/admin/ecossistema/$slug': typeof AuthenticatedAdminEcossistemaSlugRoute
   '/admin/ecossistema/bling': typeof AuthenticatedAdminEcossistemaBlingRoute
   '/admin/nfe-importacao/$id': typeof AuthenticatedAdminNfeImportacaoIdRoute
+  '/admin/orcamentos/novo': typeof AuthenticatedAdminOrcamentosNovoRoute
   '/admin/pedidos-compra/$id': typeof AuthenticatedAdminPedidosCompraIdRoute
   '/admin/pedidos-compra/novo': typeof AuthenticatedAdminPedidosCompraNovoRoute
   '/admin/pedidos/$id': typeof AuthenticatedAdminPedidosIdRoute
@@ -733,6 +750,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/enrichment': typeof ApiPublicCronEnrichmentRoute
   '/admin/ecossistema': typeof AuthenticatedAdminEcossistemaIndexRoute
   '/admin/nfe-importacao': typeof AuthenticatedAdminNfeImportacaoIndexRoute
+  '/admin/orcamentos': typeof AuthenticatedAdminOrcamentosIndexRoute
   '/admin/pedidos-compra': typeof AuthenticatedAdminPedidosCompraIndexRoute
   '/admin/produtos': typeof AuthenticatedAdminProdutosIndexRoute
   '/admin/recebimentos': typeof AuthenticatedAdminRecebimentosIndexRoute
@@ -808,6 +826,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/ecossistema/$slug': typeof AuthenticatedAdminEcossistemaSlugRoute
   '/_authenticated/admin/ecossistema/bling': typeof AuthenticatedAdminEcossistemaBlingRoute
   '/_authenticated/admin/nfe-importacao/$id': typeof AuthenticatedAdminNfeImportacaoIdRoute
+  '/_authenticated/admin/orcamentos/novo': typeof AuthenticatedAdminOrcamentosNovoRoute
   '/_authenticated/admin/pedidos-compra/$id': typeof AuthenticatedAdminPedidosCompraIdRoute
   '/_authenticated/admin/pedidos-compra/novo': typeof AuthenticatedAdminPedidosCompraNovoRoute
   '/_authenticated/admin/pedidos/$id': typeof AuthenticatedAdminPedidosIdRoute
@@ -820,6 +839,7 @@ export interface FileRoutesById {
   '/api/public/cron/enrichment': typeof ApiPublicCronEnrichmentRoute
   '/_authenticated/admin/ecossistema/': typeof AuthenticatedAdminEcossistemaIndexRoute
   '/_authenticated/admin/nfe-importacao/': typeof AuthenticatedAdminNfeImportacaoIndexRoute
+  '/_authenticated/admin/orcamentos/': typeof AuthenticatedAdminOrcamentosIndexRoute
   '/_authenticated/admin/pedidos-compra/': typeof AuthenticatedAdminPedidosCompraIndexRoute
   '/_authenticated/admin/produtos/': typeof AuthenticatedAdminProdutosIndexRoute
   '/_authenticated/admin/recebimentos/': typeof AuthenticatedAdminRecebimentosIndexRoute
@@ -895,6 +915,7 @@ export interface FileRouteTypes {
     | '/admin/ecossistema/$slug'
     | '/admin/ecossistema/bling'
     | '/admin/nfe-importacao/$id'
+    | '/admin/orcamentos/novo'
     | '/admin/pedidos-compra/$id'
     | '/admin/pedidos-compra/novo'
     | '/admin/pedidos/$id'
@@ -907,6 +928,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/enrichment'
     | '/admin/ecossistema/'
     | '/admin/nfe-importacao/'
+    | '/admin/orcamentos/'
     | '/admin/pedidos-compra/'
     | '/admin/produtos/'
     | '/admin/recebimentos/'
@@ -977,6 +999,7 @@ export interface FileRouteTypes {
     | '/admin/ecossistema/$slug'
     | '/admin/ecossistema/bling'
     | '/admin/nfe-importacao/$id'
+    | '/admin/orcamentos/novo'
     | '/admin/pedidos-compra/$id'
     | '/admin/pedidos-compra/novo'
     | '/admin/pedidos/$id'
@@ -989,6 +1012,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/enrichment'
     | '/admin/ecossistema'
     | '/admin/nfe-importacao'
+    | '/admin/orcamentos'
     | '/admin/pedidos-compra'
     | '/admin/produtos'
     | '/admin/recebimentos'
@@ -1063,6 +1087,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/ecossistema/$slug'
     | '/_authenticated/admin/ecossistema/bling'
     | '/_authenticated/admin/nfe-importacao/$id'
+    | '/_authenticated/admin/orcamentos/novo'
     | '/_authenticated/admin/pedidos-compra/$id'
     | '/_authenticated/admin/pedidos-compra/novo'
     | '/_authenticated/admin/pedidos/$id'
@@ -1075,6 +1100,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/enrichment'
     | '/_authenticated/admin/ecossistema/'
     | '/_authenticated/admin/nfe-importacao/'
+    | '/_authenticated/admin/orcamentos/'
     | '/_authenticated/admin/pedidos-compra/'
     | '/_authenticated/admin/produtos/'
     | '/_authenticated/admin/recebimentos/'
@@ -1579,6 +1605,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPedidosCompraIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/orcamentos/': {
+      id: '/_authenticated/admin/orcamentos/'
+      path: '/orcamentos'
+      fullPath: '/admin/orcamentos/'
+      preLoaderRoute: typeof AuthenticatedAdminOrcamentosIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/nfe-importacao/': {
       id: '/_authenticated/admin/nfe-importacao/'
       path: '/nfe-importacao'
@@ -1661,6 +1694,13 @@ declare module '@tanstack/react-router' {
       path: '/pedidos-compra/$id'
       fullPath: '/admin/pedidos-compra/$id'
       preLoaderRoute: typeof AuthenticatedAdminPedidosCompraIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/orcamentos/novo': {
+      id: '/_authenticated/admin/orcamentos/novo'
+      path: '/orcamentos/novo'
+      fullPath: '/admin/orcamentos/novo'
+      preLoaderRoute: typeof AuthenticatedAdminOrcamentosNovoRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/nfe-importacao/$id': {
@@ -1804,12 +1844,14 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminVendedoresRoute: typeof AuthenticatedAdminVendedoresRouteWithChildren
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminNfeImportacaoIdRoute: typeof AuthenticatedAdminNfeImportacaoIdRoute
+  AuthenticatedAdminOrcamentosNovoRoute: typeof AuthenticatedAdminOrcamentosNovoRoute
   AuthenticatedAdminPedidosCompraIdRoute: typeof AuthenticatedAdminPedidosCompraIdRoute
   AuthenticatedAdminPedidosCompraNovoRoute: typeof AuthenticatedAdminPedidosCompraNovoRoute
   AuthenticatedAdminProdutosIdRoute: typeof AuthenticatedAdminProdutosIdRoute
   AuthenticatedAdminProdutosNovoRoute: typeof AuthenticatedAdminProdutosNovoRoute
   AuthenticatedAdminRecebimentosIdRoute: typeof AuthenticatedAdminRecebimentosIdRoute
   AuthenticatedAdminNfeImportacaoIndexRoute: typeof AuthenticatedAdminNfeImportacaoIndexRoute
+  AuthenticatedAdminOrcamentosIndexRoute: typeof AuthenticatedAdminOrcamentosIndexRoute
   AuthenticatedAdminPedidosCompraIndexRoute: typeof AuthenticatedAdminPedidosCompraIndexRoute
   AuthenticatedAdminProdutosIndexRoute: typeof AuthenticatedAdminProdutosIndexRoute
   AuthenticatedAdminRecebimentosIndexRoute: typeof AuthenticatedAdminRecebimentosIndexRoute
@@ -1864,6 +1906,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAdminNfeImportacaoIdRoute:
     AuthenticatedAdminNfeImportacaoIdRoute,
+  AuthenticatedAdminOrcamentosNovoRoute: AuthenticatedAdminOrcamentosNovoRoute,
   AuthenticatedAdminPedidosCompraIdRoute:
     AuthenticatedAdminPedidosCompraIdRoute,
   AuthenticatedAdminPedidosCompraNovoRoute:
@@ -1873,6 +1916,8 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminRecebimentosIdRoute: AuthenticatedAdminRecebimentosIdRoute,
   AuthenticatedAdminNfeImportacaoIndexRoute:
     AuthenticatedAdminNfeImportacaoIndexRoute,
+  AuthenticatedAdminOrcamentosIndexRoute:
+    AuthenticatedAdminOrcamentosIndexRoute,
   AuthenticatedAdminPedidosCompraIndexRoute:
     AuthenticatedAdminPedidosCompraIndexRoute,
   AuthenticatedAdminProdutosIndexRoute: AuthenticatedAdminProdutosIndexRoute,
