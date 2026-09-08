@@ -107,9 +107,9 @@ function OrcamentoDetailPage() {
   const items = (quote.items ?? []) as any[];
   const converted = quote.status === "convertido";
   const isProposal = quote.document_type === "proposta";
-  const proposalLocked =
-    isProposal &&
-    (quote.sent_at || ["enviado", "em_negociacao", "aprovado", "recusado"].includes(quote.status));
+  const proposalLocked = isQuoteCommerciallyLocked(quote);
+  const editable = !proposalLocked;
+
 
 
   const summaryText = [
