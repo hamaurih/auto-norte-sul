@@ -79,3 +79,31 @@ export function isoDateInDays(days: number) {
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
 }
+
+/** Etapas em que o documento comercial já saiu do rascunho e não pode mais ser editado. */
+export const LOCKED_QUOTE_STATUSES = [
+  "enviado",
+  "em_negociacao",
+  "aprovado",
+  "recusado",
+  "convertido",
+  "expirado",
+] as const;
+
+/**
+ * Regra única (frontend + backend): proposta enviada é imutável.
+ * Só um orçamento em rascunho, nunca enviado, pode ser editado.
+ */
+export function isQuoteCommerciallyLocked(quote: {
+  document_type?: string | null;
+  status?: string | null;
+  sent_at?: string | null;
+} | null | undefined): boolean {
+  if (!quote) return false;
+  if (quote.document_type === "proposta") return true;
+  if (quote.sent_at) return true;
+  return LOCKED_QUOTE_STATUSES.includes((quote.status ?? "") as (typeof LOCKED_QUOTE_STATUSES)[number]);
+}
+
+export const QUOTE_LOCKED_MESSAGE =
+  "Esta proposta já foi enviada e está bloqueada para edição. Crie uma revisão para alterar condições, itens ou preços.";
