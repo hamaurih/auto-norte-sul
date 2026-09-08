@@ -107,6 +107,10 @@ function OrcamentoDetailPage() {
   const items = (quote.items ?? []) as any[];
   const converted = quote.status === "convertido";
   const isProposal = quote.document_type === "proposta";
+  const proposalLocked =
+    isProposal &&
+    (quote.sent_at || ["enviado", "em_negociacao", "aprovado", "recusado"].includes(quote.status));
+
 
   const summaryText = [
     `Norte Sul Auto Peças`,
@@ -244,9 +248,11 @@ function OrcamentoDetailPage() {
         </div>
       )}
 
-      <Tabs defaultValue={converted ? "proposta" : "editar"}>
+      <Tabs defaultValue={converted ? "proposta" : proposalLocked ? "proposta" : "editar"}>
         <TabsList className="print:hidden">
-          <TabsTrigger value="editar" disabled={converted}>Editar</TabsTrigger>
+          <TabsTrigger value="editar" disabled={converted || proposalLocked}>
+            Editar
+          </TabsTrigger>
           <TabsTrigger value="proposta">Proposta</TabsTrigger>
           <TabsTrigger value="historico">Histórico</TabsTrigger>
         </TabsList>
@@ -256,6 +262,14 @@ function OrcamentoDetailPage() {
             <p className="text-sm text-muted-foreground">
               Documento fechado e imutável. Crie uma revisão para negociar novamente.
             </p>
+          ) : proposalLocked ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              <p className="font-semibold">Proposta enviada — edição bloqueada</p>
+              <p className="mt-1">
+                Esta proposta é um snapshot comercial e não pode ser alterada. Para mudar preços,
+                quantidades, condições ou itens, use o botão <strong>Criar revisão</strong>.
+              </p>
+            </div>
           ) : (
             <QuoteForm
               initial={quote}
@@ -266,6 +280,7 @@ function OrcamentoDetailPage() {
             />
           )}
         </TabsContent>
+
 
         <TabsContent value="proposta" className="mt-4">
           <article className="mx-auto max-w-3xl rounded-2xl border border-border bg-card p-8 shadow-sm print:border-0 print:shadow-none">

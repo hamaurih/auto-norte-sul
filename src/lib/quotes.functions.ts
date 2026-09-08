@@ -550,11 +550,16 @@ export const upsertQuote = createServerFn({ method: "POST" })
       if (["convertido"].includes(current.status)) {
         throw new Error("Orçamento já convertido em pedido. Crie uma revisão para negociar de novo.");
       }
-      if (current.document_type === "proposta" && current.status !== "rascunho") {
-        // Proposta enviada permanece auditável: edições voltam o documento a negociação.
-        row["status"] = current.status === "enviado" ? "em_negociacao" : current.status;
+      if (
+        current.document_type === "proposta" &&
+        (current.sent_at || ["enviado", "em_negociacao", "aprovado", "recusado"].includes(current.status))
+      ) {
+        throw new Error(
+          "Esta proposta já foi enviada e está bloqueada para edição. Crie uma revisão para alterar condições ou itens.",
+        );
       }
       const { error } = await sb.from("quotes").update(row).eq("id", quoteId).eq("tenant_id", tenantId);
+
       if (error) throw new Error(error.message);
       await sb.from("quote_items").delete().eq("tenant_id", tenantId).eq("quote_id", quoteId);
     } else {
