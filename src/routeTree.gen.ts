@@ -47,7 +47,6 @@ import { Route as AuthenticatedAdminReposicaoRouteImport } from './routes/_authe
 import { Route as AuthenticatedAdminPromocoesRouteImport } from './routes/_authenticated/admin.promocoes'
 import { Route as AuthenticatedAdminPedidosRouteImport } from './routes/_authenticated/admin.pedidos'
 import { Route as AuthenticatedAdminPdvRouteImport } from './routes/_authenticated/admin.pdv'
-import { Route as AuthenticatedAdminOrcamentosRouteImport } from './routes/_authenticated/admin.orcamentos'
 import { Route as AuthenticatedAdminMigracaoBlingRouteImport } from './routes/_authenticated/admin.migracao-bling'
 import { Route as AuthenticatedAdminMarcasRouteImport } from './routes/_authenticated/admin.marcas'
 import { Route as AuthenticatedAdminInteligenciaComercialRouteImport } from './routes/_authenticated/admin.inteligencia-comercial'
@@ -299,12 +298,6 @@ const AuthenticatedAdminPdvRoute = AuthenticatedAdminPdvRouteImport.update({
   path: '/pdv',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
-const AuthenticatedAdminOrcamentosRoute =
-  AuthenticatedAdminOrcamentosRouteImport.update({
-    id: '/orcamentos',
-    path: '/orcamentos',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
 const AuthenticatedAdminMigracaoBlingRoute =
   AuthenticatedAdminMigracaoBlingRouteImport.update({
     id: '/migracao-bling',
@@ -627,7 +620,6 @@ export interface FileRoutesByFullPath {
   '/admin/inteligencia-comercial': typeof AuthenticatedAdminInteligenciaComercialRoute
   '/admin/marcas': typeof AuthenticatedAdminMarcasRoute
   '/admin/migracao-bling': typeof AuthenticatedAdminMigracaoBlingRoute
-  '/admin/orcamentos': typeof AuthenticatedAdminOrcamentosRoute
   '/admin/pdv': typeof AuthenticatedAdminPdvRoute
   '/admin/pedidos': typeof AuthenticatedAdminPedidosRouteWithChildren
   '/admin/promocoes': typeof AuthenticatedAdminPromocoesRoute
@@ -710,7 +702,6 @@ export interface FileRoutesByTo {
   '/admin/inteligencia-comercial': typeof AuthenticatedAdminInteligenciaComercialRoute
   '/admin/marcas': typeof AuthenticatedAdminMarcasRoute
   '/admin/migracao-bling': typeof AuthenticatedAdminMigracaoBlingRoute
-  '/admin/orcamentos': typeof AuthenticatedAdminOrcamentosRoute
   '/admin/pdv': typeof AuthenticatedAdminPdvRoute
   '/admin/pedidos': typeof AuthenticatedAdminPedidosRouteWithChildren
   '/admin/promocoes': typeof AuthenticatedAdminPromocoesRoute
@@ -798,7 +789,6 @@ export interface FileRoutesById {
   '/_authenticated/admin/inteligencia-comercial': typeof AuthenticatedAdminInteligenciaComercialRoute
   '/_authenticated/admin/marcas': typeof AuthenticatedAdminMarcasRoute
   '/_authenticated/admin/migracao-bling': typeof AuthenticatedAdminMigracaoBlingRoute
-  '/_authenticated/admin/orcamentos': typeof AuthenticatedAdminOrcamentosRoute
   '/_authenticated/admin/pdv': typeof AuthenticatedAdminPdvRoute
   '/_authenticated/admin/pedidos': typeof AuthenticatedAdminPedidosRouteWithChildren
   '/_authenticated/admin/promocoes': typeof AuthenticatedAdminPromocoesRoute
@@ -886,7 +876,6 @@ export interface FileRouteTypes {
     | '/admin/inteligencia-comercial'
     | '/admin/marcas'
     | '/admin/migracao-bling'
-    | '/admin/orcamentos'
     | '/admin/pdv'
     | '/admin/pedidos'
     | '/admin/promocoes'
@@ -969,7 +958,6 @@ export interface FileRouteTypes {
     | '/admin/inteligencia-comercial'
     | '/admin/marcas'
     | '/admin/migracao-bling'
-    | '/admin/orcamentos'
     | '/admin/pdv'
     | '/admin/pedidos'
     | '/admin/promocoes'
@@ -1056,7 +1044,6 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/inteligencia-comercial'
     | '/_authenticated/admin/marcas'
     | '/_authenticated/admin/migracao-bling'
-    | '/_authenticated/admin/orcamentos'
     | '/_authenticated/admin/pdv'
     | '/_authenticated/admin/pedidos'
     | '/_authenticated/admin/promocoes'
@@ -1387,13 +1374,6 @@ declare module '@tanstack/react-router' {
       path: '/pdv'
       fullPath: '/admin/pdv'
       preLoaderRoute: typeof AuthenticatedAdminPdvRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/orcamentos': {
-      id: '/_authenticated/admin/orcamentos'
-      path: '/orcamentos'
-      fullPath: '/admin/orcamentos'
-      preLoaderRoute: typeof AuthenticatedAdminOrcamentosRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/migracao-bling': {
@@ -1812,7 +1792,6 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminInteligenciaComercialRoute: typeof AuthenticatedAdminInteligenciaComercialRoute
   AuthenticatedAdminMarcasRoute: typeof AuthenticatedAdminMarcasRoute
   AuthenticatedAdminMigracaoBlingRoute: typeof AuthenticatedAdminMigracaoBlingRoute
-  AuthenticatedAdminOrcamentosRoute: typeof AuthenticatedAdminOrcamentosRoute
   AuthenticatedAdminPdvRoute: typeof AuthenticatedAdminPdvRoute
   AuthenticatedAdminPedidosRoute: typeof AuthenticatedAdminPedidosRouteWithChildren
   AuthenticatedAdminPromocoesRoute: typeof AuthenticatedAdminPromocoesRoute
@@ -1869,7 +1848,6 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
     AuthenticatedAdminInteligenciaComercialRoute,
   AuthenticatedAdminMarcasRoute: AuthenticatedAdminMarcasRoute,
   AuthenticatedAdminMigracaoBlingRoute: AuthenticatedAdminMigracaoBlingRoute,
-  AuthenticatedAdminOrcamentosRoute: AuthenticatedAdminOrcamentosRoute,
   AuthenticatedAdminPdvRoute: AuthenticatedAdminPdvRoute,
   AuthenticatedAdminPedidosRoute: AuthenticatedAdminPedidosRouteWithChildren,
   AuthenticatedAdminPromocoesRoute: AuthenticatedAdminPromocoesRoute,
