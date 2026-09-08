@@ -32,3 +32,6 @@
 
 ### Configuração externa necessária
 Nenhuma para o scheduler atual. `CRON_SECRET` permanece opcional apenas se, no futuro, for desejado voltar a usar o scheduler nativo da Vercel.
+
+## Módulo comercial de Orçamentos (2026-09-08)
+- [ ] Aplicar em produção: `supabase/manual/20260908180000_commercial_quotes_module.sql` (colunas de quotes, sales_orders.quote_id, tabela quote_events + RLS). Até rodar, salvar/converter orçamento falha por coluna inexistente.
