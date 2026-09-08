@@ -555,18 +555,7 @@ export const upsertQuote = createServerFn({ method: "POST" })
     let created = false;
 
     if (quoteId) {
-      const current = await loadQuoteOrThrow(sb, tenantId, quoteId);
-      if (["convertido"].includes(current.status)) {
-        throw new Error("Orçamento já convertido em pedido. Crie uma revisão para negociar de novo.");
-      }
-      if (
-        current.document_type === "proposta" &&
-        (current.sent_at || ["enviado", "em_negociacao", "aprovado", "recusado"].includes(current.status))
-      ) {
-        throw new Error(
-          "Esta proposta já foi enviada e está bloqueada para edição. Crie uma revisão para alterar condições ou itens.",
-        );
-      }
+      if (!existing || isQuoteCommerciallyLocked(existing)) throw new Error(QUOTE_LOCKED_MESSAGE);
       const { error } = await sb.from("quotes").update(row).eq("id", quoteId).eq("tenant_id", tenantId);
 
       if (error) throw new Error(error.message);
