@@ -4981,6 +4981,42 @@ export type Database = {
           },
         ]
       }
+      quote_events: {
+        Row: {
+          actor_user_id: string | null
+          created_at: string
+          event_type: string
+          from_status: string | null
+          id: string
+          note: string | null
+          quote_id: string
+          tenant_id: string
+          to_status: string | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          created_at?: string
+          event_type: string
+          from_status?: string | null
+          id?: string
+          note?: string | null
+          quote_id: string
+          tenant_id: string
+          to_status?: string | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          created_at?: string
+          event_type?: string
+          from_status?: string | null
+          id?: string
+          note?: string | null
+          quote_id?: string
+          tenant_id?: string
+          to_status?: string | null
+        }
+        Relationships: []
+      }
       quote_items: {
         Row: {
           created_at: string
@@ -5057,6 +5093,19 @@ export type Database = {
       }
       quotes: {
         Row: {
+          approved_at: string | null
+          closed_at: string | null
+          converted_sales_order_id: string | null
+          delivery_terms: string | null
+          document_type: string
+          follow_up_at: string | null
+          lost_reason: string | null
+          parent_quote_id: string | null
+          payment_terms: string | null
+          sent_at: string | null
+          shipping_amount: number
+          title: string | null
+          version: number
           branch_id: string | null
           created_at: string
           created_by: string | null
@@ -5080,6 +5129,19 @@ export type Database = {
           valid_until: string | null
         }
         Insert: {
+          approved_at?: string | null
+          closed_at?: string | null
+          converted_sales_order_id?: string | null
+          delivery_terms?: string | null
+          document_type?: string
+          follow_up_at?: string | null
+          lost_reason?: string | null
+          parent_quote_id?: string | null
+          payment_terms?: string | null
+          sent_at?: string | null
+          shipping_amount?: number
+          title?: string | null
+          version?: number
           branch_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -5103,6 +5165,19 @@ export type Database = {
           valid_until?: string | null
         }
         Update: {
+          approved_at?: string | null
+          closed_at?: string | null
+          converted_sales_order_id?: string | null
+          delivery_terms?: string | null
+          document_type?: string
+          follow_up_at?: string | null
+          lost_reason?: string | null
+          parent_quote_id?: string | null
+          payment_terms?: string | null
+          sent_at?: string | null
+          shipping_amount?: number
+          title?: string | null
+          version?: number
           branch_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -5158,6 +5233,7 @@ export type Database = {
       }
       sales_orders: {
         Row: {
+          quote_id: string | null
           created_at: string
           customer_id: string | null
           discount: number
@@ -5183,6 +5259,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          quote_id?: string | null
           created_at?: string
           customer_id?: string | null
           discount?: number
@@ -5208,6 +5285,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          quote_id?: string | null
           created_at?: string
           customer_id?: string | null
           discount?: number
