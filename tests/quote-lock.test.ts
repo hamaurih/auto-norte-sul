@@ -1,40 +1,46 @@
 import { describe, expect, it } from "bun:test";
-import { isQuoteCommerciallyLocked } from "./quote-lock";
+import { isQuoteCommerciallyLocked } from "../src/lib/quote-lock";
 
 describe("isQuoteCommerciallyLocked", () => {
-  it("permite editar orçamento em rascunho não enviado", () => {
+  it("orçamento rascunho não enviado é editável", () => {
     expect(isQuoteCommerciallyLocked({ document_type: "orcamento", status: "rascunho", sent_at: null })).toBe(false);
   });
 
-  it("bloqueia proposta enviada", () => {
+  it("proposta enviada é bloqueada", () => {
     expect(
       isQuoteCommerciallyLocked({ document_type: "proposta", status: "enviado", sent_at: "2026-09-08T00:00:00Z" }),
     ).toBe(true);
   });
 
-  it("bloqueia proposta em negociação", () => {
+  it("proposta em negociação é bloqueada", () => {
     expect(isQuoteCommerciallyLocked({ document_type: "proposta", status: "em_negociacao", sent_at: null })).toBe(true);
   });
 
-  it("bloqueia proposta aprovada", () => {
+  it("proposta aprovada é bloqueada", () => {
     expect(isQuoteCommerciallyLocked({ document_type: "proposta", status: "aprovado", sent_at: null })).toBe(true);
   });
 
-  it("bloqueia proposta recusada", () => {
+  it("proposta recusada é bloqueada", () => {
     expect(isQuoteCommerciallyLocked({ document_type: "proposta", status: "recusado", sent_at: null })).toBe(true);
   });
 
-  it("bloqueia documento expirado", () => {
+  it("orçamento expirado é bloqueado", () => {
     expect(isQuoteCommerciallyLocked({ document_type: "orcamento", status: "expirado", sent_at: null })).toBe(true);
   });
 
-  it("bloqueia documento convertido", () => {
-    expect(isQuoteCommerciallyLocked({ document_type: "orcamento", status: "convertido", sent_at: null })).toBe(true);
+  it("proposta convertida é bloqueada", () => {
+    expect(isQuoteCommerciallyLocked({ document_type: "proposta", status: "convertido", sent_at: null })).toBe(true);
   });
 
-  it("bloqueia orçamento rascunho já enviado", () => {
+  it("orçamento rascunho já enviado é bloqueado", () => {
     expect(
       isQuoteCommerciallyLocked({ document_type: "orcamento", status: "rascunho", sent_at: "2026-09-01T10:00:00Z" }),
     ).toBe(true);
+  });
+
+  it("nova revisão em rascunho é editável", () => {
+    expect(
+      isQuoteCommerciallyLocked({ document_type: "orcamento", status: "rascunho", sent_at: null }),
+    ).toBe(false);
   });
 });
