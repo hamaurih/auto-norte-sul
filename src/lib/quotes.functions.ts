@@ -693,61 +693,74 @@ export const generateProposal = createServerFn({ method: "POST" })
 
 // ─── Revisões ──────────────────────────────────────────────────────────────
 
+const CHAIN_MAX_DEPTH = 100;
+const CHAIN_MAX_NODES = 1000;
+const CHAIN_CORRUPTED_MESSAGE =
+  "Não foi possível calcular a versão desta revisão: a cadeia de revisões está inconsistente ou muito extensa. Fale com o suporte antes de continuar.";
+
 /**
- * Descobre a maior versão existente na cadeia de revisões (tenant-scoped) e devolve a próxima.
- * Sobe por parent_quote_id até a raiz e percorre os descendentes em largura, com limites de segurança.
+ * Descobre a maior versão existente em toda a cadeia de revisões (tenant-scoped) e devolve a próxima.
+ * Sobe por parent_quote_id até a raiz real e percorre todos os descendentes em largura, em lotes,
+ * com detecção de ciclo e limites de profundidade/nós.
  */
 async function nextChainVersion(sb: any, tenantId: string, source: any): Promise<number> {
-  const MAX_HOPS = 50;
-  const MAX_NODES = 500;
-
-  // 1) Sobe até a raiz da cadeia.
+  // 1) Sobe até a raiz real da cadeia.
   let rootId = source.id as string;
+  let rootVersion = Number(source.version ?? 1);
   let parentId = (source.parent_quote_id as string | null) ?? null;
-  for (let hop = 0; hop < MAX_HOPS && parentId; hop += 1) {
+  const upward = new Set<string>([rootId]);
+
+  let hops = 0;
+  while (parentId) {
+    if (hops >= CHAIN_MAX_DEPTH) throw new Error(CHAIN_CORRUPTED_MESSAGE);
+    if (upward.has(parentId)) throw new Error(CHAIN_CORRUPTED_MESSAGE);
     const { data: parent } = await sb
       .from("quotes")
-      .select("id, parent_quote_id")
+      .select("id, version, parent_quote_id")
       .eq("tenant_id", tenantId)
       .eq("id", parentId)
       .maybeSingle();
     if (!parent) break;
     rootId = parent.id as string;
+    rootVersion = Number(parent.version ?? 1);
+    upward.add(rootId);
     parentId = (parent.parent_quote_id as string | null) ?? null;
+    hops += 1;
   }
 
-  // 2) Percorre os descendentes da raiz.
-  const { data: root } = await sb
-    .from("quotes")
-    .select("id, version")
-    .eq("tenant_id", tenantId)
-    .eq("id", rootId)
-    .maybeSingle();
-
-  let maxVersion = Math.max(Number(source.version ?? 1), Number(root?.version ?? 1));
+  // 2) Percorre todos os descendentes da raiz em largura, por lotes.
+  let maxVersion = Math.max(Number(source.version ?? 1), rootVersion);
   const seen = new Set<string>([rootId]);
   let frontier = [rootId];
+  let depth = 0;
 
-  for (let depth = 0; depth < MAX_HOPS && frontier.length > 0 && seen.size < MAX_NODES; depth += 1) {
-    const { data: children } = await sb
-      .from("quotes")
-      .select("id, version")
-      .eq("tenant_id", tenantId)
-      .in("parent_quote_id", frontier);
+  while (frontier.length > 0) {
+    if (depth >= CHAIN_MAX_DEPTH) throw new Error(CHAIN_CORRUPTED_MESSAGE);
     const next: string[] = [];
-    for (const child of children ?? []) {
-      const childId = child.id as string;
-      if (seen.has(childId)) continue;
-      seen.add(childId);
-      maxVersion = Math.max(maxVersion, Number(child.version ?? 1));
-      next.push(childId);
-      if (seen.size >= MAX_NODES) break;
+    for (let start = 0; start < frontier.length; start += 100) {
+      const batch = frontier.slice(start, start + 100);
+      const { data: children, error } = await sb
+        .from("quotes")
+        .select("id, version")
+        .eq("tenant_id", tenantId)
+        .in("parent_quote_id", batch);
+      if (error) throw new Error(error.message);
+      for (const child of children ?? []) {
+        const childId = child.id as string;
+        if (seen.has(childId)) continue;
+        seen.add(childId);
+        if (seen.size > CHAIN_MAX_NODES) throw new Error(CHAIN_CORRUPTED_MESSAGE);
+        maxVersion = Math.max(maxVersion, Number(child.version ?? 1));
+        next.push(childId);
+      }
     }
     frontier = next;
+    depth += 1;
   }
 
   return maxVersion + 1;
 }
+
 
 export const createQuoteRevision = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
