@@ -40,11 +40,11 @@ import {
   eventLabel,
   formatDate,
   formatDateTime,
-  isQuoteCommerciallyLocked,
   originLabel,
   statusLabel,
   statusTone,
 } from "@/lib/quotes-ui";
+import { isQuoteCommerciallyLocked } from "@/lib/quote-lock";
 
 export const Route = createFileRoute("/_authenticated/admin/orcamentos/$id")({
   head: () => ({
