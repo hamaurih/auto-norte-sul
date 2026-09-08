@@ -59,10 +59,10 @@ Estados: PENDENTE, EM EXECUÇÃO, BLOQUEADO, OK. Para cada entrega registrar com
 
 - [x] Consultar advisors do projeto correto: `sistema norte sul` (`pzwjbitjersngordgcsh`).
 - [x] Corrigir e testar `vehicle_reference_models`: migration `20260908233957_vehicle_reference_models_read_only_rls` aplicada em produção; RLS ativa, authenticated somente leitura, anon sem acesso e backend preservado. Teste transacional retornou `VEHICLE_REFERENCE_RLS_OK`, com 97 registros preservados; INSERT/UPDATE/DELETE negados para authenticated e SELECT negado para anon. Arquivo em `supabase/tests/vehicle_reference_models_read_only_rls.sql`.
-- [ ] Revisar 29 funções SECURITY DEFINER acessíveis a authenticated; avaliar autorização individual antes de alterar privilégios.
-- [ ] Habilitar e confirmar proteção contra senhas vazadas, atualmente desativada. BLOQUEIO: conector disponível não expõe alteração de Auth; painel consultado solicita login. Necessário autenticar o painel por fluxo seguro para concluir este subitem.
+- [ ] Revisar 29 funções SECURITY DEFINER acessíveis a authenticated; avaliar autorização individual antes de alterar privilégios. Triagem SQL confirmou as 29 sem EXECUTE para anon e com search_path vazio; referências de autorização existem, mas isso não substitui testes de isolamento por função.
+- [x] Habilitar e confirmar proteção contra senhas vazadas: login confirmado no painel do projeto correto; opção Prevent use of leaked passwords ativada e salva. Nova consulta ao advisor não retorna auth_leaked_password_protection. Bloqueio de autenticação resolvido.
 - [ ] Revisar alerta pg_net no schema public sem interromper o scheduler de enriquecimento.
-- [ ] Confirmar ausência de acesso público à tabela de credenciais do bridge; RLS sem políticas pode ser intencional para uso exclusivo de backend.
+- [x] Confirmar ausência de leitura por anon/authenticated na tabela server_admin_bridge_credentials: ambos sem SELECT, RLS ativa e zero políticas. A ausência de política é intencional para essa tabela de backend; não abrir acesso para eliminar aviso informativo.
 - [ ] Corrigir os verificadores de código apenas onde houver falsa detecção comprovada, preservando checks de segurança.
 - [ ] Revisar consultas legadas a user_roles e configuração de origem Bling apontadas pelo gate de núcleo ERP.
 - [ ] Executar testes entre conta real, demo, usuário externo e perfis restritos; validar imagens e comissões.
