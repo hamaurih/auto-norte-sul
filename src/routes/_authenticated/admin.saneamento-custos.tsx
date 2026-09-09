@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { BadgeDollarSign, CheckCircle2, FileSearch, RefreshCcw, ShieldCheck } from "lucide-react";
+import { BlingCostRecoveryPanel } from "@/components/admin/BlingCostRecoveryPanel";
 import { SupplyGuard } from "@/components/admin/SupplyGuard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +32,12 @@ function CostSanitationPage() {
   const query = useQuery({ queryKey:["cost-sanitation",status,search], queryFn:()=>listFn({data:{status,search}}) });
   const rows = (query.data ?? []) as any[];
   const selectedSet = useMemo(()=>new Set(selected),[selected]);
-  const invalidate = () => { qc.invalidateQueries({queryKey:["cost-sanitation"]});qc.invalidateQueries({queryKey:["inventory-financial-position"]});qc.invalidateQueries({queryKey:["product-cost-history"]}); };
+  const invalidate = () => {
+    qc.invalidateQueries({queryKey:["cost-sanitation"]});
+    qc.invalidateQueries({queryKey:["inventory-financial-position"]});
+    qc.invalidateQueries({queryKey:["product-cost-history"]});
+    qc.invalidateQueries({queryKey:["bling-cost-recovery-status"]});
+  };
 
   const refresh = useMutation({ mutationFn:()=>refreshFn(), onSuccess:(r)=>{toast.success(`${r.processed ?? 0} produtos reavaliados`);invalidate();}, onError:(e:Error)=>toast.error(e.message) });
   const approve = useMutation({ mutationFn:()=>approveFn({data:{ids:selected}}), onSuccess:(r)=>{toast.success(`${r.approved ?? 0} custos aprovados`);setSelected([]);invalidate();}, onError:(e:Error)=>toast.error(e.message) });
@@ -52,9 +58,11 @@ function CostSanitationPage() {
       <div className="flex flex-wrap items-start justify-between gap-4"><div>
         <div className="inline-flex items-center gap-2 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-bold text-amber-800"><ShieldCheck className="h-4 w-4"/> CUSTOS COM EVIDÊNCIA</div>
         <h1 className="mt-3 font-display text-3xl font-bold">Saneamento financeiro inicial</h1>
-        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">Recupere custos de XML, recebimentos, compras ou documentos. Nenhum custo altera o produto antes da aprovação gerencial.</p>
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">Recupere custos de XML, recebimentos, compras, Bling ou documentos. Nenhum custo altera o produto antes da aprovação gerencial.</p>
       </div><Button variant="outline" asChild><Link to="/admin/historico-custos">Voltar ao financeiro</Link></Button></div>
     </header>
+
+    <BlingCostRecoveryPanel />
 
     <section className="grid gap-3 md:grid-cols-3">
       <div className="rounded-2xl border bg-card p-4"><FileSearch className="h-5 w-5 text-amber-700"/><div className="mt-2 text-2xl font-bold">{qty(rows.length)}</div><p className="text-xs text-muted-foreground">{statusLabel[status]} exibidos</p></div>
