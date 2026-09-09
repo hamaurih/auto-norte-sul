@@ -22,11 +22,15 @@ async function hashState(state: string): Promise<string> {
   return Buffer.from(new Uint8Array(digest)).toString("hex");
 }
 
+async function assertAdmin(sb: any, userId: string, tenantId: string) {
+  await requireTenantRole(sb, userId, tenantId, ["owner", "admin"]);
+}
+
 export const getSecureBlingAuthUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { redirectUri: string }) => input)
   .handler(async ({ context }) => {
-    await requireTenantRole(context.supabase, context.userId, context.tenantId, ["owner", "admin"]);
+    await assertAdmin(context.supabase, context.userId, context.tenantId);
 
     const requestUrl = new URL(getRequest().url);
     if (!OFFICIAL_OAUTH_HOSTS.has(requestUrl.hostname)) {
