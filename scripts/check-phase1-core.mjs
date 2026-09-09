@@ -19,7 +19,14 @@ for (const file of runtimeFiles) {
   if (/\.from\(\s*["']user_roles["']\s*\)/.test(source)) {
     failures.push(`${rel}: runtime ainda consulta user_roles`);
   }
-  if (/source_products|source_stock|source_price_b2c/.test(source)) {
+  // src/integrations/supabase/types.ts is generated from the live database
+  // schema. Deprecated columns remain represented there while the DB keeps
+  // them constrained to false for migration compatibility; this is not
+  // executable source-of-truth behavior.
+  if (
+    rel !== join("src", "integrations", "supabase", "types.ts") &&
+    /source_products|source_stock|source_price_b2c/.test(source)
+  ) {
     failures.push(`${rel}: flag legado de Bling como source-of-truth ainda existe em runtime`);
   }
 }
