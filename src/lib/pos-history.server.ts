@@ -48,7 +48,7 @@ export async function nameMaps(
   return { operators, customers };
 }
 
-/** Papel efetivo do usuário no tenant ativo, resolvido no servidor. */
+/** Papel efetivo do usuário no tenant ativo, resolvido exclusivamente pela membership canônica. */
 export async function tenantRole(sb: TenantDb, tenantId: string, userId: string) {
   const { data } = await sb
     .from("tenant_memberships")
@@ -57,10 +57,5 @@ export async function tenantRole(sb: TenantDb, tenantId: string, userId: string)
     .eq("user_id", userId)
     .eq("active", true)
     .maybeSingle();
-  if (data?.role) return String(data.role);
-  const { data: legacy } = await sb.from("user_roles").select("role").eq("user_id", userId);
-  const roles = (legacy ?? []).map((r: any) => String(r.role));
-  if (roles.includes("admin")) return "admin";
-  if (roles.includes("gerente")) return "manager";
-  return null;
+  return data?.role ? String(data.role) : null;
 }
