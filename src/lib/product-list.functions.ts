@@ -9,6 +9,7 @@ export type FastAdminProductsListInput = {
   brandId?: string;
   active?: "" | "true" | "false";
   stock?: "" | "in" | "out";
+  warehouseId?: string;
   page?: number;
   pageSize?: number;
 };
@@ -55,8 +56,10 @@ export const listAdminProductsFast = createServerFn({ method: "GET" })
     if (data.brandId) query = query.eq("brand_id", data.brandId);
     if (data.active === "true") query = query.eq("active", true);
     if (data.active === "false") query = query.eq("active", false);
-    if (data.stock === "in") query = query.gt("stock", 0);
-    if (data.stock === "out") query = query.lte("stock", 0);
+    // O campo legado products.stock representa o saldo geral. Ao escolher um
+    // depósito, o filtro de saldo é aplicado depois sobre product_stock dele.
+    if (!data.warehouseId && data.stock === "in") query = query.gt("stock", 0);
+    if (!data.warehouseId && data.stock === "out") query = query.lte("stock", 0);
 
     const from = (page - 1) * pageSize;
     const { data: rows, count, error } = await query.range(from, from + pageSize - 1);
@@ -80,8 +83,28 @@ export const listAdminProductsFast = createServerFn({ method: "GET" })
       }
     }
 
+    const stockByProduct = new Map<string, number>();
+    if (data.warehouseId && ids.length > 0) {
+      const { data: stockRows, error: stockError } = await supabase
+        .from("product_stock")
+        .select("product_id,on_hand")
+        .eq("tenant_id", tenantId)
+        .eq("warehouse_id", data.warehouseId)
+        .in("product_id", ids);
+      if (stockError) throw new Error(stockError.message);
+      for (const stockRow of stockRows ?? []) {
+        stockByProduct.set(stockRow.product_id, Number(stockRow.on_hand ?? 0));
+      }
+    }
+
     return {
-      rows: productRows.map((row: any) => ({ ...row, image_url: imageByProduct.get(row.id) ?? null })),
+      rows: productRows.map((row: any) => ({
+        ...row,
+        // Sem depósito selecionado, mantém o saldo geral do catálogo. Com um
+        // depósito selecionado, o saldo exibido é exclusivamente o dele.
+        stock: data.warehouseId ? (stockByProduct.get(row.id) ?? 0) : row.stock,
+        image_url: imageByProduct.get(row.id) ?? null,
+      })),
       total: count ?? 0,
     };
   });
@@ -93,15 +116,18 @@ export const getAdminProductFilters = createServerFn({ method: "GET" })
     const membership = await requireCatalogTenant(supabase, context.userId, context.tenantId);
     const tenantId = membership.tenant_id;
 
-    const [brandsResult, categoriesResult] = await Promise.all([
+    const [brandsResult, categoriesResult, warehousesResult] = await Promise.all([
       supabase.from("brands").select("id,name").eq("tenant_id", tenantId).order("name"),
       supabase.from("categories").select("id,name,parent_id").eq("tenant_id", tenantId).order("name"),
+      supabase.from("warehouses").select("id,name,code,inventory_kind,active").eq("tenant_id", tenantId).eq("active", true).order("name"),
     ]);
     if (brandsResult.error) throw new Error(brandsResult.error.message);
     if (categoriesResult.error) throw new Error(categoriesResult.error.message);
+    if (warehousesResult.error) throw new Error(warehousesResult.error.message);
 
     return {
       brands: brandsResult.data ?? [],
       cats: categoriesResult.data ?? [],
+      warehouses: warehousesResult.data ?? [],
     };
   });
