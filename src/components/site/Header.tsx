@@ -208,9 +208,11 @@ export function Header() {
         <nav className="ml-auto flex items-center gap-1">
           {user ? (
             <>
-              <Link to="/conta" className="hidden items-center gap-1 rounded px-2 py-1 text-sm hover:text-primary md:flex">
-                <User className="h-4 w-4" /> Minha Conta
-              </Link>
+              {!isStaff && (
+                <Link to="/conta" className="hidden items-center gap-1 rounded px-2 py-1 text-sm hover:text-primary md:flex">
+                  <User className="h-4 w-4" /> Minha Conta
+                </Link>
+              )}
               {isSalesRep && (
                 <Link to="/vendedor" className="hidden items-center gap-1 rounded bg-hot px-2 py-1 text-xs font-bold uppercase text-hot-foreground md:flex">
                   Vendedor
@@ -273,8 +275,8 @@ export function Header() {
             <Link to="/b2b" onClick={() => setMenuOpen(false)}>Compre no Atacado</Link>
             {user ? (
               <>
-                <Link to="/conta" onClick={() => setMenuOpen(false)}>Minha conta</Link>
-                <Link to="/pedidos" onClick={() => setMenuOpen(false)}>Meus pedidos</Link>
+                {!isStaff && <Link to="/conta" onClick={() => setMenuOpen(false)}>Minha conta</Link>}
+                {!isStaff && <Link to="/pedidos" onClick={() => setMenuOpen(false)}>Meus pedidos</Link>}
                 {isStaff && <Link to="/admin" onClick={() => setMenuOpen(false)}>Painel Admin</Link>}
                 <button
                   className="text-left text-primary"
