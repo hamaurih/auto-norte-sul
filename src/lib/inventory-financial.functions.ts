@@ -25,7 +25,7 @@ export type InventoryClosingResult = {
   missing_cost_products?: number;
 };
 
-type RpcResult = { ok: boolean; processed?: number; approved?: number; candidate_id?: string };
+type RpcResult = { ok: boolean; processed?: number; approved?: number; remaining?: number; candidate_id?: string };
 
 export const getInventoryFinancialPosition = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -72,7 +72,7 @@ export const listCostSanitationCandidates = createServerFn({ method: "GET" })
     const sb = tdb(context.supabase);
     await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_READ_ROLES);
     let query = sb.from("product_cost_candidates")
-      .select("id, product_id, proposed_cost, source_type, source_reference, source_date, confidence, status, notes, current_price, suggested_price, projected_margin_rate, updated_at, product:products(id,name,sku,internal_code,manufacturer_code,stock,price_b2c)")
+      .select("id, product_id, proposed_cost, source_type, source_reference, source_date, confidence, status, notes, evidence, current_price, suggested_price, projected_margin_rate, updated_at, product:products(id,name,sku,internal_code,manufacturer_code,stock,price_b2c)")
       .eq("tenant_id", context.tenantId)
       .eq("status", data.status || "awaiting_source")
       .order("updated_at", { ascending: false })
@@ -123,6 +123,21 @@ export const approveProductCostCandidates = createServerFn({ method: "POST" })
     const { data: result, error } = await sb.rpc("approve_product_cost_candidates_v2", {
       p_tenant_id: context.tenantId,
       p_candidate_ids: data.ids,
+    });
+    if (error) throw new Error(error.message);
+    return result as unknown as RpcResult;
+  });
+
+export const approveValidatedBlingCostBatch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input?: { limit?: number }) => input ?? {})
+  .handler(async ({ data, context }): Promise<RpcResult> => {
+    const sb = tdb(context.supabase);
+    await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_APPROVE_ROLES);
+    const limit = Math.max(1, Math.min(Math.trunc(Number(data.limit ?? 500)), 1000));
+    const { data: result, error } = await sb.rpc("approve_validated_bling_cost_batch_v2", {
+      p_tenant_id: context.tenantId,
+      p_limit: limit,
     });
     if (error) throw new Error(error.message);
     return result as unknown as RpcResult;
