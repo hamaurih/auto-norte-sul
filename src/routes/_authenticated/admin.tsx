@@ -18,7 +18,6 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { supabase } from "@/integrations/supabase/client";
 import { activeTenant, environmentLabel, fetchAccessContext, useAccessContext } from "@/lib/access";
 import { canViewModule } from "@/lib/permissions";
 import { adminPermissionForPath, visibleModules } from "@/lib/admin-modules";
@@ -26,15 +25,11 @@ import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async () => {
-    const { data: userRes } = await supabase.auth.getUser();
-    if (!userRes.user) throw redirect({ to: "/auth" });
-
     const context = await fetchAccessContext();
-    if (context.organizations.length > 0 || context.tenants.length > 0) return;
-
-    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userRes.user.id);
-    const isStaff = (roles ?? []).some((role) => role.role === "admin" || role.role === "gerente");
-    if (!isStaff) throw redirect({ to: "/ativacao" });
+    if (!context.user_id) throw redirect({ to: "/auth" });
+    if (context.organizations.length === 0 && context.tenants.length === 0) {
+      throw redirect({ to: "/ativacao" });
+    }
   },
   component: AdminLayout,
 });
