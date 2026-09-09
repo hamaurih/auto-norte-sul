@@ -1,14 +1,13 @@
 import { createFileRoute, Link, Outlet, redirect } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
 import { Users, ShoppingBag, Wand2, LayoutDashboard } from "lucide-react";
+import { activeTenant, fetchAccessContext } from "@/lib/access";
 
 export const Route = createFileRoute("/_authenticated/vendedor")({
   beforeLoad: async () => {
-    const { data: userRes } = await supabase.auth.getUser();
-    if (!userRes.user) throw redirect({ to: "/auth" });
-    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userRes.user.id);
-    const list = (roles ?? []).map((r) => r.role);
-    const allowed = list.includes("vendedor") || list.includes("admin") || list.includes("gerente");
+    const context = await fetchAccessContext();
+    if (!context.user_id) throw redirect({ to: "/auth" });
+    const tenant = activeTenant(context);
+    const allowed = Boolean(tenant && ["owner", "admin", "manager", "sales"].includes(tenant.role));
     if (!allowed) throw redirect({ to: "/" });
   },
   component: VendedorLayout,
