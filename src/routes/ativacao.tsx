@@ -38,6 +38,7 @@ function ActivationPage() {
   const { data: context, isLoading } = useAccessContext();
   const [token, setToken] = useState("");
   const { data: legacyStaff } = useIsLegacyStaff(context?.user_id);
+  const linked = hasAnyMembership(context) || legacyStaff === true;
 
   useEffect(() => {
     if (!tokenFromUrl) return;
@@ -52,6 +53,12 @@ function ActivationPage() {
       void navigate({ to: "/auth" });
     }
   }, [isLoading, context, navigate]);
+
+  useEffect(() => {
+    if (!isLoading && context?.user_id && linked) {
+      void navigate({ to: "/admin", replace: true });
+    }
+  }, [isLoading, context?.user_id, linked, navigate]);
 
   const accept = useMutation({
     mutationFn: async (value: string) => {
@@ -69,8 +76,6 @@ function ActivationPage() {
   if (isLoading) {
     return <p className="p-8 text-sm text-muted-foreground">Verificando seu acesso…</p>;
   }
-
-  const linked = hasAnyMembership(context) || legacyStaff === true;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-12">
