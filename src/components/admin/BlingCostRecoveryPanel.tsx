@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, CheckCircle2, DatabaseZap, RefreshCcw } from "lucide-react";
+import { AlertTriangle, CheckCircle2, DatabaseZap, RefreshCcw, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { getBlingCostRecoveryStatus, syncBlingCostRecoveryBatch } from "@/lib/bling-cost-recovery.functions";
@@ -65,7 +65,7 @@ export function BlingCostRecoveryPanel() {
           </div>
           <h2 className="mt-2 text-xl font-bold">Trazer custo real sem devolver o Bling ao comando do ERP</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Consulta somente os vínculos produto-fornecedor. O preço de custo vira candidato auditável e não altera produto nem preço de venda até a aprovação gerencial abaixo.
+            Consulta os vínculos produto-fornecedor e cruza preço de custo com preço de compra. O valor vira candidato auditável e só entra no produto depois da barreira de qualidade e da aprovação gerencial.
           </p>
         </div>
         <Button disabled={recovery.isPending || status.isLoading || data?.connected === false} onClick={() => recovery.mutate()}>
@@ -74,17 +74,23 @@ export function BlingCostRecoveryPanel() {
         </Button>
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         <Metric label="Produtos ativos" value={qty(data?.totalProducts ?? 0)} />
         <Metric label="Com custo aprovado" value={qty(data?.withCost ?? 0)} good={(data?.withCost ?? 0) > 0} />
         <Metric label="Sem custo" value={qty(data?.missingCost ?? 0)} danger={(data?.missingCost ?? 0) > 0} />
-        <Metric label="Bling p/ aprovar" value={qty(data?.pendingBling ?? 0)} />
-        <Metric label="Divergências" value={qty(data?.ambiguousBling ?? 0)} danger={(data?.ambiguousBling ?? 0) > 0} />
+        <Metric label="Aptos p/ aprovar" value={qty(data?.eligibleBling ?? 0)} good={(data?.eligibleBling ?? 0) > 0} />
+        <Metric label="Retidos p/ revisão" value={qty(data?.reviewBling ?? 0)} danger={(data?.reviewBling ?? 0) > 0} />
+        <Metric label="Sem vínculo/custo" value={qty(data?.ambiguousBling ?? 0)} danger={(data?.ambiguousBling ?? 0) > 0} />
       </div>
 
       {data?.connected === false ? (
         <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> Reautorize o Bling antes da recuperação de custos.
+        </div>
+      ) : null}
+      {(data?.eligibleBling ?? 0) > 0 ? (
+        <div className="mt-4 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" /> {qty(data?.eligibleBling ?? 0)} custos passaram pela validação cruzada e estão aptos à aprovação gerencial em lote.
         </div>
       ) : null}
       {data?.lastStatus === "sucesso" && data?.lastMessage ? (
@@ -98,7 +104,7 @@ export function BlingCostRecoveryPanel() {
         </div>
       ) : null}
       <p className="mt-3 text-xs text-muted-foreground">
-        Regra: fornecedor padrão + preço de custo tem maior confiança. Custos divergentes entre fornecedores não são escolhidos automaticamente e permanecem para revisão/manual.
+        Regra automática: vínculo selecionado + concordância entre preço de custo e preço de compra em até 5% + teste de plausibilidade. Divergências ficam bloqueadas para nova evidência ou custo manual; preço de venda nunca é alterado automaticamente.
       </p>
     </section>
   );
