@@ -68,6 +68,7 @@ function ProductsList() {
   const [filterActive, setFilterActive] = useState<"" | "true" | "false">("");
   const [filterStock, setFilterStock] = useState<"" | "in" | "out">("");
   const [filterPhoto, setFilterPhoto] = useState<"" | "with" | "without">("");
+  const [filterWarehouse, setFilterWarehouse] = useState("");
   const [pageSize, setPageSize] = useState(50);
   const [page, setPage] = useState(1);
 
@@ -78,7 +79,7 @@ function ProductsList() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedQ, filterCat, filterBrand, filterActive, filterStock, filterPhoto, pageSize]);
+  }, [debouncedQ, filterCat, filterBrand, filterActive, filterStock, filterPhoto, filterWarehouse, pageSize]);
 
   const filtersQuery = useQuery({
     queryKey: ["admin-product-filters"],
@@ -94,6 +95,7 @@ function ProductsList() {
     filterBrand,
     filterActive,
     filterStock,
+    filterWarehouse,
     pageSize,
     page,
   ] as const;
@@ -106,6 +108,7 @@ function ProductsList() {
         brandId: filterBrand || undefined,
         active: filterActive,
         stock: filterStock,
+        warehouseId: filterWarehouse || undefined,
         page: pageToLoad,
         pageSize,
       },
@@ -122,15 +125,21 @@ function ProductsList() {
   const data = productsQuery.data ?? { rows: [], total: 0 };
   const brands = filtersQuery.data?.brands ?? [];
   const cats = filtersQuery.data?.cats ?? [];
+  const warehouses = filtersQuery.data?.warehouses ?? [];
 
   const filteredRows = useMemo(() => {
     const rows = data.rows ?? [];
-    if (!filterPhoto) return rows;
-    return rows.filter((p: any) => (filterPhoto === "with" ? Boolean(p.image_url) : !p.image_url));
-  }, [data.rows, filterPhoto]);
+    return rows.filter((p: any) => {
+      if (filterPhoto && (filterPhoto === "with" ? !p.image_url : Boolean(p.image_url))) return false;
+      // Quando um depósito está selecionado, este filtro considera o saldo dele.
+      if (filterWarehouse && filterStock === "in" && Number(p.stock) <= 0) return false;
+      if (filterWarehouse && filterStock === "out" && Number(p.stock) > 0) return false;
+      return true;
+    });
+  }, [data.rows, filterPhoto, filterWarehouse, filterStock]);
 
   const rows = filteredRows;
-  const total = filterPhoto ? rows.length : data.total ?? 0;
+  const total = filterPhoto || (filterWarehouse && filterStock) ? rows.length : data.total ?? 0;
   const totalPages = Math.max(1, Math.ceil((data.total ?? 0) / pageSize));
 
   useEffect(() => {
@@ -145,13 +154,14 @@ function ProductsList() {
         filterBrand,
         filterActive,
         filterStock,
+        filterWarehouse,
         pageSize,
         nextPage,
       ],
       staleTime: 2 * 60_000,
       queryFn: () => loadPage(nextPage),
     });
-  }, [productsQuery.data, page, totalPages, debouncedQ, filterCat, filterBrand, filterActive, filterStock, pageSize]);
+  }, [productsQuery.data, page, totalPages, debouncedQ, filterCat, filterBrand, filterActive, filterStock, filterWarehouse, pageSize]);
 
   async function handleDelete(id: string, name: string) {
     if (!confirm(`Excluir "${name}"? Essa ação não pode ser desfeita.`)) return;
@@ -238,7 +248,7 @@ function ProductsList() {
         </div>
       </header>
 
-      <div className="admin-filter-bar mb-4 grid gap-2 md:grid-cols-5 print:hidden">
+      <div className="admin-filter-bar mb-4 grid gap-2 md:grid-cols-6 print:hidden">
         <div className="relative md:col-span-2">
           <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -265,6 +275,19 @@ function ProductsList() {
         >
           <option value="">Todas marcas</option>
           {brands.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+        <select
+          value={filterWarehouse}
+          onChange={(e) => setFilterWarehouse(e.target.value)}
+          className="rounded border border-border bg-background p-2 text-sm font-medium"
+          title="Escolha o depósito cujo saldo será exibido"
+        >
+          <option value="">Todos os estoques</option>
+          {warehouses.map((warehouse: any) => (
+            <option key={warehouse.id} value={warehouse.id}>
+              {warehouse.name}{warehouse.code ? ` (${warehouse.code})` : ""}
+            </option>
+          ))}
         </select>
         <div className="flex gap-2">
           <select
