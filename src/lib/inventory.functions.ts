@@ -34,7 +34,7 @@ export const listBranches = createServerFn({ method: "GET" })
     );
     const { data, error } = await tdb(context.supabase)
       .from("branches")
-      .select("*, warehouses(id, name, code, is_default, active, tenant_id)")
+      .select("*, warehouses(id, name, code, is_default, active, tenant_id, inventory_kind, available_for_online)")
       .eq("tenant_id", membership.tenant_id)
       .order("is_main", { ascending: false })
       .order("name");
@@ -73,7 +73,7 @@ export const upsertBranch = createServerFn({ method: "POST" })
 
 export const upsertWarehouse = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { id?: string; branch_id: string; name: string; code: string; is_default?: boolean; active?: boolean }) => input)
+  .inputValidator((input: { id?: string; branch_id: string; name: string; code: string; is_default?: boolean; active?: boolean; inventory_kind?: "regular" | "outlet_return" | "production_assembly"; available_for_online?: boolean }) => input)
   .handler(async ({ data, context }) => {
     const membership = await requireTenantRole(
       tdb(context.supabase),
@@ -81,7 +81,9 @@ export const upsertWarehouse = createServerFn({ method: "POST" })
       context.tenantId,
       ["owner", "admin", "manager", "stock"],
     );
-    const { id, ...row } = data;
+    const { id, ...rawRow } = data;
+    const inventory_kind = rawRow.inventory_kind ?? "regular";
+    const row = inventory_kind === "regular" ? rawRow : { ...rawRow, is_default: false, available_for_online: false };
     if (id) {
       const { error } = await tdb(context.supabase).from("warehouses").update(row).eq("id", id).eq("tenant_id", membership.tenant_id);
       if (error) throw new Error(error.message);
@@ -110,6 +112,25 @@ export const listStockByProduct = createServerFn({ method: "GET" })
       .eq("product_id", data.productId);
     if (error) throw new Error(error.message);
     return rows ?? [];
+  });
+
+export const listStockByWarehouse = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { warehouseId: string; search?: string }) => input)
+  .handler(async ({ data, context }) => {
+    const membership = await requireTenantRole(tdb(context.supabase), context.userId, context.tenantId,
+      ["owner", "admin", "manager", "stock", "sales", "cashier"]);
+    let query = tdb(context.supabase)
+      .from("product_stock")
+      .select("id,on_hand,reserved,min_stock,updated_at,product:products(id,sku,internal_code,name,price_b2c,active,images:product_images(url,is_primary,sort_order))")
+      .eq("tenant_id", membership.tenant_id)
+      .eq("warehouse_id", data.warehouseId)
+      .order("updated_at", { ascending: false })
+      .limit(500);
+    const { data: rows, error } = await query;
+    if (error) throw new Error(error.message);
+    const term = (data.search ?? "").trim().toLowerCase();
+    return (rows ?? []).filter((row: any) => !term || [row.product?.name,row.product?.sku,row.product?.internal_code].some((value) => String(value ?? "").toLowerCase().includes(term)));
   });
 
 export const adjustStock = createServerFn({ method: "POST" })

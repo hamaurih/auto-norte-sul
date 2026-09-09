@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeftRight, Boxes, Building2, Clock3, PackageCheck, ShieldAlert } from "lucide-react";
-import { listBranches, listInventoryProducts, listMovements, stockOverview } from "@/lib/inventory.functions";
+import { listBranches, listInventoryProducts, listMovements, listStockByWarehouse, stockOverview } from "@/lib/inventory.functions";
 import { listInventoryQuarantine, listInventoryReturns, recordInventoryReturn } from "@/lib/returns.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/estoque")({
@@ -25,6 +25,7 @@ function EstoquePage() {
   const movs = useQuery({ queryKey: ["stock-movements"], queryFn: () => mvFn({ data: { limit: 50 } }) });
   const queryClient = useQueryClient();
   const branchesFn = useServerFn(listBranches);
+  const warehouseStockFn = useServerFn(listStockByWarehouse);
   const productsFn = useServerFn(listInventoryProducts);
   const returnsFn = useServerFn(listInventoryReturns);
   const quarantineFn = useServerFn(listInventoryQuarantine);
@@ -46,12 +47,20 @@ function EstoquePage() {
     reason: "",
     notes: "",
   });
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState("");
+  const [warehouseSearch, setWarehouseSearch] = useState("");
   const warehouseOptions = (branches.data ?? []).flatMap((branch: any) =>
     (branch.warehouses ?? []).map((warehouse: any) => ({
       ...warehouse,
       branch_name: branch.name,
     })),
   );
+  const selectedWarehouse = warehouseOptions.find((warehouse: any) => warehouse.id === selectedWarehouseId);
+  const warehouseStock = useQuery({
+    queryKey: ["warehouse-stock", selectedWarehouseId, warehouseSearch],
+    enabled: Boolean(selectedWarehouseId),
+    queryFn: () => warehouseStockFn({ data: { warehouseId: selectedWarehouseId, search: warehouseSearch } }),
+  });
   const returnMutation = useMutation({
     mutationFn: () => {
       const returnedQty = Number(returnForm.returned_qty);
@@ -165,6 +174,26 @@ function EstoquePage() {
           </div>
         )}
       </div>
+
+      <section className="rounded-3xl border border-sky-200/70 bg-card p-5 shadow-sm">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div><span className="text-xs font-extrabold text-sky-700">CENTRO DE ESTOQUES</span><h2 className="mt-1 font-display text-xl font-extrabold">Consultar por depósito</h2><p className="mt-1 text-sm text-muted-foreground">Selecione um depósito para ver somente seu saldo, disponibilidade e produtos.</p></div>
+          {selectedWarehouse && <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-bold text-sky-800">{selectedWarehouse.name}</span>}
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          {warehouseOptions.map((warehouse: any) => {
+            const outlet = warehouse.inventory_kind === "outlet_return";
+            const production = warehouse.inventory_kind === "production_assembly";
+            return <button key={warehouse.id} type="button" onClick={() => setSelectedWarehouseId(warehouse.id)} className={`rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${selectedWarehouseId === warehouse.id ? "border-blue-500 ring-2 ring-blue-100" : outlet ? "border-orange-200 bg-orange-50/50" : production ? "border-violet-200 bg-violet-50/50" : "border-emerald-200 bg-emerald-50/50"}`}>
+              <div className="font-extrabold">{warehouse.name}</div><div className="mt-1 text-xs text-muted-foreground">{warehouse.code} · {warehouse.branch_name}</div><div className="mt-3 text-xs font-bold">{outlet ? "VENDA FÍSICA / OUTLET" : production ? "PRODUÇÃO E MONTAGEM" : "ESTOQUE NOVO"}</div>
+            </button>;
+          })}
+        </div>
+        {selectedWarehouseId && <div className="mt-5 overflow-hidden rounded-2xl border border-border">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-muted/40 p-3"><input value={warehouseSearch} onChange={(event) => setWarehouseSearch(event.target.value)} placeholder="Buscar por nome, SKU ou código" className="w-full max-w-md rounded-xl border bg-background px-3 py-2 text-sm" /><span className="text-sm font-bold">{warehouseStock.data?.length ?? 0} itens</span></div>
+          <div className="max-h-[420px] overflow-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-card text-left text-xs text-muted-foreground"><tr><th className="p-3">Produto</th><th>SKU</th><th className="text-right">Em mãos</th><th className="text-right">Reservado</th><th className="p-3 text-right">Disponível</th></tr></thead><tbody>{(warehouseStock.data ?? []).map((row: any) => <tr key={row.id} className="border-t"><td className="p-3 font-semibold">{row.product?.name}</td><td className="font-mono text-xs">{row.product?.sku}</td><td className="text-right">{row.on_hand}</td><td className="text-right text-orange-600">{row.reserved}</td><td className="p-3 text-right font-extrabold text-emerald-700">{Math.max(0, row.on_hand - row.reserved)}</td></tr>)}{!warehouseStock.isLoading && (warehouseStock.data ?? []).length === 0 && <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">Nenhum produto neste depósito.</td></tr>}</tbody></table></div>
+        </div>}
+      </section>
 
       <section className="overflow-hidden rounded-3xl border border-violet-200/70 bg-card shadow-sm">
         <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-violet-500/10 via-blue-500/5 to-transparent px-5 py-4">
