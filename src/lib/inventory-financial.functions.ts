@@ -57,7 +57,10 @@ export const closeInventoryPeriod = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<InventoryClosingResult> => {
     const sb = tdb(context.supabase);
     await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_APPROVE_ROLES);
-    const { data: result, error } = await sb.rpc("close_inventory_period", { p_period_date: data.periodDate });
+    const { data: result, error } = await sb.rpc("close_inventory_period_v2", {
+      p_tenant_id: context.tenantId,
+      p_period_date: data.periodDate,
+    });
     if (error) throw new Error(error.message);
     return result as unknown as InventoryClosingResult;
   });
@@ -87,7 +90,9 @@ export const refreshCostSanitationQueue = createServerFn({ method: "POST" })
   .handler(async ({ context }): Promise<RpcResult> => {
     const sb = tdb(context.supabase);
     await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_WRITE_ROLES);
-    const { data, error } = await sb.rpc("refresh_cost_sanitation_queue");
+    const { data, error } = await sb.rpc("refresh_cost_sanitation_queue_v2", {
+      p_tenant_id: context.tenantId,
+    });
     if (error) throw new Error(error.message);
     return data as unknown as RpcResult;
   });
@@ -98,8 +103,12 @@ export const proposeManualProductCost = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<RpcResult> => {
     const sb = tdb(context.supabase);
     await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_WRITE_ROLES);
-    const { data: result, error } = await sb.rpc("propose_manual_product_cost", {
-      p_product_id: data.productId, p_cost: data.cost, p_evidence_reference: data.evidence, p_notes: data.notes || null,
+    const { data: result, error } = await sb.rpc("propose_manual_product_cost_v2", {
+      p_tenant_id: context.tenantId,
+      p_product_id: data.productId,
+      p_cost: data.cost,
+      p_evidence_reference: data.evidence,
+      p_notes: data.notes || null,
     });
     if (error) throw new Error(error.message);
     return result as unknown as RpcResult;
@@ -111,7 +120,10 @@ export const approveProductCostCandidates = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<RpcResult> => {
     const sb = tdb(context.supabase);
     await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_APPROVE_ROLES);
-    const { data: result, error } = await sb.rpc("approve_product_cost_candidates", { p_candidate_ids: data.ids });
+    const { data: result, error } = await sb.rpc("approve_product_cost_candidates_v2", {
+      p_tenant_id: context.tenantId,
+      p_candidate_ids: data.ids,
+    });
     if (error) throw new Error(error.message);
     return result as unknown as RpcResult;
   });
