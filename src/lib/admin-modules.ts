@@ -31,6 +31,7 @@ import {
   Users,
   Warehouse,
   PlusCircle,
+  TrendingUp,
   type LucideIcon,
   ClipboardList,
 } from "lucide-react";
@@ -87,7 +88,8 @@ export const adminModules: AdminModule[] = [
     shortcuts: [
       { to: "/admin/produtos", label: "Produtos", description: "Listar e editar", icon: Package },
       { to: "/admin/produtos/novo", label: "Novo produto", description: "Cadastrar peça", icon: PlusCircle },
-      { to: "/admin/formacao-precos", label: "Formação de preços", description: "Margem B2B → B2C e reajustes", icon: BadgeDollarSign, adminOnly: true },
+      { to: "/admin/formacao-precos", label: "Formação de preços", description: "Markup B2B → B2C e reajustes", icon: BadgeDollarSign, adminOnly: true },
+      { to: "/admin/rentabilidade", label: "Custos e rentabilidade", description: "Margem real, despesas e ponto de equilíbrio", icon: TrendingUp, adminOnly: true },
       { to: "/admin/categorias", label: "Categorias", description: "Árvore de categorias", icon: FolderTree },
       { to: "/admin/marcas", label: "Marcas", description: "Fabricantes", icon: Tag },
       { to: "/admin/aplicacoes-veiculares", label: "Aplicações veiculares", description: "Validar compatibilidade peça × veículo", icon: ClipboardCheck, adminOnly: true },
@@ -176,7 +178,7 @@ export const adminQuickActions: AdminShortcut[] = [
   { to: "/admin/pdv", label: "Nova venda", description: "Abrir frente de caixa", icon: ScanLine },
   { to: "/admin/pedidos", label: "Pedidos", description: "Acompanhar vendas", icon: ShoppingBag },
   { to: "/admin/expedicao", label: "Expedição", description: "Separar e despachar", icon: Truck },
-  { to: "/admin/pedidos-compra/novo", label: "Nova compra", description: "Comprar do fornecedor", icon: ShoppingCart },
+  { to: "/admin/pedidos-compra/novo", label: "Nova compra", description: "Comprar do fornecedor", icon: PlusCircle },
   { to: "/admin/recebimentos", label: "Recebimentos", description: "Dar entrada em mercadoria", icon: PackageCheck },
   { to: "/admin/estoque", label: "Estoque", description: "Consultar e ajustar saldos", icon: Warehouse },
 ];

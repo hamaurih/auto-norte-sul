@@ -7,13 +7,13 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
 
-const isVercel = Boolean(process.env.VERCEL);
+const isVercel = Boolean(process.env.VERCEL) || process.env.NITRO_PRESET === "vercel";
 
 export default defineConfig({
   tanstackStart: {
     server: { entry: "server" },
   },
-  // Vercel hosts production independently from Lovable.
+  // Vercel hosts production independently from Lovable. Quality CI also sets NITRO_PRESET=vercel.
   nitro: {
     preset: isVercel ? "vercel" : "cloudflare",
     ...(isVercel ? { vercel: { functions: { maxDuration: 300 } } } : {}),
