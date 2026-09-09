@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { activeTenant, fetchAccessContext } from "@/lib/access";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,10 +25,10 @@ const TOOLS = [
 export const Route = createFileRoute("/_authenticated/admin/ia-aes-business")({
   head: () => ({ meta: [{ title: "IA A&S Business · Admin" }] }),
   beforeLoad: async () => {
-    const { data: userRes } = await supabase.auth.getUser();
-    if (!userRes.user) throw redirect({ to: "/auth" });
-    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userRes.user.id);
-    const isAdmin = (roles ?? []).some((r) => r.role === "admin");
+    const context = await fetchAccessContext();
+    if (!context.user_id) throw redirect({ to: "/auth" });
+    const tenant = activeTenant(context);
+    const isAdmin = Boolean(tenant && ["owner", "admin"].includes(tenant.role));
     if (!isAdmin) throw redirect({ to: "/admin" });
   },
   component: IaAesBusiness,
@@ -151,7 +152,7 @@ function IaAesBusiness() {
             Endpoint MCP do site
           </CardTitle>
           <CardDescription>
-            Copie e cole na plataforma da IA. Sem autenticação · somente leitura · JSON-RPC 2.0 sobre HTTP.
+            Copie e cole na plataforma da IA. OAuth obrigatório via Supabase · somente leitura · JSON-RPC 2.0 sobre HTTP.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -254,8 +255,8 @@ function IaAesBusiness() {
         <CardContent className="space-y-2 text-sm text-muted-foreground">
           <p><strong>1.</strong> Adicione uma nova conexão MCP (ou "ferramenta externa via URL").</p>
           <p><strong>2.</strong> Cole a URL de <strong>Produção</strong> acima.</p>
-          <p><strong>3.</strong> Método: <code>POST</code> · Autenticação: <strong>Nenhuma</strong>.</p>
-          <p><strong>4.</strong> Salve. A plataforma deve listar automaticamente as 6 ferramentas.</p>
+          <p><strong>3.</strong> Método: <code>POST</code> · Autenticação: <strong>OAuth via Supabase</strong>.</p>
+          <p><strong>4.</strong> Salve e conclua a autorização. A plataforma deve listar automaticamente as 6 ferramentas.</p>
           <p><strong>5.</strong> Volte aqui e clique em <em>Testar conexão</em> para validar.</p>
         </CardContent>
       </Card>
