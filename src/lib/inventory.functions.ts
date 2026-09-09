@@ -114,6 +114,25 @@ export const listStockByProduct = createServerFn({ method: "GET" })
     return rows ?? [];
   });
 
+export const listStockByWarehouse = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { warehouseId: string; search?: string }) => input)
+  .handler(async ({ data, context }) => {
+    const membership = await requireTenantRole(tdb(context.supabase), context.userId, context.tenantId,
+      ["owner", "admin", "manager", "stock", "sales", "cashier"]);
+    let query = tdb(context.supabase)
+      .from("product_stock")
+      .select("id,on_hand,reserved,min_stock,updated_at,product:products(id,sku,internal_code,name,price_b2c,active,images:product_images(url,is_primary,sort_order))")
+      .eq("tenant_id", membership.tenant_id)
+      .eq("warehouse_id", data.warehouseId)
+      .order("updated_at", { ascending: false })
+      .limit(500);
+    const { data: rows, error } = await query;
+    if (error) throw new Error(error.message);
+    const term = (data.search ?? "").trim().toLowerCase();
+    return (rows ?? []).filter((row: any) => !term || [row.product?.name,row.product?.sku,row.product?.internal_code].some((value) => String(value ?? "").toLowerCase().includes(term)));
+  });
+
 export const adjustStock = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({
