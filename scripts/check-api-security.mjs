@@ -6,6 +6,8 @@ const allowedPublic = new Set([
   "health.ts",
   join("public", "login.ts"),
   join("public", "bling.callback.ts"),
+  join("public", "cron.enrichment.ts"),
+  join("public", "stone.conciliation.webhook.ts"),
 ]);
 
 function files(dir) {
@@ -54,6 +56,38 @@ if (
   !blingOauth.includes("expires_at")
 ) {
   failures.push("Bling OAuth start: state persistido/autenticação obrigatória ausente");
+}
+
+// Public by design: Vercel/scheduler cron must authenticate with a server-side
+// bearer secret. Keep this invariant explicit instead of exempting the route
+// without verifying its compensating controls.
+const enrichmentCron = readFileSync(join(root, "public", "cron.enrichment.ts"), "utf8");
+if (
+  !enrichmentCron.includes("isAuthorizedCronToken") ||
+  !enrichmentCron.includes("timingSafeEqual") ||
+  !enrichmentCron.includes("CRON_SECRET") ||
+  !enrichmentCron.includes("verify_enrichment_cron_token") ||
+  !enrichmentCron.includes('headers.get("authorization")') ||
+  !enrichmentCron.includes("status: 401")
+) {
+  failures.push("cron enrichment: autenticação server-side obrigatória ausente ou enfraquecida");
+}
+
+// Public by design: provider webhooks cannot use a user session. Conciliation
+// events are bound to a tenant token; transactional events are re-fetched from
+// Stone/Pagar.me with the tenant secret before any local payment state changes.
+const stoneWebhook = readFileSync(join(root, "public", "stone.conciliation.webhook.ts"), "utf8");
+const stonePayments = readFileSync(join(process.cwd(), "src", "lib", "stone-payments.server.ts"), "utf8");
+if (
+  !stoneWebhook.includes("resolveStoneWebhookTenant") ||
+  !stoneWebhook.includes("processStonePaymentWebhook") ||
+  !stonePayments.includes("getStoneTransactionContext") ||
+  !stonePayments.includes("stoneFetch(context") ||
+  !stonePayments.includes("context.providerId !== intent.provider_id") ||
+  !stonePayments.includes("remoteAmount !== expectedAmount") ||
+  !stonePayments.includes("internal_apply_payment_webhook")
+) {
+  failures.push("Stone webhook: validação server-side de tenant/provider/valor ausente ou enfraquecida");
 }
 
 if (failures.length) {
