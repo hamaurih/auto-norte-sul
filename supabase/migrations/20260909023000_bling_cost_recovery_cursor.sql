@@ -4,7 +4,8 @@ alter table public.bling_config
   add column if not exists last_cost_sync_page integer not null default 1,
   add column if not exists last_cost_sync_at timestamptz,
   add column if not exists last_cost_sync_status text,
-  add column if not exists last_cost_sync_message text;
+  add column if not exists last_cost_sync_message text,
+  add column if not exists last_cost_sync_cycle_token uuid;
 
 alter table public.bling_config
   drop constraint if exists bling_config_last_cost_sync_page_check;
@@ -32,5 +33,7 @@ comment on column public.bling_config.last_cost_sync_status is
   'Status resumido da última recuperação de custos do Bling.';
 comment on column public.bling_config.last_cost_sync_message is
   'Mensagem resumida da última recuperação de custos do Bling.';
+comment on column public.bling_config.last_cost_sync_cycle_token is
+  'Identifica o ciclo atual para acumular fornecedores entre páginas sem carregar evidência obsoleta de ciclos anteriores.';
 
 commit;
