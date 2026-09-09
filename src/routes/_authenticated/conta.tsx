@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -11,10 +11,19 @@ export const Route = createFileRoute("/_authenticated/conta")({
 });
 
 function Conta() {
-  const { user, roles, isB2BApproved } = useSession();
+  const { user, roles, isB2BApproved, isAdmin, loading } = useSession();
+  const navigate = useNavigate();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // A área "Minha conta" é destinada ao cliente da loja. Quem administra a
+  // operação deve sempre entrar no ERP, mesmo que abra este endereço antigo.
+  useEffect(() => {
+    if (!loading && isAdmin) {
+      void navigate({ to: "/admin", replace: true });
+    }
+  }, [isAdmin, loading, navigate]);
 
   useEffect(() => {
     if (!user) return;
@@ -43,6 +52,8 @@ function Conta() {
     if (error) toast.error(error.message);
     else toast.success("Perfil atualizado com dados privados protegidos");
   }
+
+  if (isAdmin) return null;
 
   return (
     <div className="container-x py-6">
