@@ -1,0 +1,35 @@
+name: Phase 1 One-Time Remediation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/phase1-remediate-once.mjs"
+      - ".github/workflows/phase1-remediation-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  remediate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Apply deterministic patches
+        run: node scripts/phase1-remediate-once.mjs
+      - name: Verify Phase 1 gate before commit
+        run: node scripts/check-phase1-core.mjs
+      - name: Commit verified remediation and remove runner
+        run: |
+          rm scripts/phase1-remediate-once.mjs .github/workflows/phase1-remediation-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "security: remove legacy auth and Bling source controls"
+          git push origin HEAD:main
