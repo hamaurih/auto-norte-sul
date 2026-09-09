@@ -13,6 +13,14 @@ let lastRequestAt = 0;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
 
+type SupplierLink = {
+  id: string | number | null;
+  supplier_id: string | number | null;
+  standard: boolean;
+  cost_price: number | null;
+  purchase_price: number | null;
+};
+
 async function requireCostRecoveryAdmin(context: any) {
   await requireTenantRole(context.supabase, context.userId, context.tenantId, ["owner", "admin"]);
 }
@@ -25,7 +33,7 @@ async function getAdmin() {
 async function getBlingConfig(admin: any, tenantId: string) {
   const { data, error } = await admin
     .from("bling_config")
-    .select("id,tenant_id,active,client_id,client_secret_encrypted,access_token,refresh_token,expires_at,last_cost_sync_page,last_cost_sync_at,last_cost_sync_status,last_cost_sync_message")
+    .select("id,tenant_id,active,client_id,client_secret_encrypted,access_token,refresh_token,expires_at,last_cost_sync_page,last_cost_sync_at,last_cost_sync_status,last_cost_sync_message,last_cost_sync_cycle_token")
     .eq("tenant_id", tenantId)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -80,7 +88,15 @@ async function refreshTokenIfNeeded(admin: any, tenantId: string) {
     .eq("tenant_id", tenantId)
     .eq("id", cfg.id);
   if (error) throw new Error(error.message);
-  return { token: String(payload.access_token), cfg: { ...cfg, access_token: payload.access_token, refresh_token: payload.refresh_token ?? cfg.refresh_token, expires_at: nextExpiresAt } };
+  return {
+    token: String(payload.access_token),
+    cfg: {
+      ...cfg,
+      access_token: payload.access_token,
+      refresh_token: payload.refresh_token ?? cfg.refresh_token,
+      expires_at: nextExpiresAt,
+    },
+  };
 }
 
 async function rateLimitedFetch(token: string, path: string) {
@@ -111,31 +127,58 @@ function positive(value: unknown) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-function effectiveCost(row: any) {
-  return positive(row?.precoCusto) ?? positive(row?.precoCompra);
+function normalizeSupplierLink(row: any): SupplierLink {
+  return {
+    id: row?.id ?? null,
+    supplier_id: row?.supplier_id ?? row?.fornecedor?.id ?? null,
+    standard: row?.standard === true || row?.padrao === true,
+    cost_price: positive(row?.cost_price ?? row?.precoCusto),
+    purchase_price: positive(row?.purchase_price ?? row?.precoCompra),
+  };
 }
 
-function allSameCost(rows: any[]) {
+function effectiveCost(row: SupplierLink) {
+  return positive(row.cost_price) ?? positive(row.purchase_price);
+}
+
+function supplierLinkKey(row: SupplierLink) {
+  if (row.id !== null && row.id !== undefined) return `id:${String(row.id)}`;
+  return [row.supplier_id ?? "", row.standard ? "1" : "0", row.cost_price ?? "", row.purchase_price ?? ""].join("|");
+}
+
+function mergeSupplierLinks(previous: unknown, current: SupplierLink[]) {
+  const rows = [
+    ...(Array.isArray(previous) ? previous.map(normalizeSupplierLink) : []),
+    ...current.map(normalizeSupplierLink),
+  ];
+  const merged = new Map<string, SupplierLink>();
+  for (const row of rows) merged.set(supplierLinkKey(row), row);
+  return [...merged.values()];
+}
+
+function allSameCost(rows: SupplierLink[]) {
   const costs = rows.map(effectiveCost).filter((v): v is number => v !== null);
   if (!costs.length) return false;
   return Math.max(...costs) - Math.min(...costs) <= 0.01;
 }
 
-function chooseSupplierCost(rows: any[]) {
+function chooseSupplierCost(rows: SupplierLink[]) {
   const positives = rows.filter((row) => effectiveCost(row) !== null);
-  const standards = positives.filter((row) => row?.padrao === true);
-  let selected: any | null = null;
+  const standards = positives.filter((row) => row.standard === true);
+  let selected: SupplierLink | null = null;
   let confidence: "high" | "medium" | "low" = "low";
   let reason = "Sem custo positivo no vínculo de fornecedor";
 
   if (standards.length === 1) {
     selected = standards[0];
-    confidence = positive(selected.precoCusto) !== null ? "high" : "medium";
+    confidence = positive(selected.cost_price) !== null ? "high" : "medium";
     reason = "Fornecedor padrão do Bling";
   } else if (standards.length > 1 && allSameCost(standards)) {
     selected = standards[0];
     confidence = "medium";
     reason = "Múltiplos vínculos padrão com o mesmo custo";
+  } else if (standards.length > 1) {
+    reason = "Múltiplos fornecedores padrão com custos divergentes; revisão manual necessária";
   } else if (positives.length === 1) {
     selected = positives[0];
     confidence = "medium";
@@ -143,7 +186,7 @@ function chooseSupplierCost(rows: any[]) {
   } else if (positives.length > 1 && allSameCost(positives)) {
     selected = positives[0];
     confidence = "medium";
-    reason = "Fornecedores divergentes no cadastro, mas com o mesmo custo";
+    reason = "Fornecedores distintos com o mesmo custo";
   } else if (positives.length > 1) {
     reason = "Múltiplos fornecedores com custos divergentes; revisão manual necessária";
   }
@@ -157,7 +200,13 @@ function chooseSupplierCost(rows: any[]) {
   };
 }
 
-async function writeSummaryLog(admin: any, tenantId: string, payload: Record<string, unknown>, message: string, status: "sucesso" | "erro" = "sucesso") {
+async function writeSummaryLog(
+  admin: any,
+  tenantId: string,
+  payload: Record<string, unknown>,
+  message: string,
+  status: "sucesso" | "erro" = "sucesso",
+) {
   await admin.from("bling_sync_logs").insert({
     tenant_id: tenantId,
     entity: "produto",
@@ -175,10 +224,9 @@ export const getBlingCostRecoveryStatus = createServerFn({ method: "GET" })
     await requireCostRecoveryAdmin(context);
     const admin = await getAdmin();
     const cfg = await getBlingConfig(admin, context.tenantId);
-    const baseProducts = admin.from("products").select("id", { count: "exact", head: true })
-      .eq("tenant_id", context.tenantId).eq("active", true).is("deleted_at", null);
     const [totalResult, costResult, pendingResult, awaitingResult] = await Promise.all([
-      baseProducts,
+      admin.from("products").select("id", { count: "exact", head: true })
+        .eq("tenant_id", context.tenantId).eq("active", true).is("deleted_at", null),
       admin.from("products").select("id", { count: "exact", head: true })
         .eq("tenant_id", context.tenantId).eq("active", true).is("deleted_at", null).gt("average_cost", 0),
       admin.from("product_cost_candidates").select("id", { count: "exact", head: true })
@@ -215,6 +263,18 @@ export const syncBlingCostRecoveryBatch = createServerFn({ method: "POST" })
     const { token, cfg } = await refreshTokenIfNeeded(admin, context.tenantId);
     const maxPages = Math.max(1, Math.min(Math.trunc(Number(data.maxPages ?? 5)), 10));
     let page = data.reset ? 1 : Math.max(1, Number(cfg.last_cost_sync_page ?? 1));
+    let cycleToken = String(cfg.last_cost_sync_cycle_token ?? "");
+    if (data.reset || page === 1 || !cycleToken) {
+      cycleToken = crypto.randomUUID();
+      const { error: cycleError } = await admin.from("bling_config").update({
+        last_cost_sync_page: 1,
+        last_cost_sync_cycle_token: cycleToken,
+        updated_at: new Date().toISOString(),
+      }).eq("tenant_id", context.tenantId).eq("id", cfg.id);
+      if (cycleError) throw new Error(cycleError.message);
+      page = 1;
+    }
+
     let cycleCompleted = false;
     let linksRead = 0;
     let matchedProducts = 0;
@@ -237,12 +297,12 @@ export const syncBlingCostRecoveryBatch = createServerFn({ method: "POST" })
         pagesProcessed += 1;
         linksRead += rows.length;
 
-        const grouped = new Map<string, any[]>();
+        const grouped = new Map<string, SupplierLink[]>();
         for (const row of rows) {
           const blingProductId = String(row?.produto?.id ?? "").trim();
           if (!blingProductId) continue;
           const current = grouped.get(blingProductId) ?? [];
-          current.push(row);
+          current.push(normalizeSupplierLink(row));
           grouped.set(blingProductId, current);
         }
         const blingIds = [...grouped.keys()];
@@ -262,7 +322,7 @@ export const syncBlingCostRecoveryBatch = createServerFn({ method: "POST" })
           const productIds = missingProducts.map((product: any) => product.id);
           const { data: openCandidates, error: candidateError } = productIds.length
             ? await admin.from("product_cost_candidates")
-                .select("id,product_id,source_type,status")
+                .select("id,product_id,source_type,status,evidence,created_by")
                 .eq("tenant_id", context.tenantId)
                 .in("product_id", productIds)
                 .in("status", ["awaiting_source", "pending"])
@@ -273,14 +333,17 @@ export const syncBlingCostRecoveryBatch = createServerFn({ method: "POST" })
           const updates: Array<{ id: string; payload: any }> = [];
 
           for (const product of missingProducts) {
-            const relationRows = grouped.get(String(product.bling_id)) ?? [];
-            const choice = chooseSupplierCost(relationRows);
-            if (choice.ambiguous) ambiguous += 1;
             const existing: any = openMap.get(product.id);
             if (existing && ["manual", "nfe_xml", "goods_receipt", "purchase_order"].includes(existing.source_type)) {
               protectedExisting += 1;
               continue;
             }
+
+            const pageLinks = grouped.get(String(product.bling_id)) ?? [];
+            const sameCycle = existing?.source_type === "bling" && String(existing?.evidence?.cycle_token ?? "") === cycleToken;
+            const relationRows = mergeSupplierLinks(sameCycle ? existing?.evidence?.supplier_links : [], pageLinks);
+            const choice = chooseSupplierCost(relationRows);
+            if (choice.ambiguous) ambiguous += 1;
             const selected = choice.selected;
             const cost = choice.cost;
             const currentPrice = Number(product.price_b2c ?? 0);
@@ -290,7 +353,7 @@ export const syncBlingCostRecoveryBatch = createServerFn({ method: "POST" })
               proposed_cost: cost,
               source_type: "bling",
               source_reference: selected
-                ? `Bling produto-fornecedor #${String(selected.id ?? "s/id")} · fornecedor #${String(selected?.fornecedor?.id ?? "s/id")}`
+                ? `Bling produto-fornecedor #${String(selected.id ?? "s/id")} · fornecedor #${String(selected.supplier_id ?? "s/id")}`
                 : `Bling · ${choice.reason}`,
               source_date: new Date().toISOString(),
               confidence: choice.confidence,
@@ -298,25 +361,19 @@ export const syncBlingCostRecoveryBatch = createServerFn({ method: "POST" })
               evidence: {
                 source: "bling_api_v3_produtos_fornecedores",
                 bling_product_id: String(product.bling_id),
+                cycle_token: cycleToken,
                 reason: choice.reason,
                 selected_relationship_id: selected?.id ?? null,
-                supplier_links: relationRows.map((row: any) => ({
-                  id: row?.id ?? null,
-                  supplier_id: row?.fornecedor?.id ?? null,
-                  standard: row?.padrao === true,
-                  cost_price: positive(row?.precoCusto),
-                  purchase_price: positive(row?.precoCompra),
-                })),
+                supplier_links: relationRows,
               },
               notes: choice.ambiguous ? "Revisar vínculos de fornecedor no Bling ou informar custo manual com evidência." : null,
               current_price: currentPrice || null,
               suggested_price: null,
               projected_margin_rate: cost && currentPrice > 0 ? Number(((currentPrice - cost) / currentPrice).toFixed(6)) : null,
-              created_by: context.userId,
               updated_at: new Date().toISOString(),
             };
             if (existing) updates.push({ id: existing.id, payload: candidatePayload });
-            else inserts.push(candidatePayload);
+            else inserts.push({ ...candidatePayload, created_by: context.userId });
           }
 
           if (inserts.length) {
@@ -327,7 +384,7 @@ export const syncBlingCostRecoveryBatch = createServerFn({ method: "POST" })
           if (updates.length) {
             const results = await Promise.all(updates.map(({ id, payload }) =>
               admin.from("product_cost_candidates")
-                .update({ ...payload, created_by: undefined })
+                .update(payload)
                 .eq("tenant_id", context.tenantId)
                 .eq("id", id),
             ));
@@ -354,13 +411,37 @@ export const syncBlingCostRecoveryBatch = createServerFn({ method: "POST" })
         last_cost_sync_at: now,
         last_cost_sync_status: "sucesso",
         last_cost_sync_message: message,
+        last_cost_sync_cycle_token: cycleToken,
         updated_at: now,
       }).eq("tenant_id", context.tenantId).eq("id", cfg.id);
       if (configError) throw new Error(configError.message);
       await writeSummaryLog(admin, context.tenantId, {
-        pagesProcessed, linksRead, matchedProducts, candidatesCreated, candidatesUpdated, ambiguous, protectedExisting, alreadyCosted, cycleCompleted, nextPage: page,
+        cycleToken,
+        pagesProcessed,
+        linksRead,
+        matchedProducts,
+        candidatesCreated,
+        candidatesUpdated,
+        ambiguous,
+        protectedExisting,
+        alreadyCosted,
+        cycleCompleted,
+        nextPage: page,
       }, message);
-      return { ok: true, pagesProcessed, linksRead, matchedProducts, candidatesCreated, candidatesUpdated, ambiguous, protectedExisting, alreadyCosted, cycleCompleted, nextPage: page, message };
+      return {
+        ok: true,
+        pagesProcessed,
+        linksRead,
+        matchedProducts,
+        candidatesCreated,
+        candidatesUpdated,
+        ambiguous,
+        protectedExisting,
+        alreadyCosted,
+        cycleCompleted,
+        nextPage: page,
+        message,
+      };
     } catch (error: any) {
       const message = String(error?.message ?? error);
       const now = new Date().toISOString();
@@ -369,9 +450,10 @@ export const syncBlingCostRecoveryBatch = createServerFn({ method: "POST" })
         last_cost_sync_at: now,
         last_cost_sync_status: "erro",
         last_cost_sync_message: message.slice(0, 400),
+        last_cost_sync_cycle_token: cycleToken,
         updated_at: now,
       }).eq("tenant_id", context.tenantId).eq("id", cfg.id);
-      await writeSummaryLog(admin, context.tenantId, { page, pagesProcessed, linksRead }, message, "erro").catch(() => undefined);
+      await writeSummaryLog(admin, context.tenantId, { cycleToken, page, pagesProcessed, linksRead }, message, "erro").catch(() => undefined);
       throw error;
     }
   });
