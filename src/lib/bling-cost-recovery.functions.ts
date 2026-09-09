@@ -21,6 +21,18 @@ type SupplierLink = {
   purchase_price: number | null;
 };
 
+type BlingCostQuality = {
+  eligible: boolean;
+  status: "eligible" | "review";
+  cross_field_corroborated: boolean;
+  cost_price: number | null;
+  purchase_price: number | null;
+  cost_to_sale_ratio: number | null;
+  tolerance_pct: number;
+  reason: string;
+  validated_at: string;
+};
+
 async function requireCostRecoveryAdmin(context: any) {
   await requireTenantRole(context.supabase, context.userId, context.tenantId, ["owner", "admin"]);
 }
@@ -200,6 +212,43 @@ function chooseSupplierCost(rows: SupplierLink[]) {
   };
 }
 
+function validateBlingCost(cost: number | null, selected: SupplierLink | null, currentPrice: number): BlingCostQuality {
+  const costPrice = positive(selected?.cost_price);
+  const purchasePrice = positive(selected?.purchase_price);
+  const crossFieldCorroborated = costPrice !== null
+    && purchasePrice !== null
+    && Math.abs(costPrice - purchasePrice) <= Math.max(0.01, purchasePrice * 0.05);
+  const ratio = cost && currentPrice > 0 ? cost / currentPrice : null;
+  const eligible = Boolean(
+    cost
+    && crossFieldCorroborated
+    && ratio !== null
+    && ratio >= 0.01
+    && ratio <= 1.5,
+  );
+
+  let reason = "precoCusto e precoCompra corroborados; valor economicamente plausível";
+  if (!cost) reason = "Sem custo positivo no vínculo selecionado";
+  else if (costPrice === null) reason = "precoCusto ausente; requer segunda evidência";
+  else if (purchasePrice === null) reason = "precoCompra ausente; requer segunda evidência";
+  else if (!crossFieldCorroborated) reason = "precoCusto e precoCompra divergem acima da tolerância";
+  else if (!(currentPrice > 0)) reason = "preço de venda ausente ou zerado; revisar cadastro";
+  else if ((ratio ?? 0) < 0.01) reason = "custo inferior a 1% do preço de venda; possível erro de unidade/embalagem";
+  else if ((ratio ?? 0) > 1.5) reason = "custo superior a 150% do preço de venda; possível preço ou custo defasado";
+
+  return {
+    eligible,
+    status: eligible ? "eligible" : "review",
+    cross_field_corroborated: crossFieldCorroborated,
+    cost_price: costPrice,
+    purchase_price: purchasePrice,
+    cost_to_sale_ratio: ratio,
+    tolerance_pct: 0.05,
+    reason,
+    validated_at: new Date().toISOString(),
+  };
+}
+
 async function writeSummaryLog(
   admin: any,
   tenantId: string,
@@ -224,7 +273,7 @@ export const getBlingCostRecoveryStatus = createServerFn({ method: "GET" })
     await requireCostRecoveryAdmin(context);
     const admin = await getAdmin();
     const cfg = await getBlingConfig(admin, context.tenantId);
-    const [totalResult, costResult, pendingResult, awaitingResult] = await Promise.all([
+    const [totalResult, costResult, pendingResult, awaitingResult, eligibleResult, reviewResult] = await Promise.all([
       admin.from("products").select("id", { count: "exact", head: true })
         .eq("tenant_id", context.tenantId).eq("active", true).is("deleted_at", null),
       admin.from("products").select("id", { count: "exact", head: true })
@@ -233,8 +282,14 @@ export const getBlingCostRecoveryStatus = createServerFn({ method: "GET" })
         .eq("tenant_id", context.tenantId).eq("source_type", "bling").eq("status", "pending"),
       admin.from("product_cost_candidates").select("id", { count: "exact", head: true })
         .eq("tenant_id", context.tenantId).eq("source_type", "bling").eq("status", "awaiting_source"),
+      admin.from("product_cost_candidates").select("id", { count: "exact", head: true })
+        .eq("tenant_id", context.tenantId).eq("source_type", "bling").eq("status", "pending")
+        .eq("evidence->quality_gate->>status", "eligible"),
+      admin.from("product_cost_candidates").select("id", { count: "exact", head: true })
+        .eq("tenant_id", context.tenantId).eq("source_type", "bling").eq("status", "pending")
+        .eq("evidence->quality_gate->>status", "review"),
     ]);
-    for (const result of [totalResult, costResult, pendingResult, awaitingResult]) {
+    for (const result of [totalResult, costResult, pendingResult, awaitingResult, eligibleResult, reviewResult]) {
       if (result.error) throw new Error(result.error.message);
     }
     const total = Number(totalResult.count ?? 0);
@@ -245,6 +300,8 @@ export const getBlingCostRecoveryStatus = createServerFn({ method: "GET" })
       missingCost: Math.max(0, total - withCost),
       pendingBling: Number(pendingResult.count ?? 0),
       ambiguousBling: Number(awaitingResult.count ?? 0),
+      eligibleBling: Number(eligibleResult.count ?? 0),
+      reviewBling: Number(reviewResult.count ?? 0),
       nextPage: Number(cfg.last_cost_sync_page ?? 1),
       lastSyncAt: cfg.last_cost_sync_at ?? null,
       lastStatus: cfg.last_cost_sync_status ?? null,
@@ -347,6 +404,12 @@ export const syncBlingCostRecoveryBatch = createServerFn({ method: "POST" })
             const selected = choice.selected;
             const cost = choice.cost;
             const currentPrice = Number(product.price_b2c ?? 0);
+            const quality = validateBlingCost(cost, selected, currentPrice);
+            const notes = cost && !quality.eligible
+              ? `Barreira de qualidade: ${quality.reason}.`
+              : choice.ambiguous
+                ? "Revisar vínculos de fornecedor no Bling ou informar custo manual com evidência."
+                : null;
             const candidatePayload = {
               tenant_id: context.tenantId,
               product_id: product.id,
@@ -356,7 +419,7 @@ export const syncBlingCostRecoveryBatch = createServerFn({ method: "POST" })
                 ? `Bling produto-fornecedor #${String(selected.id ?? "s/id")} · fornecedor #${String(selected.supplier_id ?? "s/id")}`
                 : `Bling · ${choice.reason}`,
               source_date: new Date().toISOString(),
-              confidence: choice.confidence,
+              confidence: quality.eligible ? choice.confidence : cost ? "low" : choice.confidence,
               status: cost ? "pending" : "awaiting_source",
               evidence: {
                 source: "bling_api_v3_produtos_fornecedores",
@@ -365,8 +428,9 @@ export const syncBlingCostRecoveryBatch = createServerFn({ method: "POST" })
                 reason: choice.reason,
                 selected_relationship_id: selected?.id ?? null,
                 supplier_links: relationRows,
+                quality_gate: quality,
               },
-              notes: choice.ambiguous ? "Revisar vínculos de fornecedor no Bling ou informar custo manual com evidência." : null,
+              notes,
               current_price: currentPrice || null,
               suggested_price: null,
               projected_margin_rate: cost && currentPrice > 0 ? Number(((currentPrice - cost) / currentPrice).toFixed(6)) : null,
@@ -403,7 +467,7 @@ export const syncBlingCostRecoveryBatch = createServerFn({ method: "POST" })
       }
 
       const message = cycleCompleted
-        ? `Ciclo do Bling concluído: ${linksRead} vínculos lidos neste lote; custos aguardam aprovação gerencial.`
+        ? `Ciclo do Bling concluído: ${linksRead} vínculos lidos neste lote; custos aguardam validação e aprovação gerencial.`
         : `Lote concluído até a página ${page - 1}; continuação preparada na página ${page}.`;
       const now = new Date().toISOString();
       const { error: configError } = await admin.from("bling_config").update({
