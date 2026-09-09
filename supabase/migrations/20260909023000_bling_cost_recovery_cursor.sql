@@ -13,17 +13,13 @@ alter table public.bling_config
   add constraint bling_config_last_cost_sync_page_check
   check (last_cost_sync_page >= 1);
 
--- Custo zero significa custo desconhecido no ERP. Normalizamos para NULL para
--- impedir que margem/rentabilidade trate ausência de custo como custo real zero.
+-- Custo zero no legado significa "desconhecido", não mercadoria grátis.
+-- Não alteramos updated_at para evitar disparar sincronizações de catálogo em massa.
 update public.products
-set average_cost = null,
-    updated_at = now()
-where average_cost = 0;
-
-update public.products
-set last_purchase_cost = null,
-    updated_at = now()
-where last_purchase_cost = 0;
+set average_cost = nullif(average_cost, 0),
+    last_purchase_cost = nullif(last_purchase_cost, 0)
+where average_cost = 0
+   or last_purchase_cost = 0;
 
 comment on column public.bling_config.last_cost_sync_page is
   'Cursor da recuperação auditável de custos via GET /produtos/fornecedores do Bling.';
