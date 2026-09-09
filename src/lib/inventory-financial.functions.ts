@@ -32,7 +32,9 @@ export const getInventoryFinancialPosition = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const sb = tdb(context.supabase);
     await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_READ_ROLES);
-    const { data, error } = await sb.rpc("get_inventory_financial_position");
+    const { data, error } = await sb.rpc("get_inventory_financial_position_v2", {
+      p_tenant_id: context.tenantId,
+    });
     if (error) throw new Error(error.message);
     return (data ?? {}) as InventoryFinancialPosition;
   });
