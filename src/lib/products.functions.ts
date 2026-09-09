@@ -48,6 +48,8 @@ export type ProductInput = {
   height_cm?: number | null;
   width_cm?: number | null;
   length_cm?: number | null;
+  inventory_origin?: "purchased" | "customer_return" | "manufactured" | "assembled";
+  available_for_online?: boolean;
   images?: { url: string; alt?: string | null; is_primary?: boolean }[];
 };
 
@@ -270,4 +272,3 @@ export const generateMissingInternalCodes = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { rows: Array.isArray(rows) ? rows : [], generated: Array.isArray(rows) ? rows.length : 0 };
   });
-

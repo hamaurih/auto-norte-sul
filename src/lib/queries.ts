@@ -148,6 +148,7 @@ export async function fetchFeatured(): Promise<ProductRow[]> {
     .from("products")
     .select(PRODUCT_LIST_SELECT)
     .eq("active", true)
+    .eq("available_for_online", true)
     .is("deleted_at", null)
     .eq("featured", true)
     .limit(12);
@@ -157,6 +158,7 @@ export async function fetchFeatured(): Promise<ProductRow[]> {
     .from("products")
     .select(PRODUCT_LIST_SELECT)
     .eq("active", true)
+    .eq("available_for_online", true)
     .is("deleted_at", null)
     .order("name")
     .limit(12);
@@ -172,6 +174,7 @@ export async function fetchOffers(): Promise<ProductRow[]> {
     .from("products")
     .select(PRODUCT_LIST_SELECT)
     .eq("active", true)
+    .eq("available_for_online", true)
     .is("deleted_at", null)
     .or("is_offer.eq.true,sale_price_b2c.not.is.null")
     .order("sales_count", { ascending: false })
@@ -191,6 +194,7 @@ export async function fetchNewArrivals(): Promise<ProductRow[]> {
     .from("products")
     .select(PRODUCT_LIST_SELECT)
     .eq("active", true)
+    .eq("available_for_online", true)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(12);
@@ -206,6 +210,7 @@ export async function fetchBestSellers(): Promise<ProductRow[]> {
     .from("products")
     .select(PRODUCT_LIST_SELECT)
     .eq("active", true)
+    .eq("available_for_online", true)
     .is("deleted_at", null)
     .order("sales_count", { ascending: false })
     .order("name")
@@ -231,7 +236,7 @@ export interface CatalogFilters {
 export async function fetchCatalog(f: CatalogFilters = {}, tenantId?: string | null): Promise<ProductRow[]> {
   const tenant = await tenantScope(tenantId);
   if (!tenant) return [];
-  let q = supabase.from("products").select(PRODUCT_LIST_SELECT).eq("tenant_id", tenant).eq("active", true)
+  let q = supabase.from("products").select(PRODUCT_LIST_SELECT).eq("tenant_id", tenant).eq("active", true).eq("available_for_online", true)
     .is("deleted_at", null);
 
   let brandIdFromQuery: string | null = null;
@@ -322,6 +327,7 @@ export async function fetchProductBySlug(slug: string, tenantId?: string | null)
     .eq("tenant_id", tenant)
     .eq("slug", slug)
     .eq("active", true)
+    .eq("available_for_online", true)
     .is("deleted_at", null)
     .maybeSingle();
   if (error) {
@@ -342,7 +348,7 @@ export async function fetchProductApplications(productId: string) {
 export async function fetchRelated(categorySlug: string | null, excludeId: string, tenantId?: string | null) {
   const tenant = await tenantScope(tenantId);
   if (!tenant) return [];
-  let q = supabase.from("products").select(PRODUCT_LIST_SELECT).eq("tenant_id", tenant).eq("active", true)
+  let q = supabase.from("products").select(PRODUCT_LIST_SELECT).eq("tenant_id", tenant).eq("active", true).eq("available_for_online", true)
     .is("deleted_at", null).neq("id", excludeId).limit(8);
   if (categorySlug) {
     const cat = await findCategoryBySlug(categorySlug, tenant);
