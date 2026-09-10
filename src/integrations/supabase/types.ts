@@ -4552,6 +4552,9 @@ export type Database = {
           min_stock: number
           name: string
           price_b2b: number | null
+          price_b2b_a: number | null
+          price_b2b_b: number | null
+          price_b2b_c: number | null
           price_b2c: number
           sale_ends_at: string | null
           sale_price_b2c: number | null
@@ -4593,6 +4596,12 @@ export type Database = {
           min_stock?: number
           name: string
           price_b2b?: number | null
+          price_b2b_a?: number | null
+          price_b2b_b?: number | null
+          price_b2b_c?: number | null
+          price_b2b_a?: number | null
+          price_b2b_b?: number | null
+          price_b2b_c?: number | null
           price_b2c?: number
           sale_ends_at?: string | null
           sale_price_b2c?: number | null
