@@ -39,7 +39,7 @@ export const searchProductsForAssist = createServerFn({ method: "GET" })
     const safe = sanitizeOrQuery(escapeLike(data.q));
     const { data: products, error } = await tdb(context.supabase)
       .from("products")
-      .select("id, sku, name, price_b2c, price_b2b, sale_price_b2c, stock")
+      .select("id, sku, name, price_b2c, price_b2b, price_b2b_a, price_b2b_b, price_b2b_c, sale_price_b2c, stock")
       .eq("active", true)
       .is("deleted_at", null)
       .eq("tenant_id", context.tenantId)
@@ -169,7 +169,7 @@ export const createAssistOrder = createServerFn({ method: "POST" })
     // só envia os IDs e quantidades; isso impede adulteração do total.
     const { data: products, error: productsError } = await sb
       .from("products")
-      .select("id, sku, name, stock, price_b2c, price_b2b, sale_price_b2c, active")
+      .select("id, sku, name, stock, price_b2c, price_b2b, price_b2b_a, price_b2b_b, price_b2b_c, sale_price_b2c, active")
       .eq("tenant_id", context.tenantId)
       .eq("active", true)
       .is("deleted_at", null)
@@ -203,11 +203,12 @@ export const createAssistOrder = createServerFn({ method: "POST" })
       if (data.status === "enviado" && item.qty > available) {
         throw new Error(`Estoque insuficiente para "${product.name}" (disponível: ${available})`);
       }
-      const basePrice = Number(product.price_b2b ?? product.sale_price_b2c ?? product.price_b2c ?? 0);
+      const specificPrice = priceTable === "A" ? product.price_b2b_a : priceTable === "B" ? product.price_b2b_b : product.price_b2b_c;
+      const basePrice = Number(specificPrice ?? product.price_b2b ?? product.sale_price_b2c ?? product.price_b2c ?? 0);
       if (!Number.isFinite(basePrice) || basePrice < 0) {
         throw new Error(`Preço inválido para "${product.name}"`);
       }
-      const tablePrice = Number((basePrice * (1 - tableDiscountPct / 100)).toFixed(2));
+      const tablePrice = specificPrice == null ? Number((basePrice * (1 - tableDiscountPct / 100)).toFixed(2)) : basePrice;
       const price = Number((tablePrice * (1 + data.uplift_pct / 100) * (1 - data.discount_pct / 100)).toFixed(2));
       return {
         product_id: product.id,
