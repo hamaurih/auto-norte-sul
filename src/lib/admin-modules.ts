@@ -136,6 +136,7 @@ export const adminModules: AdminModule[] = [
     accent: "bg-emerald-100 text-emerald-700",
     shortcuts: [
       { to: "/admin/financeiro", label: "Estrutura financeira", description: "Categorias e centros de custo", icon: FolderTree, adminOnly: true },
+      { to: "/admin/contas-pagar", label: "Contas a pagar", description: "Boletos, despesas e vencimentos", icon: Landmark, adminOnly: true },
     ],
   },
   {
