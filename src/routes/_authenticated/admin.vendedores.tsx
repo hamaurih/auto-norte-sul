@@ -134,7 +134,7 @@ function VendedoresList() {
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <h2 className="font-display text-xl font-bold uppercase">Tabelas de preço B2B</h2>
-            <p className="text-xs text-muted-foreground">A e B são descontos sobre o preço B2B base. C mantém o valor original.</p>
+            <p className="text-xs text-muted-foreground">Perfis por volume: C inicial, B recorrente e A alto volume. O desconto só é usado quando o produto não tiver preço próprio para a tabela.</p>
           </div>
           <button type="button" onClick={() => priceMutation.mutate()} disabled={priceMutation.isPending} className="inline-flex items-center gap-2 rounded bg-primary px-3 py-2 text-xs font-bold uppercase text-primary-foreground disabled:opacity-50">
             <Save className="h-4 w-4" /> Salvar regras
@@ -143,7 +143,7 @@ function VendedoresList() {
         <div className="grid gap-3 sm:grid-cols-3">
           {(["table_a_discount_pct", "table_b_discount_pct", "table_c_discount_pct"] as const).map((key) => (
             <label key={key} className="text-xs font-bold uppercase">
-              Tabela {key[6].toUpperCase()} — desconto %
+              {key === "table_a_discount_pct" ? "A — Alto volume" : key === "table_b_discount_pct" ? "B — Cliente frequente" : "C — Cliente inicial"} · desconto alternativo %
               <input
                 type="number"
                 min={0}
@@ -157,7 +157,7 @@ function VendedoresList() {
           ))}
         </div>
         <p className="mt-3 rounded bg-muted p-3 text-xs">
-          Regra aplicada no servidor: preço final = preço B2B base × (1 − tabela/100). O CNPJ do cliente define a tabela.
+          Regra aplicada no servidor: primeiro usa o preço específico do produto para a tabela; se estiver vazio, aplica o desconto alternativo sobre o preço B2B base. O CNPJ do cliente define o perfil.
         </p>
       </section>
 
@@ -187,9 +187,9 @@ function VendedoresList() {
                         disabled={customerMutation.isPending}
                         className="rounded border border-border bg-background px-2 py-1 text-xs font-bold"
                       >
-                        <option value="A">A — {priceForm.table_a_discount_pct}% off</option>
-                        <option value="B">B — {priceForm.table_b_discount_pct}% off</option>
-                        <option value="C">C — preço base</option>
+                        <option value="A">A — Alto volume</option>
+                        <option value="B">B — Cliente frequente</option>
+                        <option value="C">C — Cliente inicial</option>
                       </select>
                     </td>
                   </tr>
