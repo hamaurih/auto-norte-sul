@@ -32,6 +32,9 @@ export type ProductInput = {
   subcategory_id?: string | null;
   price_b2c: number;
   price_b2b?: number | null;
+  price_b2b_a?: number | null;
+  price_b2b_b?: number | null;
+  price_b2b_c?: number | null;
   compare_at_price?: number | null;
   sale_price_b2c?: number | null;
   sale_starts_at?: string | null;
