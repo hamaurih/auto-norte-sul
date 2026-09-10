@@ -115,6 +115,9 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
     subcategory_id: initial?.subcategory_id ?? null,
     price_b2c: Number(initial?.price_b2c ?? 0),
     price_b2b: initial?.price_b2b ?? null,
+    price_b2b_a: initial?.price_b2b_a ?? null,
+    price_b2b_b: initial?.price_b2b_b ?? null,
+    price_b2b_c: initial?.price_b2b_c ?? null,
     compare_at_price: initial?.compare_at_price ?? null,
     sale_price_b2c: initial?.sale_price_b2c ?? null,
     sale_starts_at: initial?.sale_starts_at ?? null,
@@ -555,6 +558,18 @@ export function ProductForm({ initial }: { initial?: Partial<ProductInput> & { i
                   <div className="relative mt-2"><span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">R$</span><input className={`${fieldClass} mt-0 pl-10`} type="number" step="0.01" min="0" value={form.price_b2b ?? ""} onChange={(e) => update("price_b2b", e.target.value ? Number(e.target.value) : null)} placeholder="Opcional" /></div>
                   <span className="mt-1.5 block text-xs text-slate-400">Base para clientes empresariais.</span>
                 </label>
+                <div className="sm:col-span-2 rounded-xl border border-violet-100 bg-violet-50/50 p-4">
+                  <div className="mb-3"><p className="text-sm font-bold text-violet-950">Preços específicos por perfil B2B</p><p className="mt-1 text-xs text-violet-800">Opcional. Se deixar vazio, a tabela usa o desconto configurado sobre o preço B2B base.</p></div>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {([
+                      ["price_b2b_c", "C — Inicial", "Menor volume"],
+                      ["price_b2b_b", "B — Frequente", "Compra recorrente"],
+                      ["price_b2b_a", "A — Alto volume", "Maior volume"],
+                    ] as const).map(([key, label, help]) => (
+                      <label key={key}><span className="text-sm font-semibold text-slate-700">{label}</span><div className="relative mt-2"><span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">R$</span><input className={fieldClass + " pl-10"} type="number" step="0.01" min="0" value={form[key] ?? ""} onChange={(e) => update(key, e.target.value ? Number(e.target.value) : null)} placeholder="Usar desconto" /></div><span className="mt-1 block text-xs text-slate-400">{help}</span></label>
+                    ))}
+                  </div>
+                </div>
                 <label className="sm:col-span-2">
                   <span className="text-sm font-semibold text-slate-700">Preço de comparação</span>
                   <div className="relative mt-2 max-w-sm"><span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">R$</span><input className={`${fieldClass} mt-0 pl-10`} type="number" step="0.01" min="0" value={form.compare_at_price ?? ""} onChange={(e) => update("compare_at_price", e.target.value ? Number(e.target.value) : null)} placeholder="Preço anterior / referência" /></div>
