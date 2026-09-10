@@ -15,6 +15,12 @@ export const Route = createFileRoute("/_authenticated/vendedor/pedido-assistido"
 
 interface Item { product_id: string; sku: string; name: string; base_price: number; table_price: number; price: number; qty: number }
 
+function productTablePrice(product: any, priceTable: "A" | "B" | "C", discountPct: number) {
+  const specific = priceTable === "A" ? product.price_b2b_a : priceTable === "B" ? product.price_b2b_b : product.price_b2b_c;
+  const base = Number(specific ?? product.price_b2b ?? product.sale_price_b2c ?? product.price_b2c ?? 0);
+  return { base, table: specific == null ? Number((base * (1 - discountPct / 100)).toFixed(2)) : base };
+}
+
 function PedidoAssistido() {
   const [search, setSearch]  = useState("");
   const [items, setItems]    = useState<Item[]>([]);
@@ -76,15 +82,15 @@ function PedidoAssistido() {
 
   const addItem = useCallback((p: any) => {
     const tableDiscountPct = Number(priceContextQuery.data?.discountPct ?? 0);
-    const basePrice = Number(p.price_b2b ?? p.sale_price_b2c ?? p.price_b2c ?? 0);
-    const tablePrice = Number((basePrice * (1 - tableDiscountPct / 100)).toFixed(2));
+    const priceTable = (priceContextQuery.data?.priceTable ?? "C") as "A" | "B" | "C";
+    const { base: basePrice, table: tablePrice } = productTablePrice(p, priceTable, tableDiscountPct);
     const price = Number((tablePrice * (1 + upliftPct / 100) * (1 - discountPct / 100)).toFixed(2));
     setItems((prev) => {
       const found = prev.find((i) => i.product_id === p.id);
       if (found) return prev.map((i) => i.product_id === p.id ? { ...i, qty: i.qty + 1 } : i);
       return [...prev, { product_id: p.id, sku: p.sku, name: p.name, base_price: basePrice, table_price: tablePrice, price, qty: 1 }];
     });
-  }, [discountPct, upliftPct, priceContextQuery.data?.discountPct]);
+  }, [discountPct, upliftPct, priceContextQuery.data?.discountPct, priceContextQuery.data?.priceTable]);
 
   useEffect(() => {
     const tableDiscountPct = Number(priceContextQuery.data?.discountPct ?? 0);
@@ -226,7 +232,7 @@ function PedidoAssistido() {
         </div>
         {priceContextQuery.data && (
           <p className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
-            CNPJ reconhecido: Tabela {priceContextQuery.data.priceTable} · {priceContextQuery.data.discountPct.toFixed(2)}% automático
+            CNPJ reconhecido: Tabela {priceContextQuery.data.priceTable} — {priceContextQuery.data.priceTable === "A" ? "alto volume" : priceContextQuery.data.priceTable === "B" ? "cliente frequente" : "cliente inicial"} · {priceContextQuery.data.discountPct.toFixed(2)}% de alternativa
           </p>
         )}
         {cnpjDigits.length > 0 && cnpjDigits.length !== 14 && (
@@ -247,7 +253,7 @@ function PedidoAssistido() {
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="text-xs text-muted-foreground">Est: {p.stock}</span>
                   <span className="font-semibold">
-                    {brl(Number(((p.price_b2b ?? p.sale_price_b2c ?? p.price_b2c ?? 0) * (1 - Number(priceContextQuery.data?.discountPct ?? 0) / 100) * (1 + upliftPct / 100) * (1 - discountPct / 100)).toFixed(2)))}
+                    {brl(Number((productTablePrice(p, (priceContextQuery.data?.priceTable ?? "C") as "A" | "B" | "C", Number(priceContextQuery.data?.discountPct ?? 0)).table * (1 + upliftPct / 100) * (1 - discountPct / 100)).toFixed(2)))}
                   </span>
                   <button
                     type="button"
