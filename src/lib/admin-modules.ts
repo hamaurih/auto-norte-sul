@@ -6,6 +6,7 @@ import {
   Building2,
   Briefcase,
   ClipboardCheck,
+  CircleDollarSign,
   FileText,
   Landmark,
   FileUp,
@@ -125,6 +126,16 @@ export const adminModules: AdminModule[] = [
       { to: "/admin/nfe-importacao", label: "Importar XML NF-e", description: "Conferência da nota de compra", icon: FileUp },
       { to: "/admin/historico-custos", label: "Financeiro do estoque", description: "Valorização e fechamentos", icon: ClipboardList },
       { to: "/admin/saneamento-custos", label: "Saneamento de custos", description: "Recuperar e aprovar custos reais", icon: BadgeDollarSign, adminOnly: true },
+    ],
+  },
+  {
+    key: "financeiro",
+    title: "Financeiro",
+    description: "Despesas, contas a pagar, fluxo de caixa e rentabilidade.",
+    icon: CircleDollarSign,
+    accent: "bg-emerald-100 text-emerald-700",
+    shortcuts: [
+      { to: "/admin/financeiro", label: "Estrutura financeira", description: "Categorias e centros de custo", icon: FolderTree, adminOnly: true },
     ],
   },
   {
