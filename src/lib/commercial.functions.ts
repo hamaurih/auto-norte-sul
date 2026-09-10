@@ -348,6 +348,29 @@ export const saveCustomerPriceTable = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Cadastro feito no balcão/ERP: não exige conta criada no site. */
+export const createOfflineB2BCustomer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({
+    name: z.string().trim().min(2).max(180), document: z.string().trim().min(14).max(30),
+    phone: z.string().trim().max(30).optional(), email: z.string().trim().max(255).optional(),
+    customer_group: z.enum(["revendedor", "oficina", "distribuidor"]), price_table: z.enum(["A", "B", "C"]),
+  }).parse(input))
+  .handler(async ({ data, context }) => {
+    const sb = tdb(context.supabase); await requireManager(sb, context.userId, context.tenantId);
+    const cnpjDigits = normalizeCnpj(data.document);
+    if (cnpjDigits.length !== 14) throw new Error("Informe um CNPJ válido para o cliente B2B");
+    const { data: existing, error: lookupError } = await sb.from("customers").select("id").eq("tenant_id", context.tenantId).eq("document", cnpjDigits).maybeSingle();
+    if (lookupError) throw new Error(lookupError.message);
+    const payload = { tenant_id: context.tenantId, name: data.name, document: cnpjDigits, phone: data.phone || null, email: data.email || null, customer_group: data.customer_group, b2b_status: "approved", active: true, updated_at: new Date().toISOString() };
+    let customerId = existing?.id;
+    if (customerId) { const { error } = await (sb.from("customers") as any).update(payload).eq("id", customerId).eq("tenant_id", context.tenantId); if (error) throw new Error(error.message); }
+    else { const { data: created, error } = await (sb.from("customers") as any).insert(payload).select("id").single(); if (error) throw new Error(error.message); customerId = created.id; }
+    const { error: tableError } = await (sb.from("b2b_customer_price_tables") as any).upsert({ tenant_id: context.tenantId, customer_id: customerId, cnpj_digits: cnpjDigits, price_table: data.price_table, active: true, created_by: context.userId, updated_by: context.userId }, { onConflict: "tenant_id,customer_id" });
+    if (tableError) throw new Error(tableError.message);
+    return { ok: true, customerId, updated: Boolean(existing) };
+  });
+
 export const saveSalesRepSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({
