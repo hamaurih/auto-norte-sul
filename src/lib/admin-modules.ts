@@ -31,6 +31,7 @@ import {
   UserCog,
   Users,
   Warehouse,
+  WalletCards,
   PlusCircle,
   type LucideIcon,
   ClipboardList,
@@ -137,6 +138,8 @@ export const adminModules: AdminModule[] = [
     shortcuts: [
       { to: "/admin/financeiro", label: "Estrutura financeira", description: "Categorias e centros de custo", icon: FolderTree, adminOnly: true },
       { to: "/admin/contas-pagar", label: "Contas a pagar", description: "Boletos, despesas e vencimentos", icon: Landmark, adminOnly: true },
+      { to: "/admin/contas-receber", label: "Contas a receber", description: "Vendas, cobranças e baixas", icon: WalletCards, adminOnly: true },
+      { to: "/admin/fluxo-caixa", label: "Fluxo de caixa", description: "Entradas, saídas e previsão", icon: BarChart3, adminOnly: true },
     ],
   },
   {
