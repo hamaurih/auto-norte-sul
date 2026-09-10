@@ -1,167 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { Building2, Plus, Users } from "lucide-react";
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { createOfflineB2BCustomer } from "@/lib/commercial.functions";
 
-export const Route = createFileRoute("/_authenticated/admin/cadastros-b2b")({
-  head: () => ({ meta: [{ title: "Cadastros B2B · Admin" }] }),
-  component: B2BList,
-});
-
-type Reg = {
-  id: string;
-  user_id: string;
-  razao_social: string;
-  nome_fantasia: string | null;
-  cnpj: string;
-  whatsapp: string;
-  cidade: string;
-  estado: string | null;
-  segmento: string;
-  volume_medio_compra: string | null;
-  status: string;
-  admin_notes: string | null;
-  created_at: string;
-};
+export const Route = createFileRoute("/_authenticated/admin/cadastros-b2b")({ head: () => ({ meta: [{ title: "Cadastros B2B · Admin" }] }), component: B2BList });
+type Form = { name: string; document: string; phone: string; email: string; customer_group: "revendedor" | "oficina" | "distribuidor"; price_table: "A" | "B" | "C" };
+const initial: Form = { name: "", document: "", phone: "", email: "", customer_group: "oficina", price_table: "C" };
+const input = "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10";
 
 function B2BList() {
-  const qc = useQueryClient();
-  const [selected, setSelected] = useState<Reg | null>(null);
-  const [notes, setNotes] = useState("");
-
-  const { data: list = [] } = useQuery({
-    queryKey: ["b2b-list"],
-    queryFn: async () => {
-      const { data } = await supabase.from("b2b_registrations").select("*").order("created_at", { ascending: false });
-      return (data ?? []) as Reg[];
-    },
-  });
-
-  async function decide(regId: string, userId: string, status: "aprovado" | "reprovado", group?: "revendedor" | "oficina" | "distribuidor") {
-    const updates: { status: "aprovado" | "reprovado"; reviewed_at: string; admin_notes?: string } = { status, reviewed_at: new Date().toISOString() };
-    if (notes) updates.admin_notes = notes;
-    await supabase.from("b2b_registrations").update(updates).eq("id", regId);
-    if (status === "aprovado" && group) {
-      await supabase.from("profiles").update({ customer_group: group, b2b_status: "approved" }).eq("id", userId);
-    } else if (status === "reprovado") {
-      await supabase.from("profiles").update({ customer_group: "b2c", b2b_status: "rejected" }).eq("id", userId);
-    }
-    toast.success(`Cadastro ${status}`);
-    qc.invalidateQueries({ queryKey: ["b2b-list"] });
-    setSelected(null);
-    setNotes("");
-  }
-
-  async function requestInfo(regId: string) {
-    const message = window.prompt("Que informação deseja solicitar?");
-    if (!message) return;
-    await supabase
-      .from("b2b_registrations")
-      .update({ admin_notes: message, status: "pendente" })
-      .eq("id", regId);
-    toast.info("Anotação registrada. Envie ao cliente via WhatsApp/e-mail.");
-    qc.invalidateQueries({ queryKey: ["b2b-list"] });
-  }
-
-  return (
-    <div>
-      <h1 className="mb-4 font-display text-2xl font-bold uppercase">Cadastros B2B</h1>
-      <div className="space-y-3">
-        {list.length === 0 && <p className="text-sm text-muted-foreground">Nenhum cadastro.</p>}
-        {list.map((r) => (
-          <div key={r.id} className="rounded-lg border border-border bg-card p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className="font-display text-lg font-bold uppercase">{r.razao_social}</div>
-                <div className="text-xs text-muted-foreground">
-                  CNPJ {r.cnpj} · {r.cidade}
-                  {r.estado ? `/${r.estado}` : ""} · {r.segmento}
-                </div>
-                {r.nome_fantasia && <div className="text-xs">Fantasia: {r.nome_fantasia}</div>}
-                <div className="text-xs">
-                  WhatsApp: {r.whatsapp} · Volume: {r.volume_medio_compra ?? "—"}
-                </div>
-                {r.admin_notes && <div className="mt-1 text-xs italic text-muted-foreground">Nota interna: {r.admin_notes}</div>}
-              </div>
-              <span
-                className={`rounded px-2 py-1 text-[10px] font-bold uppercase ${
-                  r.status === "pendente"
-                    ? "bg-hot text-hot-foreground"
-                    : r.status === "aprovado"
-                    ? "bg-success text-success-foreground"
-                    : "bg-destructive text-destructive-foreground"
-                }`}
-              >
-                {r.status}
-              </span>
-            </div>
-            {r.status === "pendente" && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  onClick={() => {
-                    setSelected(r);
-                    setNotes(r.admin_notes ?? "");
-                  }}
-                  className="rounded bg-success px-3 py-1.5 text-xs font-bold uppercase text-success-foreground hover:brightness-110"
-                >
-                  Aprovar
-                </button>
-                <button
-                  onClick={() => decide(r.id, r.user_id, "reprovado")}
-                  className="rounded bg-destructive px-3 py-1.5 text-xs font-bold uppercase text-destructive-foreground hover:brightness-110"
-                >
-                  Reprovar
-                </button>
-                <button
-                  onClick={() => requestInfo(r.id)}
-                  className="rounded border border-border px-3 py-1.5 text-xs font-bold uppercase hover:bg-muted"
-                >
-                  Solicitar informações
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Aprovar {selected?.razao_social}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase">Grupo comercial</label>
-              <div className="flex flex-wrap gap-2">
-                {(["revendedor", "oficina", "distribuidor"] as const).map((g) => (
-                  <button
-                    key={g}
-                    onClick={() => selected && decide(selected.id, selected.user_id, "aprovado", g)}
-                    className="rounded bg-primary px-3 py-2 text-xs font-bold uppercase text-primary-foreground hover:brightness-110"
-                  >
-                    {g}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase">Observação interna (opcional)</label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="min-h-[80px] w-full rounded-md border border-border bg-background p-2 text-sm outline-none focus:border-primary"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <button onClick={() => setSelected(null)} className="rounded border border-border px-3 py-1.5 text-xs font-bold uppercase hover:bg-muted">
-              Cancelar
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+  const qc = useQueryClient(); const createCustomer = useServerFn(createOfflineB2BCustomer); const [form, setForm] = useState<Form>(initial); const [open, setOpen] = useState(false);
+  const { data: list = [], isLoading } = useQuery({ queryKey: ["b2b-list"], queryFn: async () => ((await supabase.from("b2b_registrations").select("*").order("created_at", { ascending: false })).data ?? []) as any[] });
+  const create = useMutation({ mutationFn: () => createCustomer({ data: form }), onSuccess: (result) => { toast.success(result.updated ? "Cliente B2B atualizado" : "Cliente B2B cadastrado e liberado para venda"); setForm(initial); setOpen(false); qc.invalidateQueries({ queryKey: ["b2b-list"] }); qc.invalidateQueries({ queryKey: ["commercial-admin"] }); }, onError: (e) => toast.error(e instanceof Error ? e.message : "Não foi possível cadastrar") });
+  return <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
+    <header className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.18em] text-blue-700">Gestão comercial</p><h1 className="mt-1 font-display text-3xl font-extrabold">Cadastros B2B</h1><p className="mt-1 text-sm text-muted-foreground">Cadastre clientes do balcão e administre solicitações enviadas pelo site.</p></div><button onClick={() => setOpen(!open)} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-700"><Plus className="h-4 w-4"/> Novo cliente B2B</button></header>
+    {open && <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm"><div className="mb-5 flex gap-3"><div className="rounded-xl bg-blue-50 p-2.5 text-blue-700"><Building2 className="h-5 w-5"/></div><div><h2 className="font-bold">Cadastro presencial no ERP</h2><p className="text-sm text-muted-foreground">Já deixa o cliente ativo e vinculado à tabela de preço. Não cria login no site.</p></div></div><div className="grid gap-4 md:grid-cols-2"><label className="text-sm font-semibold">Razão social / nome<input className={input} value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><label className="text-sm font-semibold">CNPJ<input className={input} value={form.document} onChange={e=>setForm({...form,document:e.target.value})} placeholder="00.000.000/0000-00"/></label><label className="text-sm font-semibold">WhatsApp<input className={input} value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/></label><label className="text-sm font-semibold">E-mail <span className="font-normal text-slate-400">(opcional)</span><input className={input} value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/></label><label className="text-sm font-semibold">Tipo de cliente<select className={input} value={form.customer_group} onChange={e=>setForm({...form,customer_group:e.target.value as Form["customer_group"]})}><option value="oficina">Oficina</option><option value="revendedor">Revendedor</option><option value="distribuidor">Distribuidor</option></select></label><label className="text-sm font-semibold">Perfil de preço<select className={input} value={form.price_table} onChange={e=>setForm({...form,price_table:e.target.value as Form["price_table"]})}><option value="C">C — Inicial / menor volume</option><option value="B">B — Cliente frequente</option><option value="A">A — Alto volume</option></select></label></div><div className="mt-5 flex justify-end gap-3"><button onClick={()=>setOpen(false)} className="rounded-xl border px-4 py-2 text-sm font-semibold">Cancelar</button><button disabled={create.isPending} onClick={()=>create.mutate()} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{create.isPending ? "Salvando…" : "Cadastrar e liberar B2B"}</button></div></section>}
+    <section className="rounded-2xl border bg-white shadow-sm"><div className="flex items-center gap-3 border-b p-5"><Users className="h-5 w-5 text-violet-600"/><div><h2 className="font-bold">Solicitações recebidas pelo site</h2><p className="text-sm text-muted-foreground">Clientes que fizeram o próprio pedido de acesso B2B.</p></div></div><div className="divide-y">{isLoading ? <p className="p-5 text-sm text-muted-foreground">Carregando…</p> : list.length === 0 ? <p className="p-8 text-center text-sm text-muted-foreground">Nenhuma solicitação do site. Você pode cadastrar o cliente presencialmente acima.</p> : list.map((r:any)=><div key={r.id} className="flex items-center justify-between gap-4 p-4"><div><p className="font-semibold">{r.razao_social}</p><p className="text-sm text-muted-foreground">CNPJ {r.cnpj} · {r.whatsapp}</p></div><span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">{r.status}</span></div>)}</div></section>
+  </div>;
 }
