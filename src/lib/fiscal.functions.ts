@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 import { tdb } from "@/integrations/supabase/tenant-db";
+import { requireTenantRole } from "./auth-guards";
 import { requireSupplyRole, SUPPLY_APPROVE_ROLES, SUPPLY_READ_ROLES } from "./supplies.server";
 
 export type FiscalSettingsInput = {
@@ -24,9 +25,16 @@ export type FiscalCsvRow = {
 
 export type FiscalDraftResult = { ok: boolean; reused: boolean; document_id: string; status: string; series?: number; number?: number };
 
+export type FiscalCertificateInput = {
+  settingId: string;
+  fileName: string;
+  pfxBase64: string;
+  password: string;
+};
+
 export const getFiscalOverview = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const sb=tdb(context.supabase); await requireSupplyRole(sb,context.userId,context.tenantId,SUPPLY_READ_ROLES);
+    const sb=tdb(context.supabase); const membership=await requireSupplyRole(sb,context.userId,context.tenantId,SUPPLY_READ_ROLES);
     const [settings,documents,branches,paidOrders,profiles,products,jobs]=await Promise.all([
       sb.from("fiscal_settings").select("*").eq("tenant_id",context.tenantId).order("created_at").limit(10),
       sb.from("fiscal_documents").select("id,order_id,model,environment,series,number,status,access_key,protocol,issued_at,authorized_at,created_at,recipient_name,totals")
@@ -41,7 +49,7 @@ export const getFiscalOverview = createServerFn({ method: "GET" }).middleware([r
     for(const r of [settings,documents,branches,paidOrders,profiles,products,jobs]) if(r.error) throw new Error(r.error.message);
     const docs=(documents.data??[]) as any[]; const documented=new Set(docs.map(d=>d.order_id).filter(Boolean));
     const profiled=new Set(((profiles.data??[]) as any[]).map(p=>p.product_id));
-    return { tenantId:context.tenantId,settings:settings.data??[],documents:docs,jobs:jobs.data??[],branches:branches.data??[],
+    return { tenantId:context.tenantId,canManageCertificate:["owner","admin"].includes(membership.role),settings:settings.data??[],documents:docs,jobs:jobs.data??[],branches:branches.data??[],
       pendingOrders:((paidOrders.data??[]) as any[]).filter(o=>!documented.has(o.id)),
       missingFiscalProfiles:((products.data??[]) as any[]).filter(p=>!profiled.has(p.id)).length,
       productsCount:(products.data??[]).length };
@@ -76,7 +84,7 @@ export const getFiscalProductQueue = createServerFn({method:"POST"}).middleware(
 
 export const saveFiscalSettings = createServerFn({method:"POST"}).middleware([requireSupabaseAuth])
   .inputValidator((input:FiscalSettingsInput)=>input).handler(async({data,context})=>{
-    const sb=tdb(context.supabase);await requireSupplyRole(sb,context.userId,context.tenantId,SUPPLY_APPROVE_ROLES);
+    const sb=tdb(context.supabase);await requireTenantRole(sb,context.userId,context.tenantId,["owner","admin"]);
     const digits=(v:string)=>String(v??"").replace(/\D/g,"");
     if(digits(data.taxId).length!==14)throw new Error("CNPJ deve conter 14 dígitos");
     if(!data.legalName.trim()||!data.stateTaxId.trim())throw new Error("Razão social e inscrição estadual são obrigatórias");
@@ -90,6 +98,62 @@ export const saveFiscalSettings = createServerFn({method:"POST"}).middleware([re
     if(data.id){const{error}=await sb.from("fiscal_settings").update(row).eq("id",data.id).eq("tenant_id",context.tenantId);if(error)throw new Error(error.message);return{ok:true,id:data.id};}
     const{data:created,error}=await sb.from("fiscal_settings").insert({...row,created_by:context.userId}).select("id").single();
     if(error)throw new Error(error.message);return{ok:true,id:created.id as string};
+  });
+
+export const saveFiscalCertificate = createServerFn({method:"POST"}).middleware([requireSupabaseAuth])
+  .inputValidator((input:FiscalCertificateInput)=>input)
+  .handler(async({data,context})=>{
+    const sb=tdb(context.supabase);await requireTenantRole(sb,context.userId,context.tenantId,["owner","admin"]);
+    const fileName=String(data.fileName??"").trim();
+    const password=String(data.password??"");
+    const pfxBase64=String(data.pfxBase64??"").replace(/^data:[^;]+;base64,/,"").replace(/\s/g,"");
+    if(!data.settingId)throw new Error("Configure o emitente antes de enviar o certificado");
+    if(!/\.(pfx|p12)$/i.test(fileName))throw new Error("Selecione um certificado A1 no formato .pfx ou .p12");
+    if(!password||password.length>256)throw new Error("Informe a senha válida do certificado A1");
+    if(!/^[A-Za-z0-9+/]+={0,2}$/.test(pfxBase64))throw new Error("Arquivo de certificado inválido");
+    const bytes=Buffer.from(pfxBase64,"base64");
+    if(bytes.length<32||bytes.length>1_048_576)throw new Error("O certificado deve ter entre 32 bytes e 1 MB");
+    if(bytes[0]!==0x30)throw new Error("O arquivo não parece ser um certificado PKCS#12 válido");
+    const {data:setting,error:settingError}=await sb.from("fiscal_settings").select("id,homologation_details")
+      .eq("id",data.settingId).eq("tenant_id",context.tenantId).maybeSingle();
+    if(settingError)throw new Error(settingError.message);if(!setting)throw new Error("Configuração fiscal não encontrada");
+    const [{supabaseAdmin},{encryptIntegrationSecret}]=await Promise.all([
+      import("@/integrations/supabase/client.server"),
+      import("./integration-crypto.server"),
+    ]);
+    const [pfxEncrypted,passwordEncrypted]=await Promise.all([
+      encryptIntegrationSecret(pfxBase64),encryptIntegrationSecret(password),
+    ]);
+    const secretReference=crypto.randomUUID();const admin=supabaseAdmin as any;
+    const {error:vaultError}=await admin.from("fiscal_certificate_secrets").upsert({
+      fiscal_setting_id:data.settingId,tenant_id:context.tenantId,secret_reference:secretReference,
+      pfx_encrypted:pfxEncrypted,password_encrypted:passwordEncrypted,file_name:fileName,size_bytes:bytes.length,
+      uploaded_by:context.userId,uploaded_at:new Date().toISOString(),updated_at:new Date().toISOString(),
+    },{onConflict:"fiscal_setting_id"});
+    if(vaultError)throw new Error(vaultError.message);
+    const details={...((setting as any).homologation_details??{}),certificate:{fileName,sizeBytes:bytes.length,uploadedAt:new Date().toISOString(),validationStatus:"pending"}};
+    const {error:updateError}=await admin.from("fiscal_settings").update({certificate_secret_ref:secretReference,
+      homologation_status:"certificate_pending_validation",homologation_details:details,transmission_enabled:false,
+      updated_by:context.userId}).eq("id",data.settingId).eq("tenant_id",context.tenantId);
+    if(updateError)throw new Error(updateError.message);
+    return{ok:true,fileName,sizeBytes:bytes.length,status:"pending_validation"};
+  });
+
+export const removeFiscalCertificate = createServerFn({method:"POST"}).middleware([requireSupabaseAuth])
+  .inputValidator((input:{settingId:string})=>input)
+  .handler(async({data,context})=>{
+    const sb=tdb(context.supabase);await requireTenantRole(sb,context.userId,context.tenantId,["owner","admin"]);
+    const {supabaseAdmin}=await import("@/integrations/supabase/client.server");const admin=supabaseAdmin as any;
+    const {data:setting,error:settingError}=await sb.from("fiscal_settings").select("id,homologation_details")
+      .eq("id",data.settingId).eq("tenant_id",context.tenantId).maybeSingle();
+    if(settingError)throw new Error(settingError.message);if(!setting)throw new Error("Configuração fiscal não encontrada");
+    const {error:deleteError}=await admin.from("fiscal_certificate_secrets").delete().eq("fiscal_setting_id",data.settingId).eq("tenant_id",context.tenantId);
+    if(deleteError)throw new Error(deleteError.message);
+    const details={...((setting as any).homologation_details??{})};delete details.certificate;
+    const {error:updateError}=await admin.from("fiscal_settings").update({certificate_secret_ref:null,certificate_expires_at:null,
+      homologation_status:"credentials_missing",homologation_details:details,transmission_enabled:false,updated_by:context.userId})
+      .eq("id",data.settingId).eq("tenant_id",context.tenantId);
+    if(updateError)throw new Error(updateError.message);return{ok:true};
   });
 
 export const saveFiscalProfilesBatch = createServerFn({method:"POST"}).middleware([requireSupabaseAuth])
