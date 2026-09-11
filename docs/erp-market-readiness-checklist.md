@@ -78,7 +78,7 @@ Advisors em 2026-09-11: nenhum alerta de RLS desabilitada, nenhuma RPC privilegi
 | Ambiente de homologação separado da conta real | **PARCIAL** | Tenant `Norte Sul — Demonstração` está isolado logicamente e recebeu somente dados QA. Existe Supabase fisicamente separado `auto-deal-hub-dev`, porém está defasado e não é aceito como staging oficial até sincronização/reconstrução. |
 | Dados fictícios e roteiros por setor | **OK — BASE INICIAL** | 12 casos formais no tenant demo; massa QA com filial, 2 depósitos, 3 produtos, fornecedor, 4 clientes (B2C + A/B/C), tabela B2B, recebível e pedido de compra draft. |
 | Executar fluxos críticos com key users | **PENDENTE** | `homologation_test_runs = 0`. Smoke tests técnicos não substituem homologação humana. |
-| Registrar aprovado/falhou/bloqueado/reteste | **OK — MECANISMO** | Tabelas `homologation_test_cases`, `homologation_test_runs` e UI `/admin/homologacao` publicadas; histórico append-only com evidência, responsável e data. |
+| Registrar aprovado/falhou/bloqueado/reteste | **OK — MECANISMO** | Tabelas `homologation_test_cases`, `homologation_test_runs` e UI `/admin/homologacao` publicadas; histórico append-only com evidência, responsável e data. Trigger de banco bloqueia criação/execução formal no tenant `production`. |
 | Liberar somente com críticos zerados e aceite formal | **OK — TRAVA / NÃO LIBERADO** | Trigger de banco bloqueia aceite se qualquer crítico não estiver aprovado e bloqueia aceite direto no tenant de produção. Há 9 casos críticos, 0 execuções e 0 aceites. |
 
 Roteiros iniciais: SEG-001/002, EST-001/002, CMP-001, FIN-001/002, PDV-001, B2B-001, FIS-001, WEB-001 e REC-001.
