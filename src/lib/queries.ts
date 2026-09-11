@@ -84,14 +84,13 @@ async function findBrandBySlug(slug: string, tenantId: string): Promise<{ id: st
 
 async function logNoResult(term: string, origin: "site" | "mcp" | "ia" | "admin", matched?: { alias?: string | null; brand?: string | null; category?: string | null }) {
   try {
-    await supabase.from("search_no_result_logs").insert({
-      term: term.slice(0, 200),
-      normalized_term: normalizeTerm(term).slice(0, 200),
-      origin,
-      results_count: 0,
-      matched_alias: matched?.alias ?? null,
-      matched_brand: matched?.brand ?? null,
-      matched_category: matched?.category ?? null,
+    await (supabase.rpc as any)("log_search_no_result", {
+      p_term: term.slice(0, 200),
+      p_normalized_term: normalizeTerm(term).slice(0, 200),
+      p_origin: origin,
+      p_matched_alias: matched?.alias ?? null,
+      p_matched_brand: matched?.brand ?? null,
+      p_matched_category: matched?.category ?? null,
     });
   } catch { /* best effort */ }
 }
