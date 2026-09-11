@@ -138,7 +138,7 @@ export function PdvSaleDetailSheet({
                   size="sm"
                   variant="outline"
                   className="ml-auto"
-                  onClick={() => printReceipt()}
+                  onClick={() => void printReceipt(sale, (companyQuery.data as any) ?? null)}
                 >
                   <Printer className="mr-1 h-4 w-4" /> Imprimir comprovante
                 </Button>
