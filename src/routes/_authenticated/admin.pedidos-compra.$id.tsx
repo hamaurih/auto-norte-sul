@@ -42,6 +42,7 @@ function PedidoCompraDetailPage() {
   const [invoice, setInvoice] = useState("");
   const [receivedAt, setReceivedAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [receiptNotes, setReceiptNotes] = useState("");
+  const [receiptCosts, setReceiptCosts] = useState({ freight_amount: "", insurance_amount: "", other_amount: "", discount_amount: "", recoverable_tax_amount: "" });
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["purchase-order", id],
@@ -83,6 +84,7 @@ function PedidoCompraDetailPage() {
           received_at: receivedAt,
           invoice_number: invoice || null,
           notes: receiptNotes || null,
+          ...Object.fromEntries(Object.entries(receiptCosts).map(([key,value]) => [key, num(value.replace(",", "."))])),
           items: pendingItems
             .map((item) => {
               const row = rows[item.id];
@@ -222,6 +224,12 @@ function PedidoCompraDetailPage() {
             />
           </div>
 
+          <div className="mt-3 grid gap-2 rounded-md border border-amber-200 bg-amber-50/50 p-3 sm:grid-cols-5">
+            <p className="sm:col-span-5 text-xs font-semibold text-amber-900">Valores da nota para compor o custo real — rateio proporcional ao valor dos itens aceitos.</p>
+            {([
+              ["freight_amount","Frete"],["insurance_amount","Seguro"],["other_amount","Outras despesas"],["discount_amount","Desconto"],["recoverable_tax_amount","Impostos recuperáveis"],
+            ] as const).map(([key,label]) => <label key={key} className="text-xs font-semibold">{label}<Input inputMode="decimal" placeholder="0,00" value={receiptCosts[key]} onChange={(event) => setReceiptCosts((current) => ({ ...current, [key]: event.target.value }))}/></label>)}
+          </div>
           <div className="mt-3 space-y-2">
             <div className="rounded-md border border-blue-200 bg-blue-50/60 p-3 text-xs text-blue-900">
               Informe a quantidade física na embalagem. Exemplo: <strong>100 CX × 10 UN = 1.000 UN</strong>.
