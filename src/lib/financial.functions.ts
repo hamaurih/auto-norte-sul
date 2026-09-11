@@ -32,7 +32,7 @@ export const saveExpenseCategory = createServerFn({ method: "POST" }).middleware
 export const getPayables = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
  const sb=tdb(context.supabase); await requireFinanceAdmin(sb,context.userId,context.tenantId);
  const [expenses,categories,centers]=await Promise.all([
-  sb.from("expenses").select("id,description,kind,status,amount,competence_date,due_date,paid_at,supplier_name,document_number,notes,recurring,recurrence,category:expense_categories(name),cost_center:cost_centers(name)").eq("tenant_id",context.tenantId).order("due_date",{ascending:true}).limit(500),
+  sb.from("expenses").select("id,description,kind,status,amount,competence_date,due_date,paid_at,supplier_name,document_number,notes,recurring,recurrence,source_type,source_id,category:expense_categories(name),cost_center:cost_centers(name)").eq("tenant_id",context.tenantId).order("due_date",{ascending:true}).limit(500),
   sb.from("expense_categories").select("id,name,default_kind").eq("tenant_id",context.tenantId).eq("active",true).order("name"),
   sb.from("cost_centers").select("id,name").eq("tenant_id",context.tenantId).eq("active",true).order("name"),
  ]);
