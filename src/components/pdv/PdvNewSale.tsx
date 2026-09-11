@@ -70,6 +70,7 @@ export function PdvNewSale() {
   const productsQuery = useQuery({
     queryKey: ["pdv-products", warehouseId, search],
     enabled: Boolean(warehouseId),
+    networkMode: "always",
     queryFn: async () => {
       if (typeof navigator !== "undefined" && !navigator.onLine) {
         return readCachedPdvCatalog(warehouseId, search);
@@ -88,6 +89,7 @@ export function PdvNewSale() {
 
   const warehousesQuery = useQuery({
     queryKey: ["pdv-warehouses"],
+    networkMode: "always",
     queryFn: async () => {
       if (typeof navigator !== "undefined" && !navigator.onLine) {
         return (await getPosLocalValue<Warehouse[]>("pdv:warehouses")) ?? [];
