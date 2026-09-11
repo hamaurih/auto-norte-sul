@@ -46,9 +46,14 @@ self.addEventListener("fetch", (event) => {
           }
           return response;
         })
-        .catch(() => cached);
+        .catch(() => null);
 
-      return cached || network;
+      if (cached) {
+        void network;
+        return cached;
+      }
+
+      return (await network) || Response.error();
     })(),
   );
 });
