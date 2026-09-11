@@ -1,6 +1,6 @@
 # Sequência de atualizações — ERP Norte Sul
 
-Atualizado em 2026-09-08. Responsável pela execução: Codex, conforme autorização de Amauri nesta conversa.
+Atualizado em 2026-09-11. Responsável pela execução: Codex, conforme autorização de Amauri nesta conversa.
 
 ## Regra de execução
 
@@ -57,23 +57,39 @@ Estados: PENDENTE, EM EXECUÇÃO, BLOQUEADO, OK. Para cada entrega registrar com
 
 ### 02 — EM EXECUÇÃO: segurança
 
-- [x] Consultar advisors do projeto correto: `sistema norte sul` (`pzwjbitjersngordgcsh`).
-- [x] Corrigir e testar `vehicle_reference_models`: migration `20260908233957_vehicle_reference_models_read_only_rls` aplicada em produção; RLS ativa, authenticated somente leitura, anon sem acesso e backend preservado. Teste transacional retornou `VEHICLE_REFERENCE_RLS_OK`, com 97 registros preservados; INSERT/UPDATE/DELETE negados para authenticated e SELECT negado para anon. Arquivo em `supabase/tests/vehicle_reference_models_read_only_rls.sql`.
-- [x] Remover o bypass RLS de usuário sem associação: 80 políticas `tenant_user_permission_*` em 20 tabelas usavam `NOT private.has_any_active_tenant_membership() OR ...`. Migration `20260908235919_remove_rls_no_membership_bypass` aplicada em produção e sincronizada no GitHub. Verificação pós-migration encontrou zero ocorrências do padrão vulnerável e zero permissões órfãs. Teste `supabase/tests/tenant_rls_no_membership_bypass.sql` executado em produção retornou `TENANT_RLS_NO_MEMBERSHIP_BYPASS_OK`.
-- [x] Validar isolamento básico real/demo/sem associação: usuário da operação real sem membership no tenant demo manteve `catalog:view/update=true` no tenant real e recebeu `false/false` no tenant demo; UUID sem qualquer associação recebeu `false` para membership, leitura e alteração. O proprietário com membership legítima em ambos os tenants não foi usado como evidência de isolamento cruzado.
-- [x] Confirmar cobertura RLS global: 126 tabelas públicas com RLS habilitada e zero tabelas públicas sem RLS. Nova varredura encontrou zero políticas com `auth.uid() IS NULL`, `OR true` ou o bypass antigo.
-- [ ] Revisar 29 funções SECURITY DEFINER acessíveis a authenticated; avaliar autorização individual antes de alterar privilégios. Triagem SQL confirmou as 29 sem EXECUTE para anon, com grant explícito para authenticated/service_role e `search_path` vazio. Todas apresentam controle interno de identidade/tenant; fluxos reais do repositório chamam parte dessas RPCs diretamente (PDV, conta e aplicações veiculares), portanto revogação em massa quebraria funcionalidades. Falta concluir a revisão por função e reduzir a superfície apenas onde for seguro.
-- [x] Habilitar e confirmar proteção contra senhas vazadas: login confirmado no painel do projeto correto; opção Prevent use of leaked passwords ativada e salva. Nova consulta ao advisor em 2026-09-08 não retorna `auth_leaked_password_protection`. Bloqueio de autenticação resolvido.
-- [ ] Revisar alerta `pg_net` no schema public sem interromper o scheduler de enriquecimento. A extensão instalada informa `extrelocatable=false`; não executar recriação/mudança destrutiva em produção apenas para silenciar o advisor.
-- [x] Confirmar ausência de leitura por anon/authenticated na tabela `server_admin_bridge_credentials`: ambos sem SELECT, RLS ativa e zero políticas. A ausência de política é intencional para essa tabela de backend; não abrir acesso para eliminar aviso informativo.
-- [ ] Revisar `search_no_result_logs`: é a única política de escrita pública encontrada; o INSERT está limitado ao tenant da storefront, tamanho e origem, mas continua sendo superfície de abuso/volume. O site e o MCP usam esse log como telemetria best-effort; decidir migração para endpoint server-side/rate limit antes de fechar a política pública.
-- [ ] Corrigir os verificadores de código apenas onde houver falsa detecção comprovada, preservando checks de segurança.
-- [ ] Revisar consultas legadas a `user_roles` e configuração de origem Bling apontadas pelo gate de núcleo ERP.
-- [ ] Completar testes de perfis restritos (vendedor/consulta/externo), uploads de imagens e visibilidade de comissões. O isolamento tenant real/demo e usuário sem associação já foi aprovado conforme evidência acima.
+- [x] Cobertura RLS pública confirmada e bypass de usuário sem associação removido.
+- [x] Isolamento básico real/demo/sem associação validado.
+- [x] Proteção contra senhas vazadas ativada.
+- [x] Superfície pública de RPCs privilegiadas reduzida: **0 funções `SECURITY DEFINER` executáveis por `authenticated` e 0 por `anon`** após as migrations `secure_authenticated_security_definer_rpcs` e `secure_remaining_authenticated_security_definer_rpcs`.
+- [x] Telemetria `search_no_result_logs` sem INSERT direto por `anon` ou `authenticated`; escrita passa por RPC estreita, tenant-scoped, com supressão de duplicata e rate limit.
+- [x] Dependências de autorização em runtime de `user_roles` removidas dos fluxos de usuários, vendedores, Bling, saneamento e gestão de usuários; autorização atual usa `tenant_memberships`.
+- [x] Verificado que os 2 administradores legados existentes já possuem membership administrativo ativo antes da retirada do fallback.
+- [ ] Completar testes operacionais com perfis restritos (vendedor/consulta/externo), incluindo comissão, uploads e tentativa de atravessar tenant. A arquitetura está endurecida, mas o aceite exige evidência funcional por perfil.
+- [ ] `pg_net` permanece em `public`. Advisor mantém WARN; a extensão não deve ser movida/recriada de forma destrutiva enquanto estiver vinculada ao scheduler.
+- [x] `server_admin_bridge_credentials` permanece com RLS ativa e sem políticas de acesso de cliente. O INFO do advisor representa negação intencional, não abertura de dados.
 
-Verificações iniciais: `node scripts/check-api-security.mjs` FALHOU (3 ocorrências); `node scripts/check-phase1-core.mjs` FALHOU (14 ocorrências). Alertas de nomes de guards não comprovam ausência de autenticação: cron e Stone possuem verificações específicas que precisam de testes próprios.
+Advisors em 2026-09-11: nenhum alerta de RLS desabilitada, nenhuma RPC privilegiada exposta a `authenticated`/`anon`; permanecem somente `server_admin_bridge_credentials` sem policy (negação intencional) e `pg_net` em `public`.
 
-Advisors após as correções: não há `rls_disabled_in_public` nem `auth_leaked_password_protection`. Permanecem o aviso informativo de RLS sem política em `server_admin_bridge_credentials` (negação intencional), `pg_net` em `public` e 29 avisos de RPCs `SECURITY DEFINER` para authenticated. A etapa 02 permanece sem OK e a etapa 03 não foi iniciada.
+### Fase de Homologação Controlada — estado em 2026-09-11
+
+| Item | Estado | Evidência atual |
+|---|---|---|
+| Corrigir bloqueadores de segurança | **EM VALIDAÇÃO FINAL** | 33 RPCs privilegiadas expostas a authenticated no início da revisão; agora 0. Escrita pública da telemetria fechada e autorização legada removida. Falta teste funcional dos perfis restritos/key users. |
+| Ambiente de homologação separado da conta real | **PARCIAL** | Tenant `Norte Sul — Demonstração` está isolado logicamente e recebeu somente dados QA. Existe Supabase fisicamente separado `auto-deal-hub-dev`, porém está defasado e não é aceito como staging oficial até sincronização/reconstrução. |
+| Dados fictícios e roteiros por setor | **OK — BASE INICIAL** | 12 casos formais no tenant demo; massa QA com filial, 2 depósitos, 3 produtos, fornecedor, 4 clientes (B2C + A/B/C), tabela B2B, recebível e pedido de compra draft. |
+| Executar fluxos críticos com key users | **PENDENTE** | `homologation_test_runs = 0`. Smoke tests técnicos não substituem homologação humana. |
+| Registrar aprovado/falhou/bloqueado/reteste | **OK — MECANISMO** | Tabelas `homologation_test_cases`, `homologation_test_runs` e UI `/admin/homologacao` publicadas; histórico append-only com evidência, responsável e data. |
+| Liberar somente com críticos zerados e aceite formal | **OK — TRAVA / NÃO LIBERADO** | Trigger de banco bloqueia aceite se qualquer crítico não estiver aprovado e bloqueia aceite direto no tenant de produção. Há 9 casos críticos, 0 execuções e 0 aceites. |
+
+Roteiros iniciais: SEG-001/002, EST-001/002, CMP-001, FIN-001/002, PDV-001, B2B-001, FIS-001, WEB-001 e REC-001.
+
+Correções encontradas durante a preparação da homologação:
+- Contas a pagar gravava `status=open` enquanto a constraint rejeitava esse status; contrato corrigido.
+- Contas a pagar gravava `kind=payable` enquanto o modelo exige `fixed|variable`; agora deriva `default_kind` da categoria.
+- Recebíveis manuais reutilizavam `source_id=null` em uma constraint `UNIQUE NULLS NOT DISTINCT`; agora cada lançamento manual recebe identidade UUID própria.
+- Smoke tests transacionais aprovados para lançamento a pagar em `open` e múltiplos recebíveis manuais; testes foram revertidos após validação e não contam como aceite de key user.
+
+Observação de infraestrutura: `list_branches` ainda informa `MIGRATIONS_FAILED` no branch `main`, metadata originada em julho. A história de migrations, entretanto, contém normalmente as migrations recentes aplicadas até `seed_demo_homologation_fixtures`. Tratar o status como anomalia a investigar antes de certificar staging/recuperação, sem inferir falha atual de schema apenas pela flag.
 
 ### Conhecimento prévio que exige revalidação
 
