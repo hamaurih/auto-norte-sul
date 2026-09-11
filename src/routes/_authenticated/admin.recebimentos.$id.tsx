@@ -73,7 +73,8 @@ function RecebimentoDetailPage() {
     );
   }
 
-  const total = items.reduce((sum, item) => sum + num(item.accepted_qty) * num(item.unit_cost), 0);
+  const totalBase = items.reduce((sum, item) => sum + num(item.accepted_qty) * num(item.base_unit_cost ?? item.unit_cost), 0);
+  const totalReal = items.reduce((sum, item) => sum + num(item.accepted_qty) * num(item.acquisition_unit_cost ?? item.unit_cost), 0);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -139,8 +140,9 @@ function RecebimentoDetailPage() {
                 <th className="py-1 text-right">Entrada</th>
                 <th className="py-1 text-right">Aceito (UN)</th>
                 <th className="py-1 text-right">Recusado (UN)</th>
-                <th className="py-1 text-right">Custo/UN</th>
-                <th className="py-1 text-right">Total</th>
+                <th className="py-1 text-right">Base/UN</th>
+                <th className="py-1 text-right">Rateio</th>
+                <th className="py-1 text-right">Custo real/UN</th>
               </tr>
             </thead>
             <tbody>
@@ -156,16 +158,15 @@ function RecebimentoDetailPage() {
                   </td>
                   <td className="py-1.5 text-right">{qty(item.accepted_qty)}</td>
                   <td className="py-1.5 text-right">{qty(item.rejected_qty)}</td>
-                  <td className="py-1.5 text-right">{brl(num(item.unit_cost))}</td>
-                  <td className="py-1.5 text-right">
-                    {brl(num(item.accepted_qty) * num(item.unit_cost))}
-                  </td>
+                  <td className="py-1.5 text-right">{brl(num(item.base_unit_cost ?? item.unit_cost))}</td>
+                  <td className="py-1.5 text-right">{brl(num(item.allocated_expense_amount) - num(item.allocated_discount_amount) - num(item.recoverable_tax_amount))}</td>
+                  <td className="py-1.5 text-right font-semibold">{brl(num(item.acquisition_unit_cost ?? item.unit_cost))}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <div className="mt-3 text-right font-display text-lg font-bold">{brl(total)}</div>
+        <div className="mt-3 flex flex-wrap justify-end gap-4 text-sm"><span>Base {brl(totalBase)}</span><span>Frete {brl(num(receipt.freight_amount))}</span><span>Seguro {brl(num(receipt.insurance_amount))}</span><span>Outras {brl(num(receipt.other_amount))}</span><span>Desconto −{brl(num(receipt.discount_amount))}</span><span>Impostos rec. −{brl(num(receipt.recoverable_tax_amount))}</span><span className="font-display text-lg font-bold">Custo real {brl(totalReal)}</span></div>
         {receipt.notes && <p className="mt-2 text-sm text-muted-foreground">{receipt.notes}</p>}
       </section>
 
