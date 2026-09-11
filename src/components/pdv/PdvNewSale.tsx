@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Barcode, ImageOff, Minus, PackageSearch, Plus, ScanLine, ShoppingCart, Trash2 } from "lucide-react";
@@ -78,6 +78,13 @@ export function PdvNewSale() {
     },
   });
 
+  useEffect(() => {
+    if (!warehouseId && warehousesQuery.data?.[0]) {
+      setWarehouseId(warehousesQuery.data[0].id);
+      setStatus(`Depósito selecionado automaticamente: ${warehousesQuery.data[0].name}.`);
+    }
+  }, [warehouseId, warehousesQuery.data]);
+
   const normalizedSearch = search.trim().toLocaleLowerCase("pt-BR");
   const results = useMemo(() => (productsQuery.data ?? []).slice(0, 12), [productsQuery.data]);
 
@@ -103,7 +110,11 @@ export function PdvNewSale() {
 
   async function handleCodeSubmit() {
     const code = search.trim();
-    if (!warehouseId || !code) return;
+    if (!code) return;
+    if (!warehouseId) {
+      setStatus("Aguarde o carregamento do depósito ou selecione um depósito para consultar o estoque.");
+      return;
+    }
     setLookingUp(true);
     try {
       const matches = (await findByCodeFn({ data: { warehouseId, code } })) as Product[];
@@ -276,6 +287,14 @@ export function PdvNewSale() {
                 <Button type="button" variant="outline" onClick={() => void productsQuery.refetch()}>
                   Tentar novamente
                 </Button>
+              </div>
+            ) : !warehouseId ? (
+              <div className="flex min-h-72 flex-col items-center justify-center rounded-lg border border-dashed text-center">
+                <PackageSearch className="h-12 w-12 text-muted-foreground/50" />
+                <p className="mt-3 font-semibold">Carregando depósito da venda</p>
+                <p className="max-w-sm text-sm text-muted-foreground">
+                  O PDV seleciona automaticamente o depósito padrão. Se necessário, escolha outro depósito acima.
+                </p>
               </div>
             ) : !normalizedSearch ? (
               <div className="flex min-h-72 flex-col items-center justify-center rounded-lg border border-dashed text-center">
