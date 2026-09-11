@@ -1,10 +1,26 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 import { tdb } from "@/integrations/supabase/tenant-db";
+import { escapeLike, sanitizeOrQuery } from "@/lib/sanitize";
 
 export type PosPaymentMethod =
   | "cash" | "pix" | "debit_card" | "credit_card" | "store_credit" | "b2b_invoice";
 export type PosCashMovementType = "supply" | "withdrawal";
+
+export type PdvCustomer = {
+  id: string;
+  name: string;
+  trade_name: string | null;
+  document: string | null;
+  phone: string | null;
+  customer_group: string | null;
+};
+
+export type PdvCommercialRules = {
+  role: string;
+  maxDiscountPct: number;
+  managerOverride: boolean;
+};
 
 export const getOpenCashSession = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -155,6 +171,96 @@ export const findPdvProductsByCode = createServerFn({ method: "GET" })
     return rows.map((p: any) => mapPdvProduct(p, stockMap.get(p.id) ?? 0)) as PdvCatalogProduct[];
   });
 
+
+
+export const getPdvCommercialRules = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const sb = tdb(context.supabase);
+    const { data: membership, error } = await sb
+      .from("tenant_memberships")
+      .select("role")
+      .eq("tenant_id", context.tenantId)
+      .eq("user_id", context.userId)
+      .eq("active", true)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!membership || !["owner", "admin", "manager", "cashier", "sales"].includes(membership.role)) {
+      throw new Error("Usuário sem permissão para operar o PDV.");
+    }
+
+    const managerOverride = ["owner", "admin", "manager"].includes(membership.role);
+    if (managerOverride) {
+      return {
+        role: membership.role,
+        maxDiscountPct: 100,
+        managerOverride: true,
+      } satisfies PdvCommercialRules;
+    }
+
+    const { data: rep, error: repError } = await sb
+      .from("sales_reps")
+      .select("max_discount_pct")
+      .eq("tenant_id", context.tenantId)
+      .eq("user_id", context.userId)
+      .eq("active", true)
+      .maybeSingle();
+
+    if (repError) throw new Error(repError.message);
+
+    return {
+      role: membership.role,
+      maxDiscountPct: Math.max(0, Math.min(100, Number(rep?.max_discount_pct ?? 0))),
+      managerOverride: false,
+    } satisfies PdvCommercialRules;
+  });
+
+export const searchPdvCustomers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { search: string }) => input)
+  .handler(async ({ data, context }) => {
+    const sb = tdb(context.supabase);
+    const { data: membership, error: membershipError } = await sb
+      .from("tenant_memberships")
+      .select("role")
+      .eq("tenant_id", context.tenantId)
+      .eq("user_id", context.userId)
+      .eq("active", true)
+      .maybeSingle();
+
+    if (membershipError) throw new Error(membershipError.message);
+    if (!membership || !["owner", "admin", "manager", "cashier", "sales"].includes(membership.role)) {
+      throw new Error("Usuário sem permissão para consultar clientes no PDV.");
+    }
+
+    const raw = (data.search ?? "").trim();
+    if (raw.length < 2) return [] as PdvCustomer[];
+
+    const safe = sanitizeOrQuery(escapeLike(raw));
+    const digits = raw.replace(/\D/g, "");
+
+    let query = sb
+      .from("customers")
+      .select("id, name, trade_name, document, phone, customer_group")
+      .eq("tenant_id", context.tenantId)
+      .eq("active", true)
+      .limit(12);
+
+    const clauses = [
+      `name.ilike.%${safe}%`,
+      `trade_name.ilike.%${safe}%`,
+      `phone.ilike.%${safe}%`,
+    ];
+    if (digits.length >= 3) clauses.push(`document.ilike.%${sanitizeOrQuery(escapeLike(digits))}%`);
+
+    const { data: rows, error } = await query
+      .or(clauses.join(","))
+      .order("name");
+
+    if (error) throw new Error(error.message);
+    return (rows ?? []) as PdvCustomer[];
+  });
 
 
 export const finalizePosSale = createServerFn({ method: "POST" })
