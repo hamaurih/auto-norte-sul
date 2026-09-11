@@ -21,12 +21,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PdvCashControls } from "@/components/pdv/PdvCashControls";
+import { PdvCustomerDiscountControls } from "@/components/pdv/PdvCustomerDiscountControls";
 import { PdvConnectionStatus } from "@/components/pdv/PdvConnectionStatus";
 import {
   finalizePosSale,
   getOpenCashSession,
   openCashSession,
   type PosPaymentMethod,
+  type PdvCustomer,
 } from "@/lib/pos.functions";
 import {
   enqueuePendingPosSale,
@@ -169,6 +171,8 @@ export function PdvCheckoutPanel({
   const [busy, setBusy] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [changeDue, setChangeDue] = useState(0);
+  const [customer, setCustomer] = useState<PdvCustomer | null>(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
   const [idempotencyKey, setIdempotencyKey] =
     useState(() => crypto.randomUUID());
 
@@ -184,9 +188,11 @@ export function PdvCheckoutPanel({
     [payments],
   );
 
+  const saleTotal = Math.max(0, roundMoney(total - discountAmount));
+
   const remaining = Math.max(
     0,
-    roundMoney(total - paid),
+    roundMoney(saleTotal - paid),
   );
 
   const stoneAvailable =
@@ -493,7 +499,8 @@ export function PdvCheckoutPanel({
             payment.provider_reference,
         }),
       ),
-      discountAmount: 0,
+      discountAmount,
+      customerId: customer?.id,
     };
   }
 
@@ -502,6 +509,8 @@ export function PdvCheckoutPanel({
     setAmount("");
     setExternalReference("");
     setChangeDue(0);
+    setCustomer(null);
+    setDiscountAmount(0);
     setIdempotencyKey(
       crypto.randomUUID(),
     );
@@ -542,7 +551,7 @@ export function PdvCheckoutPanel({
     if (
       !sessionId ||
       items.length === 0 ||
-      Math.abs(paid - total) > 0.001
+      Math.abs(paid - saleTotal) > 0.001
     ) {
       return;
     }
@@ -743,7 +752,34 @@ export function PdvCheckoutPanel({
         </span>
       </div>
 
+      <PdvCustomerDiscountControls
+        subtotal={total}
+        customer={customer}
+        onCustomerChange={setCustomer}
+        discountAmount={discountAmount}
+        onDiscountAmountChange={(next) => {
+          const normalized = Math.max(0, Math.min(total, roundMoney(next)));
+          if (payments.length > 0 && Math.abs(normalized - discountAmount) > 0.001) {
+            setPayments([]);
+            setChangeDue(0);
+            toast.info("Pagamentos removidos porque o desconto da venda foi alterado.");
+          }
+          setDiscountAmount(normalized);
+        }}
+      />
+
       <div className="rounded-xl border bg-background p-3">
+        {discountAmount > 0 ? (
+          <div className="mb-3 grid grid-cols-2 gap-2 rounded-lg bg-muted/40 p-2 text-xs">
+            <span className="text-muted-foreground">Subtotal</span>
+            <span className="text-right">{money.format(total)}</span>
+            <span className="text-muted-foreground">Desconto</span>
+            <span className="text-right text-emerald-700">- {money.format(discountAmount)}</span>
+            <span className="font-semibold">Total da venda</span>
+            <span className="text-right font-semibold">{money.format(saleTotal)}</span>
+          </div>
+        ) : null}
+
         <div className="mb-2 flex items-end justify-between gap-3">
           <div>
             <p className="text-xs uppercase text-muted-foreground">
@@ -955,7 +991,7 @@ export function PdvCheckoutPanel({
         disabled={
           busy ||
           items.length === 0 ||
-          Math.abs(paid - total) >
+          Math.abs(paid - saleTotal) >
             0.001
         }
         onClick={finalize}
@@ -965,7 +1001,7 @@ export function PdvCheckoutPanel({
         ) : null}
         {busy
           ? "Processando…"
-          : `Finalizar · ${money.format(total)}`}
+          : `Finalizar · ${money.format(saleTotal)}`}
       </Button>
 
       <p className="text-center text-[11px] text-muted-foreground">
