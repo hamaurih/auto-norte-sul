@@ -2,7 +2,7 @@ import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
+import { activeTenant, fetchAccessContext } from "@/lib/access";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -52,11 +52,10 @@ import { getSecureBlingAuthUrl } from "@/lib/bling-oauth.functions";
 export const Route = createFileRoute("/_authenticated/admin/ecossistema/bling")({
   head: () => ({ meta: [{ title: "Bling · Ecossistema · Admin" }] }),
   beforeLoad: async () => {
-    const { data: userRes } = await supabase.auth.getUser();
-    if (!userRes.user) throw redirect({ to: "/auth" });
-    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userRes.user.id);
-    const isAdmin = (roles ?? []).some((r) => r.role === "admin");
-    if (!isAdmin) throw redirect({ to: "/admin" });
+    const context = await fetchAccessContext();
+    if (!context.user_id) throw redirect({ to: "/auth" });
+    const tenant = activeTenant(context);
+    if (!tenant || !["owner", "admin"].includes(tenant.role)) throw redirect({ to: "/admin" });
   },
   component: BlingModule,
 });
