@@ -111,7 +111,7 @@ with check (
     select 1
     from public.homologation_test_cases c
     where c.id = test_case_id
-      and c.tenant_id = tenant_id
+      and c.tenant_id = public.homologation_test_runs.tenant_id
       and c.active
   )
 );
@@ -140,8 +140,19 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  v_environment text;
 begin
   if new.decision = 'accepted' then
+    select t.environment into v_environment
+    from public.tenants t
+    where t.id = new.tenant_id;
+
+    if coalesce(v_environment, 'production') = 'production' then
+      raise exception 'Aceite formal deve ser registrado no ambiente de homologação, nunca no tenant de produção'
+        using errcode = '23514';
+    end if;
+
     if exists (
       select 1
       from public.homologation_test_cases c
