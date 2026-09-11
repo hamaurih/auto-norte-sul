@@ -1,9 +1,18 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Barcode, ImageOff, Minus, PackageSearch, Plus, ScanLine, ShoppingCart, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { findPdvProductsByCode, listPdvCatalog, type PdvCatalogProduct } from "@/lib/pos.functions";
+import { listPdvOfflineCatalog } from "@/lib/pos-offline.functions";
+import {
+  cachePdvCatalog,
+  findCachedPdvProductsByCode,
+  getPosLocalValue,
+  readCachedPdvCatalog,
+  replacePdvCatalogSnapshot,
+  setPosLocalValue,
+} from "@/lib/pos-offline";
 import { PdvCheckoutPanel } from "@/components/pdv/PdvCheckoutPanel";
 import { PdvProductConfirm, effectivePdvPrice } from "@/components/pdv/PdvProductConfirm";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +58,7 @@ export function PdvNewSale() {
   const queryClient = useQueryClient();
   const catalogFn = useServerFn(listPdvCatalog);
   const findByCodeFn = useServerFn(findPdvProductsByCode);
+  const offlineCatalogFn = useServerFn(listPdvOfflineCatalog);
   const [search, setSearch] = useState("");
   const [warehouseId, setWarehouseId] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -60,12 +70,29 @@ export function PdvNewSale() {
   const productsQuery = useQuery({
     queryKey: ["pdv-products", warehouseId, search],
     enabled: Boolean(warehouseId),
-    queryFn: () => catalogFn({ data: { warehouseId, search } }) as Promise<Product[]>,
+    queryFn: async () => {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        return readCachedPdvCatalog(warehouseId, search);
+      }
+      try {
+        const products = await catalogFn({ data: { warehouseId, search } }) as Product[];
+        await cachePdvCatalog(warehouseId, products);
+        return products;
+      } catch (error) {
+        const cached = await readCachedPdvCatalog(warehouseId, search);
+        if (cached.length) return cached;
+        throw error;
+      }
+    },
   });
 
   const warehousesQuery = useQuery({
     queryKey: ["pdv-warehouses"],
     queryFn: async () => {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        return (await getPosLocalValue<Warehouse[]>("pdv:warehouses")) ?? [];
+      }
+
       const { data, error } = await (supabase as any)
         .from("warehouses")
         .select("id, branch_id, name, code")
@@ -73,10 +100,38 @@ export function PdvNewSale() {
         .order("is_default", { ascending: false })
         .order("name");
 
-      if (error) throw error;
-      return (data ?? []) as Warehouse[];
+      if (error) {
+        const cached = await getPosLocalValue<Warehouse[]>("pdv:warehouses");
+        if (cached?.length) return cached;
+        throw error;
+      }
+
+      const warehouses = (data ?? []) as Warehouse[];
+      await setPosLocalValue("pdv:warehouses", warehouses);
+      return warehouses;
     },
   });
+
+  useEffect(() => {
+    if (!warehouseId || typeof navigator === "undefined" || !navigator.onLine) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const snapshot = await offlineCatalogFn({ data: { warehouseId } }) as Product[];
+        if (!cancelled) {
+          await replacePdvCatalogSnapshot(warehouseId, snapshot);
+          setStatus(`Catálogo de contingência atualizado · ${snapshot.length} produtos disponíveis.`);
+        }
+      } catch {
+        // A venda online continua funcionando; o último snapshot local é preservado.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [warehouseId, offlineCatalogFn]);
 
   const normalizedSearch = search.trim().toLocaleLowerCase("pt-BR");
   const results = useMemo(() => (productsQuery.data ?? []).slice(0, 12), [productsQuery.data]);
@@ -106,7 +161,22 @@ export function PdvNewSale() {
     if (!warehouseId || !code) return;
     setLookingUp(true);
     try {
-      const matches = (await findByCodeFn({ data: { warehouseId, code } })) as Product[];
+      let matches: Product[];
+
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        matches = await findCachedPdvProductsByCode(warehouseId, code);
+        setStatus("Modo contingência: consultando o último catálogo sincronizado.");
+      } else {
+        try {
+          matches = (await findByCodeFn({ data: { warehouseId, code } })) as Product[];
+          await cachePdvCatalog(warehouseId, matches);
+        } catch (error) {
+          const cached = await findCachedPdvProductsByCode(warehouseId, code);
+          if (!cached.length) throw error;
+          matches = cached;
+          setStatus("Conexão instável: produto localizado no catálogo de contingência.");
+        }
+      }
       if (matches.length === 0) {
         setStatus(`Nenhum produto com o código ${code}. Tente SKU, código interno, código do fabricante ou busque pelo nome.`);
         return;
