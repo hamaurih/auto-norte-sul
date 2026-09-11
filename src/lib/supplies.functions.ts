@@ -464,7 +464,7 @@ export const setPurchaseOrderStatus = createServerFn({ method: "POST" })
 // ===================== Recebimentos =====================
 
 const RECEIPT_SELECT =
-  "id, number, status, received_at, invoice_number, notes, no_order_reason, warehouse_id, purchase_order_id, confirmed_at, reversed_at, reverse_reason, created_at, supplier:suppliers(id, legal_name, trade_name), warehouse:warehouses(id, name, code), purchase_order:purchase_orders(id, number, status)";
+  "id, number, status, received_at, invoice_number, notes, no_order_reason, freight_amount, insurance_amount, other_amount, discount_amount, recoverable_tax_amount, warehouse_id, purchase_order_id, confirmed_at, reversed_at, reverse_reason, created_at, supplier:suppliers(id, legal_name, trade_name), warehouse:warehouses(id, name, code), purchase_order:purchase_orders(id, number, status)";
 
 export const listGoodsReceipts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -505,7 +505,7 @@ export const getGoodsReceipt = createServerFn({ method: "GET" })
     const { data: items, error: itemsError } = await sb
       .from("goods_receipt_items")
       .select(
-        "id, product_id, accepted_qty, rejected_qty, received_package_qty, rejected_package_qty, units_per_package, package_unit, unit_cost, notes, purchase_order_item_id, product:products(id, sku, name, internal_code, manufacturer_code)",
+        "id, product_id, accepted_qty, rejected_qty, received_package_qty, rejected_package_qty, units_per_package, package_unit, unit_cost, base_unit_cost, allocated_expense_amount, allocated_discount_amount, recoverable_tax_amount, acquisition_unit_cost, notes, purchase_order_item_id, product:products(id, sku, name, internal_code, manufacturer_code)",
       )
       .eq("tenant_id", context.tenantId)
       .eq("goods_receipt_id", data.id)
