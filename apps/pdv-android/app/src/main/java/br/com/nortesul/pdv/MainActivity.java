@@ -67,7 +67,7 @@ public final class MainActivity extends Activity {
                 CookieManager.getInstance();
 
         cookies.setAcceptCookie(true);
-        CookieManager.setAcceptThirdPartyCookies(
+        cookies.setAcceptThirdPartyCookies(
                 view,
                 true
         );
