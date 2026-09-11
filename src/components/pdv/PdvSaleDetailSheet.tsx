@@ -29,11 +29,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { brl } from "@/lib/format";
 import {
   cancelPosSale,
+  confirmPosPaymentReversal,
   getPosCompanyHeader,
   getPosSaleDetail,
   type PosSaleDetail,
 } from "@/lib/pos-history.functions";
 import { PdvReceipt, paymentLabel, printReceipt } from "@/components/pdv/PdvReceipt";
+import {
+  isStonePaymentAvailable,
+  requestStoneCancellation,
+} from "@/lib/pos-device";
 
 export const statusLabels: Record<string, string> = {
   completed: "Concluída",
@@ -66,6 +71,7 @@ export function PdvSaleDetailSheet({
   const detailFn = useServerFn(getPosSaleDetail);
   const companyFn = useServerFn(getPosCompanyHeader);
   const cancelFn = useServerFn(cancelPosSale);
+  const confirmReversalFn = useServerFn(confirmPosPaymentReversal);
   const [reason, setReason] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -82,9 +88,52 @@ export function PdvSaleDetailSheet({
   });
 
   const cancelMutation = useMutation({
-    mutationFn: () => cancelFn({ data: { saleId: saleId as string, reason: reason.trim() } }),
+    mutationFn: async () => {
+      const currentSale = detailQuery.data as PosSaleDetail | undefined;
+      if (!currentSale) throw new Error("Venda ainda não carregada.");
+
+      const confirmedStonePayments = currentSale.payments.filter(
+        (payment) =>
+          payment.provider === "stone" &&
+          payment.status === "confirmed" &&
+          ["pix", "debit_card", "credit_card"].includes(payment.method),
+      );
+
+      if (confirmedStonePayments.length > 0 && !isStonePaymentAvailable()) {
+        throw new Error(
+          "Esta venda possui pagamento Stone confirmado. Abra o cancelamento em uma Stone SmartPOS com a integração ativa para estornar antes de devolver o estoque.",
+        );
+      }
+
+      for (const payment of confirmedStonePayments) {
+        if (!payment.provider_reference) {
+          throw new Error(
+            "Pagamento Stone sem ATK/referência. O estorno automático foi bloqueado para evitar divergência financeira.",
+          );
+        }
+
+        await requestStoneCancellation({
+          amount: payment.amount,
+          atk: payment.provider_reference,
+        });
+
+        await confirmReversalFn({
+          data: {
+            paymentId: payment.id,
+            providerReference: payment.provider_reference,
+          },
+        });
+      }
+
+      return cancelFn({
+        data: {
+          saleId: saleId as string,
+          reason: reason.trim(),
+        },
+      });
+    },
     onSuccess: (result: any) => {
-      toast.success("Venda cancelada e estoque reposto");
+      toast.success("Venda cancelada, pagamentos Stone estornados e estoque reposto");
       for (const warning of (result?.warnings ?? []) as string[]) {
         toast.warning(warning, { duration: 9000 });
       }
