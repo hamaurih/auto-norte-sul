@@ -4,7 +4,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Check, Copy, Edit3, Eye, EyeOff, KeyRound, RefreshCw, ShieldCheck, UserCheck, UserPlus, Users, X } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { activeTenant, fetchAccessContext } from "@/lib/access";
 import { useSession } from "@/lib/session";
 import {
@@ -44,18 +43,10 @@ import { Switch } from "@/components/ui/switch";
 export const Route = createFileRoute("/_authenticated/admin/usuarios")({
   head: () => ({ meta: [{ title: "Usuários e permissões · Norte Sul" }] }),
   beforeLoad: async () => {
-    const { data: userRes } = await supabase.auth.getUser();
-    if (!userRes.user) throw redirect({ to: "/auth" });
-
     const context = await fetchAccessContext();
+    if (!context.user_id) throw redirect({ to: "/auth" });
     const tenant = activeTenant(context);
-    const tenantAdmin = Boolean(tenant && ["owner", "admin"].includes(tenant.role));
-    const legacyAdmin = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userRes.user.id)
-      .then(({ data }) => (data ?? []).some((item) => item.role === "admin"));
-    if (!tenantAdmin && !legacyAdmin) throw redirect({ to: "/admin" });
+    if (!tenant || !["owner", "admin"].includes(tenant.role)) throw redirect({ to: "/admin" });
   },
   component: UsersPage,
 });
