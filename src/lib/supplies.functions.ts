@@ -523,6 +523,11 @@ export const createGoodsReceipt = createServerFn({ method: "POST" })
       received_at?: string | null;
       invoice_number?: string | null;
       notes?: string | null;
+      freight_amount?: number;
+      insurance_amount?: number;
+      other_amount?: number;
+      discount_amount?: number;
+      recoverable_tax_amount?: number;
       items: {
         purchase_order_item_id: string;
         accepted_qty?: number;
@@ -644,6 +649,11 @@ export const createGoodsReceipt = createServerFn({ method: "POST" })
         received_at: data.received_at || new Date().toISOString().slice(0, 10),
         invoice_number: data.invoice_number?.trim() || null,
         notes: data.notes?.trim() || null,
+        freight_amount: round2(Math.max(0, Number(data.freight_amount ?? 0))),
+        insurance_amount: round2(Math.max(0, Number(data.insurance_amount ?? 0))),
+        other_amount: round2(Math.max(0, Number(data.other_amount ?? 0))),
+        discount_amount: round2(Math.max(0, Number(data.discount_amount ?? 0))),
+        recoverable_tax_amount: round2(Math.max(0, Number(data.recoverable_tax_amount ?? 0))),
         created_by: context.userId,
       })
       .select("id, number")
