@@ -112,16 +112,17 @@ export default defineTool({
       };
     });
 
-    // Registro best-effort de buscas sem resultado
+    // Registro best-effort de buscas sem resultado via RPC pública estreita.
+    // A implementação privada deriva o tenant do storefront, suprime duplicatas
+    // e aplica rate limit; o cliente nunca recebe INSERT direto na tabela.
     if (results.length === 0) {
-      await supabase.from("search_no_result_logs").insert({
-        term: query.slice(0, 200),
-        normalized_term: normalizeTerm(query).slice(0, 200),
-        origin: "mcp",
-        results_count: 0,
-        matched_alias: matchedAlias?.term ?? null,
-        matched_brand: matchedBrand?.name ?? null,
-        matched_category: matchedCategory?.name ?? null,
+      await (supabase.rpc as any)("log_search_no_result", {
+        p_term: query.slice(0, 200),
+        p_normalized_term: normalizeTerm(query).slice(0, 200),
+        p_origin: "mcp",
+        p_matched_alias: matchedAlias?.term ?? null,
+        p_matched_brand: matchedBrand?.name ?? null,
+        p_matched_category: matchedCategory?.name ?? null,
       });
     }
 
