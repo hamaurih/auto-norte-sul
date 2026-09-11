@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 import { tdb } from "@/integrations/supabase/tenant-db";
+import { escapeLike, sanitizeOrQuery } from "@/lib/sanitize";
 
 export type PosPaymentMethod =
   | "cash" | "pix" | "debit_card" | "credit_card" | "store_credit" | "b2b_invoice";
@@ -82,22 +83,74 @@ export const listPdvCatalog = createServerFn({ method: "GET" })
     const { data: membership } = await sb.from("tenant_memberships").select("id")
       .eq("tenant_id", context.tenantId).eq("user_id", context.userId).eq("active", true).maybeSingle();
     if (!membership) throw new Error("Usuário sem acesso ativo a esta empresa");
+
+    const term = (data.search ?? "").trim();
+
+    if (term) {
+      const safe = sanitizeOrQuery(escapeLike(term));
+      const { data: products, error: productsError } = await sb
+        .from("products")
+        .select(PDV_PRODUCT_SELECT)
+        .eq("tenant_id", context.tenantId)
+        .eq("active", true)
+        .is("deleted_at", null)
+        .or(
+          `name.ilike.%${safe}%,sku.ilike.%${safe}%,internal_code.ilike.%${safe}%,manufacturer_code.ilike.%${safe}%`,
+        )
+        .limit(100);
+
+      if (productsError) throw new Error(productsError.message);
+      const productRows = (products ?? []) as any[];
+      if (productRows.length === 0) return [] as PdvCatalogProduct[];
+
+      const productIds = productRows.map((product: any) => product.id);
+      const { data: stockRows, error: stockError } = await sb
+        .from("product_stock")
+        .select("product_id, on_hand, reserved")
+        .eq("tenant_id", context.tenantId)
+        .eq("warehouse_id", data.warehouseId)
+        .in("product_id", productIds);
+
+      if (stockError) throw new Error(stockError.message);
+
+      const stockMap = new Map(
+        (stockRows ?? []).map((row: any) => [
+          row.product_id,
+          Number(row.on_hand ?? 0) - Number(row.reserved ?? 0),
+        ]),
+      );
+
+      return productRows
+        .map((product: any) => mapPdvProduct(product, stockMap.get(product.id) ?? 0))
+        .filter((product) => product.stock > 0)
+        .sort((a, b) => {
+          const q = term.toLocaleLowerCase("pt-BR");
+          const aName = a.name.toLocaleLowerCase("pt-BR");
+          const bName = b.name.toLocaleLowerCase("pt-BR");
+          const aExact = aName === q ? 0 : aName.startsWith(q) ? 1 : 2;
+          const bExact = bName === q ? 0 : bName.startsWith(q) ? 1 : 2;
+          return aExact - bExact || aName.localeCompare(bName, "pt-BR");
+        })
+        .slice(0, 20);
+    }
+
     const select = `product_id, on_hand, reserved, product:products(${PDV_PRODUCT_SELECT})`;
     const { data: stock, error } = await sb.from("product_stock")
       .select(select)
-      .eq("tenant_id", context.tenantId).eq("warehouse_id", data.warehouseId).gt("on_hand", 0).limit(300);
+      .eq("tenant_id", context.tenantId)
+      .eq("warehouse_id", data.warehouseId)
+      .gt("on_hand", 0)
+      .limit(300);
+
     if (error) throw new Error(error.message);
-    const term = (data.search ?? "").trim().toLocaleLowerCase("pt-BR");
+
     return (stock ?? [])
       .map((row: any) => {
         const p = row.product ?? {};
         const available = Number(row.on_hand ?? 0) - Number(row.reserved ?? 0);
         return { ...mapPdvProduct(p, available), active: p.active } as PdvCatalogProduct & { active: boolean };
       })
-      .filter((p) => p.active && p.stock > 0 && (!term ||
-        [p.name, p.sku, p.internal_code ?? "", p.manufacturer_code ?? ""]
-          .some((v: string) => v.toLocaleLowerCase("pt-BR").includes(term))
-      ))
+      .filter((p) => p.active && p.stock > 0)
       .slice(0, 20)
       .map(({ active: _active, ...p }) => p) as PdvCatalogProduct[];
   });
