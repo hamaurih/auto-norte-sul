@@ -1,13 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 
-type Role = "admin" | "gerente" | "vendedor" | "staff";
+type Role = "owner" | "admin" | "manager";
 
-async function assertRoles(sb: any, userId: string, roles: Role[]) {
-  const { data } = await sb.from("user_roles").select("role").eq("user_id", userId);
-  if (!(data ?? []).some((r: { role: string }) => roles.includes(r.role as Role))) {
-    throw new Error("Forbidden");
-  }
+async function assertRoles(sb: any, userId: string, tenantId: string, roles: Role[]) {
+  const { data, error } = await sb
+    .from("tenant_memberships")
+    .select("role")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .eq("active", true)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data?.role || !roles.includes(data.role as Role)) throw new Error("Forbidden");
 }
 
 // ============ STATS ============
@@ -163,7 +168,7 @@ export const applyBrand = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { productId: string; brandId: string }) => input)
   .handler(async ({ data, context }) => {
-    await assertRoles(context.supabase, context.userId, ["admin", "gerente"]);
+    await assertRoles(context.supabase, context.userId, context.tenantId, ["owner", "admin", "manager"]);
     const { error } = await context.supabase.from("products").update({ brand_id: data.brandId }).eq("id", data.productId);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -173,7 +178,7 @@ export const applyBrandBulk = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { assignments: { productId: string; brandId: string; confidence: string }[] }) => input)
   .handler(async ({ data, context }) => {
-    await assertRoles(context.supabase, context.userId, ["admin", "gerente"]);
+    await assertRoles(context.supabase, context.userId, context.tenantId, ["owner", "admin", "manager"]);
     const high = data.assignments.filter((a) => a.confidence === "alta");
     let ok = 0;
     for (const a of high) {
@@ -187,7 +192,7 @@ export const applyCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { productId: string; categoryId: string }) => input)
   .handler(async ({ data, context }) => {
-    await assertRoles(context.supabase, context.userId, ["admin", "gerente"]);
+    await assertRoles(context.supabase, context.userId, context.tenantId, ["owner", "admin", "manager"]);
     const { error } = await context.supabase.from("products").update({ category_id: data.categoryId }).eq("id", data.productId);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -197,7 +202,7 @@ export const applyCategoryBulk = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { assignments: { productId: string; categoryId: string; confidence: string }[] }) => input)
   .handler(async ({ data, context }) => {
-    await assertRoles(context.supabase, context.userId, ["admin", "gerente"]);
+    await assertRoles(context.supabase, context.userId, context.tenantId, ["owner", "admin", "manager"]);
     const high = data.assignments.filter((a) => a.confidence === "alta");
     let ok = 0;
     for (const a of high) {
@@ -212,7 +217,7 @@ export const initStockFromLegacy = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { productId?: string; all?: boolean }) => input)
   .handler(async ({ data, context }) => {
-    await assertRoles(context.supabase, context.userId, ["admin", "gerente"]);
+    await assertRoles(context.supabase, context.userId, context.tenantId, ["owner", "admin", "manager"]);
     const sb = context.supabase;
     const { data: wh } = await sb
       .from("warehouses")
@@ -276,7 +281,7 @@ export const upsertApplication = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { id?: string; product_id: string; vehicle_make: string; vehicle_model: string; year_from?: number | null; year_to?: number | null; notes?: string | null }) => input)
   .handler(async ({ data, context }) => {
-    await assertRoles(context.supabase, context.userId, ["admin", "gerente"]);
+    await assertRoles(context.supabase, context.userId, context.tenantId, ["owner", "admin", "manager"]);
     const { id, ...row } = data;
     if (id) {
       const { error } = await context.supabase
@@ -300,7 +305,7 @@ export const deleteApplication = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { id: string }) => input)
   .handler(async ({ data, context }) => {
-    await assertRoles(context.supabase, context.userId, ["admin", "gerente"]);
+    await assertRoles(context.supabase, context.userId, context.tenantId, ["owner", "admin", "manager"]);
     const { error } = await context.supabase
       .from("product_applications")
       .delete()
