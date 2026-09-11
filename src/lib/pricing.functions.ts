@@ -31,7 +31,7 @@ export const searchPricingProducts = createServerFn({ method: "GET" }).middlewar
   await requirePricingRole(sb, context.userId, context.tenantId);
   const search = String(data.search ?? "").trim();
   const limit = Math.max(1, Math.min(Number(data.limit ?? 25), 50));
-  let query = sb.from("products").select("id,sku,internal_code,manufacturer_code,name,price_b2b,price_b2c,brand_id,category_id,active").eq("tenant_id", context.tenantId).is("deleted_at", null).order("name").limit(limit);
+  let query = sb.from("products").select("id,sku,internal_code,manufacturer_code,name,price_b2b,price_b2c,average_cost,brand_id,category_id,active").eq("tenant_id", context.tenantId).is("deleted_at", null).order("name").limit(limit);
   if (search) {
     const safe = search.replace(/[,()*%\\"']/g, " ").replace(/\s+/g, " ").trim();
     query = query.or(`name.ilike.%${safe}%,sku.ilike.%${safe}%,internal_code.ilike.%${safe}%,manufacturer_code.ilike.%${safe}%`);
@@ -41,8 +41,11 @@ export const searchPricingProducts = createServerFn({ method: "GET" }).middlewar
   const ids = (products.data ?? []).map((p: any) => p.id);
   const rules = ids.length ? await sb.from("product_b2c_price_rules").select("product_id,mode,markup_pct,manual_b2c_price").eq("tenant_id", context.tenantId).in("product_id", ids) : { data: [], error: null } as any;
   if (rules.error) throw new Error(rules.error.message);
+  const pricing = ids.length ? await sb.from("product_pricing_settings").select("product_id,tax_rate,commission_rate,payment_fee_rate,other_variable_rate,fixed_cost_per_unit,desired_margin_rate,price_rounding").eq("tenant_id", context.tenantId).in("product_id", ids) : { data: [], error: null } as any;
+  if (pricing.error) throw new Error(pricing.error.message);
   const ruleMap = new Map((rules.data ?? []).map((r: any) => [r.product_id, r]));
-  return (products.data ?? []).map((p: any) => ({ ...p, rule: ruleMap.get(p.id) ?? { mode: "global", markup_pct: null, manual_b2c_price: null } }));
+  const pricingMap = new Map((pricing.data ?? []).map((r: any) => [r.product_id, r]));
+  return (products.data ?? []).map((p: any) => ({ ...p, rule: ruleMap.get(p.id) ?? { mode: "global", markup_pct: null, manual_b2c_price: null }, pricing: pricingMap.get(p.id) ?? null }));
 });
 
 export const saveGlobalPricing = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((input: { markupPct: number; rounding: "cent" | "x90" | "x99" | "whole"; recalculate?: boolean }) => input).handler(async ({ data, context }) => {
