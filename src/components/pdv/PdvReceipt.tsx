@@ -1,4 +1,5 @@
 import { brl } from "@/lib/format";
+import { getPosDeviceInfo, printOnStone } from "@/lib/pos-device";
 import type { PosSaleDetail } from "@/lib/pos-history.functions";
 
 export const paymentMethodLabels: Record<string, string> = {
@@ -23,7 +24,73 @@ export type ReceiptCompany = {
 const dateTime = (value: string | null) =>
   value ? new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—";
 
-export function printReceipt() {
+export async function printReceipt(
+  sale?: PosSaleDetail | null,
+  company?: ReceiptCompany | null,
+) {
+  const device = getPosDeviceInfo();
+
+  if (sale && device.printerAvailable) {
+    const lines: Array<{
+      content: string;
+      align?: "left" | "center" | "right";
+      size?: "small" | "medium" | "big";
+    }> = [];
+
+    lines.push({
+      content: company?.trade_name || company?.legal_name || "Norte Sul",
+      align: "center",
+      size: "big",
+    });
+
+    if (company?.tax_id) {
+      lines.push({ content: `CNPJ ${company.tax_id}`, align: "center" });
+    }
+
+    lines.push({
+      content: sale.cancelled_at ? "COMPROVANTE DE CANCELAMENTO" : "COMPROVANTE NAO FISCAL",
+      align: "center",
+      size: "medium",
+    });
+    lines.push({ content: `Venda ${sale.code}` });
+    lines.push({ content: `Data ${dateTime(sale.created_at)}` });
+    lines.push({ content: `Operador ${sale.operator_name || "-"}` });
+    lines.push({ content: "--------------------------------" });
+
+    for (const item of sale.items) {
+      lines.push({ content: `${item.quantity}x ${item.name}` });
+      lines.push({
+        content: `${brl(item.unit_price)}     ${brl(item.line_total)}`,
+        align: "right",
+      });
+    }
+
+    lines.push({ content: "--------------------------------" });
+    lines.push({ content: `Subtotal ${brl(sale.subtotal)}`, align: "right" });
+    lines.push({ content: `Desconto ${brl(sale.discount_amount)}`, align: "right" });
+    lines.push({ content: `TOTAL ${brl(sale.total)}`, align: "right", size: "big" });
+    lines.push({ content: "--------------------------------" });
+
+    for (const payment of sale.payments) {
+      lines.push({
+        content:
+          `${paymentLabel(payment.method)}${payment.installments && payment.installments > 1 ? ` ${payment.installments}x` : ""} ${brl(payment.amount)}`,
+      });
+    }
+
+    lines.push({
+      content: "Documento sem valor fiscal",
+      align: "center",
+    });
+    lines.push({
+      content: "Obrigado pela preferencia",
+      align: "center",
+    });
+
+    await printOnStone(lines);
+    return;
+  }
+
   window.print();
 }
 

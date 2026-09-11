@@ -1,9 +1,18 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Barcode, ImageOff, Minus, PackageSearch, Plus, ScanLine, ShoppingCart, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { findPdvProductsByCode, listPdvCatalog, type PdvCatalogProduct } from "@/lib/pos.functions";
+import { listPdvOfflineCatalog } from "@/lib/pos-offline.functions";
+import {
+  cachePdvCatalog,
+  findCachedPdvProductsByCode,
+  getPosLocalValue,
+  readCachedPdvCatalog,
+  replacePdvCatalogSnapshot,
+  setPosLocalValue,
+} from "@/lib/pos-offline";
 import { PdvCheckoutPanel } from "@/components/pdv/PdvCheckoutPanel";
 import { PdvProductConfirm, effectivePdvPrice } from "@/components/pdv/PdvProductConfirm";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +58,7 @@ export function PdvNewSale() {
   const queryClient = useQueryClient();
   const catalogFn = useServerFn(listPdvCatalog);
   const findByCodeFn = useServerFn(findPdvProductsByCode);
+  const offlineCatalogFn = useServerFn(listPdvOfflineCatalog);
   const [search, setSearch] = useState("");
   const [warehouseId, setWarehouseId] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -60,12 +70,31 @@ export function PdvNewSale() {
   const productsQuery = useQuery({
     queryKey: ["pdv-products", warehouseId, search],
     enabled: Boolean(warehouseId),
-    queryFn: () => catalogFn({ data: { warehouseId, search } }) as Promise<Product[]>,
+    networkMode: "always",
+    queryFn: async () => {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        return readCachedPdvCatalog(warehouseId, search);
+      }
+      try {
+        const products = await catalogFn({ data: { warehouseId, search } }) as Product[];
+        await cachePdvCatalog(warehouseId, products);
+        return products;
+      } catch (error) {
+        const cached = await readCachedPdvCatalog(warehouseId, search);
+        if (cached.length) return cached;
+        throw error;
+      }
+    },
   });
 
   const warehousesQuery = useQuery({
     queryKey: ["pdv-warehouses"],
+    networkMode: "always",
     queryFn: async () => {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        return (await getPosLocalValue<Warehouse[]>("pdv:warehouses")) ?? [];
+      }
+
       const { data, error } = await (supabase as any)
         .from("warehouses")
         .select("id, branch_id, name, code")
@@ -73,10 +102,44 @@ export function PdvNewSale() {
         .order("is_default", { ascending: false })
         .order("name");
 
-      if (error) throw error;
-      return (data ?? []) as Warehouse[];
+      if (error) {
+        const cached = await getPosLocalValue<Warehouse[]>("pdv:warehouses");
+        if (cached?.length) return cached;
+        throw error;
+      }
+
+      const warehouses = (data ?? []) as Warehouse[];
+      await setPosLocalValue("pdv:warehouses", warehouses);
+      return warehouses;
     },
   });
+
+  useEffect(() => {
+    if (!warehouseId || typeof navigator === "undefined" || !navigator.onLine) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const snapshot = await offlineCatalogFn({ data: { warehouseId } }) as Product[];
+        if (!cancelled) {
+          await replacePdvCatalogSnapshot(warehouseId, snapshot);
+          setStatus(`Catálogo de contingência atualizado · ${snapshot.length} produtos disponíveis.`);
+        }
+      } catch {
+        // A venda online continua funcionando; o último snapshot local é preservado.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [warehouseId, offlineCatalogFn]);
+
+  useEffect(() => {
+    if (!warehouseId && warehousesQuery.data?.[0]) {
+      setWarehouseId(warehousesQuery.data[0].id);
+    }
+  }, [warehouseId, warehousesQuery.data]);
 
   const normalizedSearch = search.trim().toLocaleLowerCase("pt-BR");
   const results = useMemo(() => (productsQuery.data ?? []).slice(0, 12), [productsQuery.data]);
@@ -106,7 +169,22 @@ export function PdvNewSale() {
     if (!warehouseId || !code) return;
     setLookingUp(true);
     try {
-      const matches = (await findByCodeFn({ data: { warehouseId, code } })) as Product[];
+      let matches: Product[];
+
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        matches = await findCachedPdvProductsByCode(warehouseId, code);
+        setStatus("Modo contingência: consultando o último catálogo sincronizado.");
+      } else {
+        try {
+          matches = (await findByCodeFn({ data: { warehouseId, code } })) as Product[];
+          await cachePdvCatalog(warehouseId, matches);
+        } catch (error) {
+          const cached = await findCachedPdvProductsByCode(warehouseId, code);
+          if (!cached.length) throw error;
+          matches = cached;
+          setStatus("Conexão instável: produto localizado no catálogo de contingência.");
+        }
+      }
       if (matches.length === 0) {
         setStatus(`Nenhum produto com o código ${code}. Tente SKU, código interno, código do fabricante ou busque pelo nome.`);
         return;
@@ -324,7 +402,7 @@ export function PdvNewSale() {
           </CardContent>
         </Card>
 
-        <Card className="flex min-h-[34rem] flex-col xl:sticky xl:top-16 xl:max-h-[calc(100vh-5rem)]">
+        <Card id="pdv-cart" className="flex min-h-[34rem] scroll-mt-20 flex-col xl:sticky xl:top-16 xl:max-h-[calc(100vh-5rem)]">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center justify-between font-display text-xl uppercase">
               <span className="flex items-center gap-2">
@@ -419,6 +497,23 @@ export function PdvNewSale() {
           </CardContent>
         </Card>
       </div>
+
+      {cart.length > 0 ? (
+        <div className="sticky bottom-2 z-30 flex items-center justify-between gap-3 rounded-2xl border bg-background/95 p-2 shadow-xl backdrop-blur xl:hidden">
+          <div className="min-w-0 pl-2">
+            <p className="text-xs text-muted-foreground">{itemCount} {itemCount === 1 ? "item" : "itens"} na venda</p>
+            <p className="truncate font-display text-lg font-black">{money.format(subtotal)}</p>
+          </div>
+          <Button
+            type="button"
+            className="h-11 shrink-0 font-bold"
+            onClick={() => document.getElementById("pdv-cart")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          >
+            <ShoppingCart className="mr-2 h-4 w-4" />
+            Pagamento
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }
