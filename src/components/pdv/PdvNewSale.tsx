@@ -499,7 +499,7 @@ export function PdvNewSale() {
       {cart.length > 0 ? (
         <div className="sticky bottom-2 z-30 flex items-center justify-between gap-3 rounded-2xl border bg-background/95 p-2 shadow-xl backdrop-blur xl:hidden">
           <div className="min-w-0 pl-2">
-            <p className="text-xs text-muted-foreground">{itemCount} item{itemCount === 1 ? "" : "ns"} na venda</p>
+            <p className="text-xs text-muted-foreground">{itemCount} {itemCount === 1 ? "item" : "itens"} na venda</p>
             <p className="truncate font-display text-lg font-black">{money.format(subtotal)}</p>
           </div>
           <Button
