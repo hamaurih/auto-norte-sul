@@ -133,6 +133,12 @@ export function PdvNewSale() {
     };
   }, [warehouseId, offlineCatalogFn]);
 
+  useEffect(() => {
+    if (!warehouseId && warehousesQuery.data?.[0]) {
+      setWarehouseId(warehousesQuery.data[0].id);
+    }
+  }, [warehouseId, warehousesQuery.data]);
+
   const normalizedSearch = search.trim().toLocaleLowerCase("pt-BR");
   const results = useMemo(() => (productsQuery.data ?? []).slice(0, 12), [productsQuery.data]);
 
@@ -394,7 +400,7 @@ export function PdvNewSale() {
           </CardContent>
         </Card>
 
-        <Card className="flex min-h-[34rem] flex-col xl:sticky xl:top-16 xl:max-h-[calc(100vh-5rem)]">
+        <Card id="pdv-cart" className="flex min-h-[34rem] scroll-mt-20 flex-col xl:sticky xl:top-16 xl:max-h-[calc(100vh-5rem)]">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center justify-between font-display text-xl uppercase">
               <span className="flex items-center gap-2">
@@ -489,6 +495,23 @@ export function PdvNewSale() {
           </CardContent>
         </Card>
       </div>
+
+      {cart.length > 0 ? (
+        <div className="sticky bottom-2 z-30 flex items-center justify-between gap-3 rounded-2xl border bg-background/95 p-2 shadow-xl backdrop-blur xl:hidden">
+          <div className="min-w-0 pl-2">
+            <p className="text-xs text-muted-foreground">{itemCount} item{itemCount === 1 ? "" : "ns"} na venda</p>
+            <p className="truncate font-display text-lg font-black">{money.format(subtotal)}</p>
+          </div>
+          <Button
+            type="button"
+            className="h-11 shrink-0 font-bold"
+            onClick={() => document.getElementById("pdv-cart")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          >
+            <ShoppingCart className="mr-2 h-4 w-4" />
+            Pagamento
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }
