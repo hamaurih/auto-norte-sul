@@ -275,6 +275,20 @@ export const getPosPermissions = createServerFn({ method: "GET" })
     return { role, canCancel: Boolean(role && CANCEL_ROLES.includes(role)) };
   });
 
+export const confirmPosPaymentReversal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { paymentId: string; providerReference: string }) => input)
+  .handler(async ({ data, context }) => {
+    const sb = tdb(context.supabase) as any;
+    const { data: paymentId, error } = await sb.rpc("confirm_pos_payment_reversal", {
+      p_payment_id: data.paymentId,
+      p_provider_reference: data.providerReference,
+    });
+    if (error) throw new Error(error.message);
+    return { paymentId: paymentId as string };
+  });
+
+
 export const cancelPosSale = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { saleId: string; reason: string }) => input)
