@@ -9,7 +9,7 @@ async function financeRoles(sb: any, userId: string, tenantId: string) {
   return (data ?? []).map((r: any) => r.role as string);
 }
 async function requireFinanceAdmin(sb: any, userId: string, tenantId: string) {
-  if (!(await financeRoles(sb,userId,tenantId)).some((role) => ["owner","admin","manager"].includes(role))) throw new Error("Usuário sem permissão financeira");
+  if (!(await financeRoles(sb,userId,tenantId)).some((role) => ["owner","admin","manager","finance"].includes(role))) throw new Error("Usuário sem permissão financeira");
 }
 async function requirePaymentApprover(sb: any, userId: string, tenantId: string) {
   if (!(await financeRoles(sb,userId,tenantId)).some((role) => ["owner","admin"].includes(role))) throw new Error("Somente administrador pode aprovar pagamentos");
@@ -37,14 +37,15 @@ export const saveExpenseCategory = createServerFn({ method: "POST" }).middleware
 });
 export const getPayables = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
  const sb=tdb(context.supabase); const roles=await financeRoles(sb,context.userId,context.tenantId); await requireFinanceAdmin(sb,context.userId,context.tenantId);
- const [expenses,categories,centers,attachments]=await Promise.all([
-  sb.from("expenses").select("id,description,kind,status,amount,competence_date,due_date,paid_at,supplier_name,document_number,notes,recurring,recurrence,source_type,source_id,installment_group_id,installment_number,installment_total,approval_status,approved_at,approval_note,category:expense_categories(name),cost_center:cost_centers(name)").eq("tenant_id",context.tenantId).order("due_date",{ascending:true}).limit(500),
+ const [expenses,categories,centers,attachments,accounts]=await Promise.all([
+  sb.from("expenses").select("id,description,kind,status,amount,paid_amount,last_paid_at,payment_account_id,competence_date,due_date,paid_at,supplier_name,document_number,notes,recurring,recurrence,source_type,source_id,installment_group_id,installment_number,installment_total,approval_status,approved_at,approval_note,category:expense_categories(name),cost_center:cost_centers(name)").eq("tenant_id",context.tenantId).order("due_date",{ascending:true}).limit(500),
   sb.from("expense_categories").select("id,name,default_kind").eq("tenant_id",context.tenantId).eq("active",true).order("name"),
   sb.from("cost_centers").select("id,name").eq("tenant_id",context.tenantId).eq("active",true).order("name"),
   (sb as any).from("financial_attachments").select("id,expense_id,kind,file_name,content_type,byte_size,storage_path,created_at").eq("tenant_id",context.tenantId).order("created_at",{ascending:false}),
+  (sb as any).from("financial_accounts").select("id,name,account_type,institution_name,account_identifier").eq("tenant_id",context.tenantId).eq("active",true).order("name"),
  ]);
- for(const result of [expenses,categories,centers,attachments]) if(result.error) throw new Error(result.error.message);
- return { expenses:expenses.data??[], categories:categories.data??[], centers:centers.data??[], attachments:attachments.data??[], canApprove:roles.some((role)=>["owner","admin"].includes(role)) };
+ for(const result of [expenses,categories,centers,attachments,accounts]) if(result.error) throw new Error(result.error.message);
+ return { expenses:expenses.data??[], categories:categories.data??[], centers:centers.data??[], attachments:attachments.data??[], accounts:accounts.data??[], canApprove:roles.some((role)=>["owner","admin"].includes(role)) };
 });
 const payableSchema=z.object({id:z.string().uuid().optional(),category_id:z.string().uuid(),cost_center_id:z.string().uuid(),description:z.string().trim().min(2).max(300),amount:z.number().positive().max(999999999),competence_date:z.string().date(),due_date:z.string().date(),supplier_name:z.string().trim().max(180).optional(),document_number:z.string().trim().max(100).optional(),notes:z.string().trim().max(2000).optional(),recurring:z.boolean().default(false),recurrence:z.enum(["monthly","weekly","yearly"]).optional(),installments:z.number().int().min(1).max(120).default(1)});
 const addMonths=(date:string,n:number)=>{const d=new Date(date+"T12:00:00");const day=d.getDate();d.setMonth(d.getMonth()+n);if(d.getDate()<day)d.setDate(0);return d.toISOString().slice(0,10);};
@@ -62,19 +63,22 @@ export const savePayable=createServerFn({method:"POST"}).middleware([requireSupa
 export const approvePayable=createServerFn({method:"POST"}).middleware([requireSupabaseAuth]).inputValidator(v=>z.object({id:z.string().uuid(),decision:z.enum(["approved","rejected"]),note:z.string().trim().max(1000).optional()}).parse(v)).handler(async({data,context})=>{
  const sb=tdb(context.supabase);await requirePaymentApprover(sb,context.userId,context.tenantId);const {data:row,error}=await (sb.from("expenses") as any).update({approval_status:data.decision,approved_by:context.userId,approved_at:new Date().toISOString(),approval_note:data.note||null,updated_by:context.userId,updated_at:new Date().toISOString()}).eq("id",data.id).eq("tenant_id",context.tenantId).eq("status","open").eq("approval_status","pending").select("id").maybeSingle();if(error)throw new Error(error.message);if(!row)throw new Error("Título não está aguardando aprovação");return{ok:true};
 });
-export const settlePayable=createServerFn({method:"POST"}).middleware([requireSupabaseAuth]).inputValidator(v=>z.object({id:z.string().uuid(),paidAt:z.string().datetime().optional()}).parse(v)).handler(async({data,context})=>{
- const sb=tdb(context.supabase);await requireFinanceAdmin(sb,context.userId,context.tenantId);const {data:row,error}=await (sb.from("expenses") as any).update({status:"paid",paid_at:data.paidAt??new Date().toISOString(),updated_by:context.userId,updated_at:new Date().toISOString()}).eq("id",data.id).eq("tenant_id",context.tenantId).eq("status","open").eq("approval_status","approved").select("id").maybeSingle();if(error)throw new Error(error.message);if(!row)throw new Error("Título precisa estar aprovado antes da baixa");return{ok:true};
+export const settlePayable=createServerFn({method:"POST"}).middleware([requireSupabaseAuth]).inputValidator(v=>z.object({id:z.string().uuid(),amount:z.number().positive(),accountId:z.string().uuid(),paymentDate:z.string().date().optional(),idempotencyKey:z.string().uuid(),notes:z.string().trim().max(1000).optional()}).parse(v)).handler(async({data,context})=>{
+ const sb=tdb(context.supabase);await requireFinanceAdmin(sb,context.userId,context.tenantId);
+ const {data:result,error}=await (sb as any).rpc("pay_expense",{p_expense_id:data.id,p_amount:data.amount,p_account_id:data.accountId,p_payment_date:data.paymentDate??new Date().toISOString().slice(0,10),p_idempotency_key:data.idempotencyKey,p_notes:data.notes??null});
+ if(error)throw new Error(error.message);return result;
 });
 
 const receivableSchema=z.object({id:z.string().uuid().optional(),customer_id:z.string().uuid().optional(),customer_name:z.string().trim().min(2).max(180),description:z.string().trim().min(2).max(300),amount:z.number().positive().max(999999999),due_date:z.string().date(),payment_method:z.string().trim().max(60).optional(),payment_reference:z.string().trim().max(120).optional(),notes:z.string().trim().max(2000).optional()});
 export const getReceivables=createServerFn({method:"GET"}).middleware([requireSupabaseAuth]).handler(async({context})=>{
  const sb=tdb(context.supabase);await requireFinanceAdmin(sb,context.userId,context.tenantId);
- const [receivables,expenses]=await Promise.all([
-  (sb as any).from("financial_receivables").select("id,source_type,source_id,customer_name,description,amount,due_date,payment_method,payment_reference,payment_url,status,received_at,notes,created_at").eq("tenant_id",context.tenantId).order("due_date",{ascending:true}).limit(1000),
-  sb.from("expenses").select("id,description,amount,due_date,status,paid_at").eq("tenant_id",context.tenantId).order("due_date",{ascending:true}).limit(1000),
+ const [receivables,expenses,accounts]=await Promise.all([
+  (sb as any).from("financial_receivables").select("id,source_type,source_id,customer_name,description,amount,received_amount,last_received_at,receipt_account_id,due_date,payment_method,payment_reference,payment_url,status,received_at,notes,created_at").eq("tenant_id",context.tenantId).order("due_date",{ascending:true}).limit(1000),
+  sb.from("expenses").select("id,description,amount,paid_amount,due_date,status,paid_at").eq("tenant_id",context.tenantId).order("due_date",{ascending:true}).limit(1000),
+  (sb as any).from("financial_accounts").select("id,name,account_type,institution_name,account_identifier").eq("tenant_id",context.tenantId).eq("active",true).order("name"),
  ]);
- if(receivables.error)throw new Error(receivables.error.message);if(expenses.error)throw new Error(expenses.error.message);
- return {receivables:receivables.data??[],expenses:expenses.data??[]};
+ if(receivables.error)throw new Error(receivables.error.message);if(expenses.error)throw new Error(expenses.error.message);if(accounts.error)throw new Error(accounts.error.message);
+ return {receivables:receivables.data??[],expenses:expenses.data??[],accounts:accounts.data??[]};
 });
 export const saveReceivable=createServerFn({method:"POST"}).middleware([requireSupabaseAuth]).inputValidator(v=>receivableSchema.parse(v)).handler(async({data,context})=>{
  const sb=tdb(context.supabase);await requireFinanceAdmin(sb,context.userId,context.tenantId);
@@ -82,10 +86,21 @@ export const saveReceivable=createServerFn({method:"POST"}).middleware([requireS
  const q=data.id?(sb as any).from("financial_receivables").update(payload).eq("id",data.id).eq("tenant_id",context.tenantId):(sb as any).from("financial_receivables").insert(payload);
  const {error}=await q;if(error)throw new Error(error.message);return{ok:true};
 });
-export const settleReceivable=createServerFn({method:"POST"}).middleware([requireSupabaseAuth]).inputValidator(v=>z.object({id:z.string().uuid(),receivedAt:z.string().datetime().optional()}).parse(v)).handler(async({data,context})=>{
+export const settleReceivable=createServerFn({method:"POST"}).middleware([requireSupabaseAuth]).inputValidator(v=>z.object({id:z.string().uuid(),amount:z.number().positive(),accountId:z.string().uuid(),receivedDate:z.string().date().optional(),idempotencyKey:z.string().uuid(),notes:z.string().trim().max(1000).optional()}).parse(v)).handler(async({data,context})=>{
  const sb=tdb(context.supabase);await requireFinanceAdmin(sb,context.userId,context.tenantId);
- const {error}=await (sb as any).from("financial_receivables").update({status:"received",received_at:data.receivedAt??new Date().toISOString(),updated_by:context.userId,updated_at:new Date().toISOString()}).eq("id",data.id).eq("tenant_id",context.tenantId).eq("status","open");
- if(error)throw new Error(error.message);return{ok:true};
+ const {data:result,error}=await (sb as any).rpc("receive_receivable",{p_receivable_id:data.id,p_amount:data.amount,p_account_id:data.accountId,p_received_date:data.receivedDate??new Date().toISOString().slice(0,10),p_idempotency_key:data.idempotencyKey,p_notes:data.notes??null});
+ if(error)throw new Error(error.message);return result;
+});
+export const getCashFlow=createServerFn({method:"GET"}).middleware([requireSupabaseAuth]).handler(async({context})=>{
+ const sb=tdb(context.supabase);await requireFinanceAdmin(sb,context.userId,context.tenantId);
+ const [summary,transactions,receivables,expenses]=await Promise.all([
+  (sb as any).rpc("financial_cash_summary",{p_tenant_id:context.tenantId}),
+  (sb as any).from("financial_transactions").select("id,account_id,transaction_date,direction,amount,description,category,reconciliation_status,source_type,external_reference").eq("tenant_id",context.tenantId).order("transaction_date",{ascending:false}).limit(1000),
+  (sb as any).from("financial_receivables").select("id,customer_name,description,amount,received_amount,due_date,status").eq("tenant_id",context.tenantId).eq("status","open").order("due_date",{ascending:true}).limit(1000),
+  sb.from("expenses").select("id,description,amount,paid_amount,due_date,status").eq("tenant_id",context.tenantId).eq("status","open").order("due_date",{ascending:true}).limit(1000),
+ ]);
+ for(const result of [summary,transactions,receivables,expenses])if(result.error)throw new Error(result.error.message);
+ return {summary:summary.data??{accounts:[],summary:{}},transactions:transactions.data??[],receivables:receivables.data??[],expenses:expenses.data??[]};
 });
 const sourceStatus=(value:string|undefined)=>["paid","approved","confirmed","completed","received"].includes((value??"").toLowerCase())?"received":"open";
 export const syncReceivables=createServerFn({method:"POST"}).middleware([requireSupabaseAuth]).handler(async({context})=>{
