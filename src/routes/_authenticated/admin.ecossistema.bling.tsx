@@ -705,9 +705,6 @@ function BlingModule() {
             </CardHeader>
             <CardContent className="space-y-3">
               <Toggle label="Integração ativa" checked={!!cfg?.active} onChange={(v) => configMut.mutate({ active: v })} />
-              <Toggle label="Bling é fonte principal de produtos" checked={!!cfg?.source_products} onChange={(v) => configMut.mutate({ source_products: v })} />
-              <Toggle label="Bling é fonte principal de estoque" checked={!!cfg?.source_stock} onChange={(v) => configMut.mutate({ source_stock: v })} />
-              <Toggle label="Bling é fonte principal de preço B2C" checked={!!cfg?.source_price_b2c} onChange={(v) => configMut.mutate({ source_price_b2c: v })} />
               <Toggle label="Sincronização automática" help="Se desligado, apenas sincronização manual." checked={!!cfg?.auto_sync} onChange={(v) => configMut.mutate({ auto_sync: v })} />
               <div className="flex items-center gap-3">
                 <Label className="min-w-[220px] text-sm">Intervalo (minutos)</Label>
