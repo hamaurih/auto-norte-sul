@@ -31,7 +31,7 @@ export function PdvCashControls({
 
   async function submitMovement() {
     const parsed = numberValue(amount);
-    if (!(parsed > 0) || reason.trim().length < 3) {
+    if (!Number.isFinite(parsed) || !(parsed > 0) || reason.trim().length < 3) {
       toast.error("Informe valor e motivo com pelo menos 3 caracteres");
       return;
     }
@@ -50,7 +50,7 @@ export function PdvCashControls({
 
   async function submitClose() {
     const parsed = numberValue(countedAmount);
-    if (!(parsed >= 0)) {
+    if (!Number.isFinite(parsed) || parsed < 0) {
       toast.error("Informe o dinheiro contado");
       return;
     }
