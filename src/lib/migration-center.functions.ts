@@ -160,7 +160,7 @@ export const refreshMigrationReconciliation = createServerFn({ method: "POST" })
       .eq("batch_id", data.batchId);
     if (modulesError) throw new Error(modulesError.message);
 
-    const [products, customers, suppliers, purchaseOrders, orders, stockRows, warehouses, cashMovements, fiscalDocuments] =
+    const [products, customers, suppliers, purchaseOrders, orders, stockRows, warehouses, cashMovements, receivables, payables, fiscalDocuments] =
       await Promise.all([
         countTenantRows(sb, "products", context.tenantId),
         countTenantRows(sb, "customers", context.tenantId),
@@ -169,7 +169,9 @@ export const refreshMigrationReconciliation = createServerFn({ method: "POST" })
         countTenantRows(sb, "orders", context.tenantId),
         countTenantRows(sb, "product_stock", context.tenantId),
         countTenantRows(sb, "warehouses", context.tenantId),
-        countTenantRows(sb, "pos_cash_movements", context.tenantId),
+        countTenantRows(sb, "financial_transactions", context.tenantId),
+        countTenantRows(sb, "financial_receivables", context.tenantId),
+        countTenantRows(sb, "expenses", context.tenantId),
         countTenantRows(sb, "fiscal_documents", context.tenantId),
       ]);
 
@@ -178,9 +180,9 @@ export const refreshMigrationReconciliation = createServerFn({ method: "POST" })
       products: { products },
       purchase_orders: { purchase_orders: purchaseOrders },
       sales_orders: { orders },
-      cash_bank: { pos_cash_movements: cashMovements },
-      accounts_receivable: { dedicated_target_ready: false },
-      accounts_payable: { dedicated_target_ready: false },
+      cash_bank: { financial_transactions: cashMovements },
+      accounts_receivable: { financial_receivables: receivables, dedicated_target_ready: true },
+      accounts_payable: { expenses: payables, dedicated_target_ready: true },
       stock: { product_stock_rows: stockRows, warehouses },
       nfe: { fiscal_documents: fiscalDocuments },
     };
