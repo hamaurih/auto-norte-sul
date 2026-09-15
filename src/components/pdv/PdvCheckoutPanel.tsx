@@ -41,14 +41,28 @@ export function PdvCheckoutPanel({
       toast.error("Selecione um depósito");
       return;
     }
+    const normalizedTerminal = terminalCode.trim().toUpperCase();
+    const parsedOpening = Number(openingAmount.replace(",", "."));
+    if (!normalizedTerminal) {
+      toast.error("Informe o terminal do caixa");
+      return;
+    }
+    if (!Number.isFinite(parsedOpening) || parsedOpening < 0) {
+      toast.error("O fundo de caixa deve ser zero ou um valor positivo");
+      return;
+    }
     setBusy(true);
     try {
-      const current: any = await getSession({ data: { terminalCode } });
-      if (current?.id) setSessionId(current.id);
-      else {
+      const current: any = await getSession({ data: { terminalCode: normalizedTerminal } });
+      if (current?.id) {
+        if (current.warehouse_id !== warehouse.id) {
+          throw new Error("Este terminal está aberto em outro depósito. Feche o caixa anterior ou use outro terminal.");
+        }
+        setSessionId(current.id);
+      } else {
         const opened: any = await openSession({ data: {
-          branchId: warehouse.branch_id, warehouseId: warehouse.id, terminalCode,
-          openingAmount: Number(openingAmount.replace(",", ".")) || 0,
+          branchId: warehouse.branch_id, warehouseId: warehouse.id, terminalCode: normalizedTerminal,
+          openingAmount: Math.round(parsedOpening * 100) / 100,
         } });
         setSessionId(opened?.id ?? null);
       }
