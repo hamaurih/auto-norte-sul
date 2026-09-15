@@ -119,7 +119,18 @@ export function PdvNewSale() {
     try {
       const matches = (await findByCodeFn({ data: { warehouseId, code } })) as Product[];
       if (matches.length === 0) {
-        setStatus(`Nenhum produto com o código ${code}. Tente SKU, código interno, código do fabricante ou busque pelo nome.`);
+        // Enter deve funcionar tanto para leitor de código quanto para busca manual por nome.
+        const nameMatches = (await catalogFn({ data: { warehouseId, search: code } })) as Product[];
+        if (nameMatches.length === 0) {
+          setStatus(`Nenhum produto encontrado para "${code}".`);
+          return;
+        }
+        if (nameMatches.length === 1) {
+          openConfirm(nameMatches[0]);
+          return;
+        }
+        setAmbiguous(nameMatches.slice(0, 20));
+        setStatus(`${nameMatches.length} produtos encontrados para "${code}". Selecione o correto.`);
         return;
       }
       if (matches.length > 1) {
