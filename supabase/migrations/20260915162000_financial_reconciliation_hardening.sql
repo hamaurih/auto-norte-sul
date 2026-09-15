@@ -56,6 +56,12 @@ create unique index if not exists financial_receivable_payment_idempotency
   where source_type='receivable_payment' and external_reference is not null;
 
 -- Tag historical Bling titles explicitly instead of leaving them as manual/null.
+alter table public.financial_receivables
+  drop constraint if exists financial_receivables_source_type_check;
+alter table public.financial_receivables
+  add constraint financial_receivables_source_type_check
+  check (source_type in ('site_order','payment_intent','b2b_order','pos_payment','manual','bling_backup'));
+
 update public.financial_receivables r
 set source_type='bling_backup', updated_at=now()
 where r.source_type='manual'
@@ -67,14 +73,13 @@ where r.source_type='manual'
   );
 
 update public.expenses e
-set source_type='bling_backup', updated_at=now()
+set source_type='bling_backup',
+    source_id=l.id,
+    updated_at=now()
+from public.legacy_import_records l
 where e.source_type is null
-  and exists (
-    select 1
-    from public.legacy_import_records l
-    where l.entity_type='accounts_payable'
-      and l.migrated_id=e.id
-  );
+  and l.entity_type='accounts_payable'
+  and l.migrated_id=e.id;
 
 create or replace function private.validate_financial_reconciliation_match()
 returns trigger
