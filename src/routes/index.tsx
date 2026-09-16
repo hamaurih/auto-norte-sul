@@ -502,35 +502,48 @@ function ShopByDepartment({
 function FallbackHero() {
   return (
     <section className="container-x">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-black via-secondary to-primary/70 p-8 text-white md:p-14">
-        <div className="relative z-10 max-w-2xl">
-          <span className="inline-flex items-center gap-1 rounded bg-primary px-2 py-1 text-[10px] font-black uppercase tracking-widest text-primary-foreground">
+      <div className="relative grid overflow-hidden rounded-3xl bg-[radial-gradient(circle_at_90%_20%,rgba(66,133,207,0.65),transparent_34%),linear-gradient(120deg,#020617_0%,#0f2f62_58%,#2563a8_100%)] text-white shadow-xl md:grid-cols-[1.25fr_0.75fr]">
+        <div className="relative z-10 p-8 md:p-14">
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-400 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-950">
             <Zap className="h-3 w-3" /> PIX 5% OFF
           </span>
-          <h1 className="mt-4 font-display text-4xl font-black uppercase leading-[0.95] md:text-6xl">
-            Equipe seu carro com <span className="text-primary">ofertas de verdade</span>
+          <h1 className="mt-5 max-w-xl text-4xl font-extrabold leading-[1.03] tracking-tight md:text-6xl">
+            Peças e acessórios <span className="text-amber-300">para o seu carro.</span>
           </h1>
-          <p className="mt-3 max-w-lg text-sm text-white/80 md:text-base">
-            Som, iluminação, segurança e acessórios com preço de varejo e atacado. Entrega para todo
-            o Brasil.
+          <p className="mt-4 max-w-lg text-sm leading-relaxed text-white/85 md:text-base">
+            Compre no varejo ou no atacado, encontre a peça certa e receba em qualquer lugar do
+            Brasil.
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
+          <div className="mt-7 flex flex-wrap gap-3">
             <Link
               to="/catalogo"
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-bold uppercase text-primary-foreground shadow-[var(--shadow-brand)] hover:brightness-110"
+              className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-5 py-3 text-sm font-bold text-slate-950 shadow-lg transition hover:bg-amber-300"
             >
-              Ver ofertas <ArrowRight className="h-4 w-4" />
+              Encontrar produtos <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               to="/b2b"
-              className="inline-flex items-center gap-2 rounded-md border border-white/30 bg-white/10 px-6 py-3 text-sm font-bold uppercase text-white backdrop-blur hover:bg-white/20"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/35 bg-white/10 px-5 py-3 text-sm font-bold text-white backdrop-blur transition hover:bg-white/20"
             >
-              Comprar no atacado
+              Preço para CNPJ
             </Link>
           </div>
         </div>
-        <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-primary/40 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 right-10 h-72 w-72 rounded-full bg-primary/20 blur-3xl" />
+        <div className="relative hidden items-center p-8 md:flex">
+          <div className="w-full rounded-2xl border border-white/20 bg-slate-950/25 p-6 backdrop-blur-sm">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-300">
+              Norte Sul para você
+            </p>
+            <p className="mt-3 text-2xl font-bold leading-tight">
+              Varejo e atacado no mesmo lugar.
+            </p>
+            <ul className="mt-5 space-y-3 text-sm text-white/85">
+              <li>• Estoque para equipar seu carro</li>
+              <li>• Condições especiais para empresas</li>
+              <li>• Atendimento para todo o Brasil</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </section>
   );
