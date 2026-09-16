@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 import { tdb } from "@/integrations/supabase/tenant-db";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 async function financeRoles(sb: any, userId: string, tenantId: string) {
   const { data, error } = await sb.from("tenant_memberships").select("role").eq("tenant_id", tenantId).eq("user_id", userId).eq("active", true);
@@ -65,7 +66,7 @@ export const approvePayable=createServerFn({method:"POST"}).middleware([requireS
 });
 export const settlePayable=createServerFn({method:"POST"}).middleware([requireSupabaseAuth]).inputValidator(v=>z.object({id:z.string().uuid(),amount:z.number().positive(),accountId:z.string().uuid(),paymentDate:z.string().date().optional(),idempotencyKey:z.string().uuid(),notes:z.string().trim().max(1000).optional()}).parse(v)).handler(async({data,context})=>{
  const sb=tdb(context.supabase);await requireFinanceAdmin(sb,context.userId,context.tenantId);
- const {data:result,error}=await (sb as any).rpc("pay_expense",{p_expense_id:data.id,p_amount:data.amount,p_account_id:data.accountId,p_payment_date:data.paymentDate??new Date().toISOString().slice(0,10),p_idempotency_key:data.idempotencyKey,p_notes:data.notes??null});
+ const {data:result,error}=await (supabaseAdmin as any).rpc("pay_expense",{p_expense_id:data.id,p_amount:data.amount,p_account_id:data.accountId,p_payment_date:data.paymentDate??new Date().toISOString().slice(0,10),p_idempotency_key:data.idempotencyKey,p_notes:data.notes??null});
  if(error)throw new Error(error.message);return result;
 });
 
@@ -88,13 +89,13 @@ export const saveReceivable=createServerFn({method:"POST"}).middleware([requireS
 });
 export const settleReceivable=createServerFn({method:"POST"}).middleware([requireSupabaseAuth]).inputValidator(v=>z.object({id:z.string().uuid(),amount:z.number().positive(),accountId:z.string().uuid(),receivedDate:z.string().date().optional(),idempotencyKey:z.string().uuid(),notes:z.string().trim().max(1000).optional()}).parse(v)).handler(async({data,context})=>{
  const sb=tdb(context.supabase);await requireFinanceAdmin(sb,context.userId,context.tenantId);
- const {data:result,error}=await (sb as any).rpc("receive_receivable",{p_receivable_id:data.id,p_amount:data.amount,p_account_id:data.accountId,p_received_date:data.receivedDate??new Date().toISOString().slice(0,10),p_idempotency_key:data.idempotencyKey,p_notes:data.notes??null});
+ const {data:result,error}=await (supabaseAdmin as any).rpc("receive_receivable",{p_receivable_id:data.id,p_amount:data.amount,p_account_id:data.accountId,p_received_date:data.receivedDate??new Date().toISOString().slice(0,10),p_idempotency_key:data.idempotencyKey,p_notes:data.notes??null});
  if(error)throw new Error(error.message);return result;
 });
 export const getCashFlow=createServerFn({method:"GET"}).middleware([requireSupabaseAuth]).handler(async({context})=>{
  const sb=tdb(context.supabase);await requireFinanceAdmin(sb,context.userId,context.tenantId);
  const [summary,transactions,receivables,expenses]=await Promise.all([
-  (sb as any).rpc("financial_cash_summary",{p_tenant_id:context.tenantId}),
+  (supabaseAdmin as any).rpc("financial_cash_summary",{p_tenant_id:context.tenantId}),
   (sb as any).from("financial_transactions").select("id,account_id,transaction_date,direction,amount,description,category,reconciliation_status,source_type,external_reference").eq("tenant_id",context.tenantId).order("transaction_date",{ascending:false}).limit(1000),
   (sb as any).from("financial_receivables").select("id,customer_name,description,amount,received_amount,due_date,status").eq("tenant_id",context.tenantId).eq("status","open").order("due_date",{ascending:true}).limit(1000),
   sb.from("expenses").select("id,description,amount,paid_amount,due_date,status").eq("tenant_id",context.tenantId).eq("status","open").order("due_date",{ascending:true}).limit(1000),
