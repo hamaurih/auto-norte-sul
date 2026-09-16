@@ -101,35 +101,52 @@ export function Header() {
   const showDropdown = open && enabled && (isFetching || suggestions.length > 0);
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border bg-secondary text-secondary-foreground">
+    <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 text-foreground shadow-sm backdrop-blur-xl">
       {/* Top strip */}
-      <div className="border-b border-white/10 bg-black/30 text-[11px]">
+      <div className="border-b border-white/10 bg-slate-950 text-[11px] text-white/85">
         <div className="container-x flex h-8 items-center justify-between">
-          <span className="hidden sm:inline">Frete para todo Brasil · PIX com 5% OFF · 10x sem juros</span>
+          <span className="hidden sm:inline">
+            Frete para todo Brasil · PIX com 5% OFF · 10x sem juros
+          </span>
           <div className="flex items-center gap-3">
-            <Link to="/b2b" className="hover:text-primary">Compre no Atacado (B2B)</Link>
+            <Link to="/b2b" className="hover:text-primary">
+              Compre no Atacado (B2B)
+            </Link>
             <span className="opacity-40">|</span>
-            <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className="hover:text-primary">WhatsApp</a>
+            <a
+              href={whatsappHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-primary"
+            >
+              WhatsApp
+            </a>
           </div>
         </div>
       </div>
 
       {/* Main bar */}
-      <div className="container-x flex items-center gap-3 py-3">
-        <button
-          className="md:hidden"
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-label="Menu"
-        >
+      <div className="container-x flex flex-wrap items-center gap-3 py-3 md:flex-nowrap">
+        <button className="md:hidden" onClick={() => setMenuOpen((v) => !v)} aria-label="Menu">
           <Menu className="h-6 w-6" />
         </button>
 
-        <Link to="/" className="group flex items-center" aria-label={`${company?.trade_name || "Loja"} - Início`}>
+        <Link
+          to="/"
+          className="group flex items-center"
+          aria-label={`${company?.trade_name || "Loja"} - Início`}
+        >
           <CompanyLogo className="h-14 w-auto drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] transition-transform duration-300 group-hover:scale-105 md:h-16" />
         </Link>
 
-        <div ref={boxRef} className="relative ml-auto flex flex-1 max-w-2xl">
-          <form onSubmit={submit} className="flex w-full items-center rounded-md bg-white text-foreground">
+        <div
+          ref={boxRef}
+          className="order-3 relative flex w-full basis-full md:order-none md:ml-3 md:flex-1 md:basis-auto md:max-w-2xl"
+        >
+          <form
+            onSubmit={submit}
+            className="flex w-full items-center rounded-xl border border-border bg-white text-foreground shadow-sm transition-shadow focus-within:border-primary/60 focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--primary)_14%,transparent)]"
+          >
             <div className="hidden items-center gap-1 border-r border-border px-3 text-xs font-semibold text-muted-foreground sm:flex">
               <span>SKU · Produto · Marca · Aplicação</span>
             </div>
@@ -146,8 +163,15 @@ export function Header() {
               className="flex-1 bg-transparent px-3 py-2 text-sm outline-none"
               autoComplete="off"
             />
-            <button className="grid h-full aspect-square place-items-center rounded-r-md bg-primary px-3 text-primary-foreground" aria-label="Buscar">
-              {isFetching && enabled ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            <button
+              className="grid h-full aspect-square place-items-center rounded-r-xl bg-primary px-3 text-primary-foreground transition hover:brightness-110"
+              aria-label="Buscar"
+            >
+              {isFetching && enabled ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="h-4 w-4" />
+              )}
             </button>
           </form>
 
@@ -185,10 +209,16 @@ export function Header() {
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="line-clamp-2 text-xs font-medium leading-tight">{s.name}</div>
-                            <div className="mt-0.5 text-[10px] text-muted-foreground">SKU {s.sku}</div>
+                            <div className="line-clamp-2 text-xs font-medium leading-tight">
+                              {s.name}
+                            </div>
+                            <div className="mt-0.5 text-[10px] text-muted-foreground">
+                              SKU {s.sku}
+                            </div>
                           </div>
-                          <div className="shrink-0 text-sm font-bold text-primary">{brl(s.price_b2c)}</div>
+                          <div className="shrink-0 text-sm font-bold text-primary">
+                            {brl(s.price_b2c)}
+                          </div>
                         </Link>
                       </li>
                     ))}
@@ -205,21 +235,30 @@ export function Header() {
           )}
         </div>
 
-        <nav className="ml-auto flex items-center gap-1">
+        <nav className="ml-auto flex shrink-0 items-center gap-1">
           {user ? (
             <>
               {!isStaff && (
-                <Link to="/conta" className="hidden items-center gap-1 rounded px-2 py-1 text-sm hover:text-primary md:flex">
+                <Link
+                  to="/conta"
+                  className="hidden items-center gap-1 rounded px-2 py-1 text-sm hover:text-primary md:flex"
+                >
                   <User className="h-4 w-4" /> Minha Conta
                 </Link>
               )}
               {isSalesRep && (
-                <Link to="/vendedor" className="hidden items-center gap-1 rounded bg-hot px-2 py-1 text-xs font-bold uppercase text-hot-foreground md:flex">
+                <Link
+                  to="/vendedor"
+                  className="hidden items-center gap-1 rounded bg-hot px-2 py-1 text-xs font-bold uppercase text-hot-foreground md:flex"
+                >
                   Vendedor
                 </Link>
               )}
               {isStaff && (
-                <Link to="/admin" className="hidden items-center gap-1 rounded bg-primary px-2 py-1 text-xs font-bold uppercase text-primary-foreground md:flex">
+                <Link
+                  to="/admin"
+                  className="hidden items-center gap-1 rounded bg-primary px-2 py-1 text-xs font-bold uppercase text-primary-foreground md:flex"
+                >
                   <Wrench className="h-3 w-3" /> Admin
                 </Link>
               )}
@@ -235,11 +274,17 @@ export function Header() {
               </button>
             </>
           ) : (
-            <Link to="/auth" className="hidden items-center gap-1 rounded px-2 py-1 text-sm hover:text-primary md:flex">
+            <Link
+              to="/auth"
+              className="hidden items-center gap-1 rounded px-2 py-1 text-sm hover:text-primary md:flex"
+            >
               <User className="h-4 w-4" /> Entrar
             </Link>
           )}
-          <Link to="/carrinho" className="relative flex items-center gap-1 rounded px-2 py-1 text-sm hover:text-primary">
+          <Link
+            to="/carrinho"
+            className="relative flex items-center gap-1 rounded px-2 py-1 text-sm hover:text-primary"
+          >
             <ShoppingCart className="h-5 w-5" />
             {count > 0 && (
               <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
@@ -251,14 +296,14 @@ export function Header() {
       </div>
 
       {/* Departments */}
-      <div className="border-t border-white/10 bg-black/20">
+      <div className="border-t border-border bg-muted/45">
         <div className="container-x scroll-rail py-2 text-sm">
           {categories.map((c) => (
             <Link
               key={c.id}
               to="/catalogo"
               search={{ category: c.slug } as never}
-              className="whitespace-nowrap rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition hover:border-primary hover:bg-primary hover:text-primary-foreground"
+              className="whitespace-nowrap rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition hover:border-primary hover:bg-primary hover:text-primary-foreground"
             >
               {c.name}
             </Link>
@@ -268,16 +313,34 @@ export function Header() {
 
       {/* Mobile menu drop */}
       {menuOpen && (
-        <div className="border-t border-white/10 bg-secondary p-4 md:hidden">
+        <div className="border-t border-border bg-background p-4 md:hidden">
           <div className="flex flex-col gap-2 text-sm">
-            <Link to="/" onClick={() => setMenuOpen(false)}>Home</Link>
-            <Link to="/catalogo" onClick={() => setMenuOpen(false)}>Catálogo</Link>
-            <Link to="/b2b" onClick={() => setMenuOpen(false)}>Compre no Atacado</Link>
+            <Link to="/" onClick={() => setMenuOpen(false)}>
+              Home
+            </Link>
+            <Link to="/catalogo" onClick={() => setMenuOpen(false)}>
+              Catálogo
+            </Link>
+            <Link to="/b2b" onClick={() => setMenuOpen(false)}>
+              Compre no Atacado
+            </Link>
             {user ? (
               <>
-                {!isStaff && <Link to="/conta" onClick={() => setMenuOpen(false)}>Minha conta</Link>}
-                {!isStaff && <Link to="/pedidos" onClick={() => setMenuOpen(false)}>Meus pedidos</Link>}
-                {isStaff && <Link to="/admin" onClick={() => setMenuOpen(false)}>Painel Admin</Link>}
+                {!isStaff && (
+                  <Link to="/conta" onClick={() => setMenuOpen(false)}>
+                    Minha conta
+                  </Link>
+                )}
+                {!isStaff && (
+                  <Link to="/pedidos" onClick={() => setMenuOpen(false)}>
+                    Meus pedidos
+                  </Link>
+                )}
+                {isStaff && (
+                  <Link to="/admin" onClick={() => setMenuOpen(false)}>
+                    Painel Admin
+                  </Link>
+                )}
                 <button
                   className="text-left text-primary"
                   onClick={async () => {
@@ -289,7 +352,9 @@ export function Header() {
                 </button>
               </>
             ) : (
-              <Link to="/auth" onClick={() => setMenuOpen(false)}>Entrar / Cadastrar</Link>
+              <Link to="/auth" onClick={() => setMenuOpen(false)}>
+                Entrar / Cadastrar
+              </Link>
             )}
             {isB2BApproved && (
               <span className="mt-2 rounded bg-success px-2 py-1 text-xs font-bold uppercase text-success-foreground">
