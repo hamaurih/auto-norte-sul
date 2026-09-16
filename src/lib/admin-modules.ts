@@ -62,6 +62,11 @@ export type AdminModule = {
   adminOnly?: boolean;
 };
 
+export type AdminPageLocation = {
+  module: AdminModule;
+  shortcut: AdminShortcut;
+};
+
 export const adminModules: AdminModule[] = [
   {
     key: "comercial",
@@ -71,14 +76,52 @@ export const adminModules: AdminModule[] = [
     accent: "bg-blue-100 text-blue-700",
     shortcuts: [
       { to: "/admin/pdv", label: "PDV", description: "Frente de caixa", icon: ScanLine },
-      { to: "/admin/pedidos", label: "Pedidos", description: "Acompanhar vendas", icon: ShoppingBag },
-      { to: "/admin/expedicao", label: "Expedição", description: "Separação, conferência e envios", icon: Truck },
-      { to: "/admin/fiscal", label: "Central Fiscal", description: "NF-e, NFC-e e configuração tributária", icon: Landmark, adminOnly: true },
-      { to: "/admin/fiscal-produtos", label: "Saneamento tributário", description: "NCM e regras fiscais dos produtos", icon: ClipboardCheck, adminOnly: true },
-      { to: "/admin/orcamentos", label: "Orçamentos", description: "Propostas comerciais", icon: FileText },
+      {
+        to: "/admin/pedidos",
+        label: "Pedidos",
+        description: "Acompanhar vendas",
+        icon: ShoppingBag,
+      },
+      {
+        to: "/admin/expedicao",
+        label: "Expedição",
+        description: "Separação, conferência e envios",
+        icon: Truck,
+      },
+      {
+        to: "/admin/fiscal",
+        label: "Central Fiscal",
+        description: "NF-e, NFC-e e configuração tributária",
+        icon: Landmark,
+        adminOnly: true,
+      },
+      {
+        to: "/admin/fiscal-produtos",
+        label: "Saneamento tributário",
+        description: "NCM e regras fiscais dos produtos",
+        icon: ClipboardCheck,
+        adminOnly: true,
+      },
+      {
+        to: "/admin/orcamentos",
+        label: "Orçamentos",
+        description: "Propostas comerciais",
+        icon: FileText,
+      },
       { to: "/admin/clientes", label: "Clientes", description: "Base de clientes", icon: Users },
-      { to: "/admin/cadastros-b2b", label: "Cadastros B2B", description: "Aprovações de revenda", icon: Briefcase },
-      { to: "/admin/vendedores", label: "Vendedores", description: "Equipe de vendas", icon: UserCog, adminOnly: true },
+      {
+        to: "/admin/cadastros-b2b",
+        label: "Cadastros B2B",
+        description: "Aprovações de revenda",
+        icon: Briefcase,
+      },
+      {
+        to: "/admin/vendedores",
+        label: "Vendedores",
+        description: "Equipe de vendas",
+        icon: UserCog,
+        adminOnly: true,
+      },
     ],
   },
   {
@@ -89,14 +132,54 @@ export const adminModules: AdminModule[] = [
     accent: "bg-violet-100 text-violet-700",
     shortcuts: [
       { to: "/admin/produtos", label: "Produtos", description: "Listar e editar", icon: Package },
-      { to: "/admin/produtos/novo", label: "Novo produto", description: "Cadastrar peça", icon: PlusCircle },
-      { to: "/admin/formacao-precos", label: "Formação de preços", description: "Margem B2B → B2C e reajustes", icon: BadgeDollarSign, adminOnly: true },
-      { to: "/admin/categorias", label: "Categorias", description: "Árvore de categorias", icon: FolderTree },
+      {
+        to: "/admin/produtos/novo",
+        label: "Novo produto",
+        description: "Cadastrar peça",
+        icon: PlusCircle,
+      },
+      {
+        to: "/admin/formacao-precos",
+        label: "Formação de preços",
+        description: "Margem B2B → B2C e reajustes",
+        icon: BadgeDollarSign,
+        adminOnly: true,
+      },
+      {
+        to: "/admin/categorias",
+        label: "Categorias",
+        description: "Árvore de categorias",
+        icon: FolderTree,
+      },
       { to: "/admin/marcas", label: "Marcas", description: "Fabricantes", icon: Tag },
-      { to: "/admin/aplicacoes-veiculares", label: "Aplicações veiculares", description: "Validar compatibilidade peça × veículo", icon: ClipboardCheck, adminOnly: true },
-      { to: "/admin/revisao-codigos", label: "Revisão de códigos", description: "Corrigir códigos internos e de fabricante", icon: Tag, adminOnly: true },
-      { to: "/admin/enriquecimento-produtos", label: "Enriquecer produtos", description: "Imagens e descrições com fonte e aprovação", icon: Images, adminOnly: true },
-      { to: "/admin/catalogo-fabricantes", label: "Catálogo de fabricantes", description: "Fontes oficiais e regras de códigos", icon: Images, adminOnly: true },
+      {
+        to: "/admin/aplicacoes-veiculares",
+        label: "Aplicações veiculares",
+        description: "Validar compatibilidade peça × veículo",
+        icon: ClipboardCheck,
+        adminOnly: true,
+      },
+      {
+        to: "/admin/revisao-codigos",
+        label: "Revisão de códigos",
+        description: "Corrigir códigos internos e de fabricante",
+        icon: Tag,
+        adminOnly: true,
+      },
+      {
+        to: "/admin/enriquecimento-produtos",
+        label: "Enriquecer produtos",
+        description: "Imagens e descrições com fonte e aprovação",
+        icon: Images,
+        adminOnly: true,
+      },
+      {
+        to: "/admin/catalogo-fabricantes",
+        label: "Catálogo de fabricantes",
+        description: "Fontes oficiais e regras de códigos",
+        icon: Images,
+        adminOnly: true,
+      },
     ],
   },
   {
@@ -107,8 +190,18 @@ export const adminModules: AdminModule[] = [
     accent: "bg-cyan-100 text-cyan-700",
     shortcuts: [
       { to: "/admin/estoque", label: "Estoque", description: "Saldos e ajustes", icon: Warehouse },
-      { to: "/admin/estoque#devolucoes", label: "Devoluções e trocas", description: "Quarentena e substituições", icon: ArrowLeftRight },
-      { to: "/admin/filiais", label: "Filiais e Depósitos", description: "Estrutura física", icon: Building2 },
+      {
+        to: "/admin/estoque#devolucoes",
+        label: "Devoluções e trocas",
+        description: "Quarentena e substituições",
+        icon: ArrowLeftRight,
+      },
+      {
+        to: "/admin/filiais",
+        label: "Filiais e Depósitos",
+        description: "Estrutura física",
+        icon: Building2,
+      },
     ],
   },
   {
@@ -118,16 +211,68 @@ export const adminModules: AdminModule[] = [
     icon: Truck,
     accent: "bg-amber-100 text-amber-700",
     shortcuts: [
-      { to: "/admin/suprimentos", label: "Visão geral", description: "Indicadores de compras", icon: Truck },
-      { to: "/admin/reposicao", label: "Reposição inteligente", description: "Sugestões por giro e fornecedor", icon: PackageSearch },
-      { to: "/admin/inteligencia-comercial", label: "Inteligência comercial", description: "ABC, margem, preço, giro e capital", icon: BarChart3, adminOnly: true },
-      { to: "/admin/fornecedores", label: "Fornecedores", description: "Cadastro e condições", icon: Truck },
-      { to: "/admin/pedidos-compra", label: "Pedidos de compra", description: "Emissão e aprovação", icon: ShoppingCart },
-      { to: "/admin/pedidos-compra/novo", label: "Novo pedido de compra", description: "Comprar do fornecedor", icon: PlusCircle },
-      { to: "/admin/recebimentos", label: "Recebimentos", description: "Entrada de mercadoria", icon: PackageCheck },
-      { to: "/admin/nfe-importacao", label: "Importar XML NF-e", description: "Conferência da nota de compra", icon: FileUp },
-      { to: "/admin/historico-custos", label: "Financeiro do estoque", description: "Valorização e fechamentos", icon: ClipboardList },
-      { to: "/admin/saneamento-custos", label: "Saneamento de custos", description: "Recuperar e aprovar custos reais", icon: BadgeDollarSign, adminOnly: true },
+      {
+        to: "/admin/suprimentos",
+        label: "Visão geral",
+        description: "Indicadores de compras",
+        icon: Truck,
+      },
+      {
+        to: "/admin/reposicao",
+        label: "Reposição inteligente",
+        description: "Sugestões por giro e fornecedor",
+        icon: PackageSearch,
+      },
+      {
+        to: "/admin/inteligencia-comercial",
+        label: "Inteligência comercial",
+        description: "ABC, margem, preço, giro e capital",
+        icon: BarChart3,
+        adminOnly: true,
+      },
+      {
+        to: "/admin/fornecedores",
+        label: "Fornecedores",
+        description: "Cadastro e condições",
+        icon: Truck,
+      },
+      {
+        to: "/admin/pedidos-compra",
+        label: "Pedidos de compra",
+        description: "Emissão e aprovação",
+        icon: ShoppingCart,
+      },
+      {
+        to: "/admin/pedidos-compra/novo",
+        label: "Novo pedido de compra",
+        description: "Comprar do fornecedor",
+        icon: PlusCircle,
+      },
+      {
+        to: "/admin/recebimentos",
+        label: "Recebimentos",
+        description: "Entrada de mercadoria",
+        icon: PackageCheck,
+      },
+      {
+        to: "/admin/nfe-importacao",
+        label: "Importar XML NF-e",
+        description: "Conferência da nota de compra",
+        icon: FileUp,
+      },
+      {
+        to: "/admin/historico-custos",
+        label: "Financeiro do estoque",
+        description: "Valorização e fechamentos",
+        icon: ClipboardList,
+      },
+      {
+        to: "/admin/saneamento-custos",
+        label: "Saneamento de custos",
+        description: "Recuperar e aprovar custos reais",
+        icon: BadgeDollarSign,
+        adminOnly: true,
+      },
     ],
   },
   {
@@ -137,10 +282,34 @@ export const adminModules: AdminModule[] = [
     icon: CircleDollarSign,
     accent: "bg-emerald-100 text-emerald-700",
     shortcuts: [
-      { to: "/admin/financeiro", label: "Estrutura financeira", description: "Categorias e centros de custo", icon: FolderTree, adminOnly: true },
-      { to: "/admin/contas-pagar", label: "Contas a pagar", description: "Boletos, despesas e vencimentos", icon: Landmark, adminOnly: true },
-      { to: "/admin/contas-receber", label: "Contas a receber", description: "Vendas, cobranças e baixas", icon: WalletCards, adminOnly: true },
-      { to: "/admin/fluxo-caixa", label: "Fluxo de caixa", description: "Entradas, saídas e previsão", icon: BarChart3, adminOnly: true },
+      {
+        to: "/admin/financeiro",
+        label: "Estrutura financeira",
+        description: "Categorias e centros de custo",
+        icon: FolderTree,
+        adminOnly: true,
+      },
+      {
+        to: "/admin/contas-pagar",
+        label: "Contas a pagar",
+        description: "Boletos, despesas e vencimentos",
+        icon: Landmark,
+        adminOnly: true,
+      },
+      {
+        to: "/admin/contas-receber",
+        label: "Contas a receber",
+        description: "Vendas, cobranças e baixas",
+        icon: WalletCards,
+        adminOnly: true,
+      },
+      {
+        to: "/admin/fluxo-caixa",
+        label: "Fluxo de caixa",
+        description: "Entradas, saídas e previsão",
+        icon: BarChart3,
+        adminOnly: true,
+      },
     ],
   },
   {
@@ -151,9 +320,20 @@ export const adminModules: AdminModule[] = [
     accent: "bg-rose-100 text-rose-700",
     shortcuts: [
       { to: "/admin/banners", label: "Banners", description: "Vitrine da home", icon: ImageIcon },
-      { to: "/admin/promocoes", label: "Promoções", description: "Campanhas de preço", icon: Percent },
+      {
+        to: "/admin/promocoes",
+        label: "Promoções",
+        description: "Campanhas de preço",
+        icon: Percent,
+      },
       { to: "/admin/cupons", label: "Cupons", description: "Descontos por código", icon: Ticket },
-      { to: "/", label: "Ver loja", description: "Abrir vitrine pública", icon: Store, external: true },
+      {
+        to: "/",
+        label: "Ver loja",
+        description: "Abrir vitrine pública",
+        icon: Store,
+        external: true,
+      },
     ],
   },
   {
@@ -164,10 +344,34 @@ export const adminModules: AdminModule[] = [
     accent: "bg-emerald-100 text-emerald-700",
     adminOnly: true,
     shortcuts: [
-      { to: "/admin/ecossistema", label: "Ecossistema", description: "Conexões ativas", icon: Network, adminOnly: true },
-      { to: "/admin/ecossistema/bling", label: "Bling", description: "Conector externo e exportação", icon: RefreshCcw, adminOnly: true },
-      { to: "/admin/migracao-bling", label: "Migração Bling", description: "Backup, progresso, erros e reconciliação", icon: FileUp, adminOnly: true },
-      { to: "/admin/ia-aes-business", label: "IA A&S Business", description: "Assistente interno", icon: Bot, adminOnly: true },
+      {
+        to: "/admin/ecossistema",
+        label: "Ecossistema",
+        description: "Conexões ativas",
+        icon: Network,
+        adminOnly: true,
+      },
+      {
+        to: "/admin/ecossistema/bling",
+        label: "Bling",
+        description: "Conector externo e exportação",
+        icon: RefreshCcw,
+        adminOnly: true,
+      },
+      {
+        to: "/admin/migracao-bling",
+        label: "Migração Bling",
+        description: "Backup, progresso, erros e reconciliação",
+        icon: FileUp,
+        adminOnly: true,
+      },
+      {
+        to: "/admin/ia-aes-business",
+        label: "IA A&S Business",
+        description: "Assistente interno",
+        icon: Bot,
+        adminOnly: true,
+      },
     ],
   },
   {
@@ -178,13 +382,57 @@ export const adminModules: AdminModule[] = [
     accent: "bg-slate-100 text-slate-700",
     adminOnly: true,
     shortcuts: [
-      { to: "/admin/configuracoes", label: "Configurações", description: "Dados da empresa", icon: Settings, adminOnly: true },
-      { to: "/admin/saneamento", label: "Saneamento", description: "Qualidade do catálogo", icon: ShieldAlert, adminOnly: true },
-      { to: "/admin/saneamento/aliases", label: "Aliases", description: "Sinônimos de busca", icon: Tag, adminOnly: true },
-      { to: "/admin/auditoria", label: "Auditoria", description: "Trilha de eventos", icon: ClipboardCheck, adminOnly: true },
-      { to: "/admin/homologacao", label: "Homologação", description: "Checklist de release", icon: ClipboardCheck, adminOnly: true },
-      { to: "/admin/backup-exportacao", label: "Backup e exportação", description: "Exportar dados e solicitar restauração", icon: DatabaseBackup, adminOnly: true, permission: "settings" },
-      { to: "/admin/usuarios", label: "Usuários e permissões", description: "Contas, papéis e acessos da equipe", icon: UserCog, adminOnly: true, permission: "users" },
+      {
+        to: "/admin/configuracoes",
+        label: "Configurações",
+        description: "Dados da empresa",
+        icon: Settings,
+        adminOnly: true,
+      },
+      {
+        to: "/admin/saneamento",
+        label: "Saneamento",
+        description: "Qualidade do catálogo",
+        icon: ShieldAlert,
+        adminOnly: true,
+      },
+      {
+        to: "/admin/saneamento/aliases",
+        label: "Aliases",
+        description: "Sinônimos de busca",
+        icon: Tag,
+        adminOnly: true,
+      },
+      {
+        to: "/admin/auditoria",
+        label: "Auditoria",
+        description: "Trilha de eventos",
+        icon: ClipboardCheck,
+        adminOnly: true,
+      },
+      {
+        to: "/admin/homologacao",
+        label: "Homologação",
+        description: "Checklist de release",
+        icon: ClipboardCheck,
+        adminOnly: true,
+      },
+      {
+        to: "/admin/backup-exportacao",
+        label: "Backup e exportação",
+        description: "Exportar dados e solicitar restauração",
+        icon: DatabaseBackup,
+        adminOnly: true,
+        permission: "settings",
+      },
+      {
+        to: "/admin/usuarios",
+        label: "Usuários e permissões",
+        description: "Contas, papéis e acessos da equipe",
+        icon: UserCog,
+        adminOnly: true,
+        permission: "users",
+      },
     ],
   },
 ];
@@ -193,9 +441,24 @@ export const adminQuickActions: AdminShortcut[] = [
   { to: "/admin/pdv", label: "Nova venda", description: "Abrir frente de caixa", icon: ScanLine },
   { to: "/admin/pedidos", label: "Pedidos", description: "Acompanhar vendas", icon: ShoppingBag },
   { to: "/admin/expedicao", label: "Expedição", description: "Separar e despachar", icon: Truck },
-  { to: "/admin/pedidos-compra/novo", label: "Nova compra", description: "Comprar do fornecedor", icon: ShoppingCart },
-  { to: "/admin/recebimentos", label: "Recebimentos", description: "Dar entrada em mercadoria", icon: PackageCheck },
-  { to: "/admin/estoque", label: "Estoque", description: "Consultar e ajustar saldos", icon: Warehouse },
+  {
+    to: "/admin/pedidos-compra/novo",
+    label: "Nova compra",
+    description: "Comprar do fornecedor",
+    icon: ShoppingCart,
+  },
+  {
+    to: "/admin/recebimentos",
+    label: "Recebimentos",
+    description: "Dar entrada em mercadoria",
+    icon: PackageCheck,
+  },
+  {
+    to: "/admin/estoque",
+    label: "Estoque",
+    description: "Consultar e ajustar saldos",
+    icon: Warehouse,
+  },
 ];
 
 const MODULE_PERMISSION_BY_ADMIN_MODULE: Record<string, PermissionModuleKey> = {
@@ -212,8 +475,18 @@ function permissionForShortcut(moduleKey: string, shortcut: AdminShortcut): Perm
   if (shortcut.permission) return shortcut.permission;
   if (shortcut.to === "/admin/usuarios") return "users";
   if (shortcut.to === "/admin/configuracoes") return "settings";
-  if (shortcut.to === "/admin/auditoria" || shortcut.to === "/admin/saneamento" || shortcut.to.startsWith("/admin/saneamento/")) return "audit";
-  if (shortcut.to === "/admin/fiscal" || shortcut.to === "/admin/fiscal-produtos" || shortcut.to === "/admin/homologacao") return "fiscal";
+  if (
+    shortcut.to === "/admin/auditoria" ||
+    shortcut.to === "/admin/saneamento" ||
+    shortcut.to.startsWith("/admin/saneamento/")
+  )
+    return "audit";
+  if (
+    shortcut.to === "/admin/fiscal" ||
+    shortcut.to === "/admin/fiscal-produtos" ||
+    shortcut.to === "/admin/homologacao"
+  )
+    return "fiscal";
   if (shortcut.to === "/admin/ia-aes-business") return "ai";
   if (shortcut.to === "/admin/inteligencia-comercial") return "reports";
   return MODULE_PERMISSION_BY_ADMIN_MODULE[moduleKey] ?? "dashboard";
@@ -226,11 +499,33 @@ export function adminPermissionForPath(pathname: string): PermissionModuleKey | 
       if (shortcut.external) continue;
       const matches = pathname === shortcut.to || pathname.startsWith(`${shortcut.to}/`);
       if (matches && (!best || shortcut.to.length > best.length)) {
-        best = { length: shortcut.to.length, permission: permissionForShortcut(module.key, shortcut) };
+        best = {
+          length: shortcut.to.length,
+          permission: permissionForShortcut(module.key, shortcut),
+        };
       }
     }
   }
   return best?.permission ?? null;
+}
+
+/**
+ * Resolves the most specific configured admin page for breadcrumbs and the
+ * operational header. Navigation remains driven by the same source of truth
+ * used for permissions, avoiding labels that drift from real routes.
+ */
+export function adminPageLocation(pathname: string): AdminPageLocation | null {
+  let best: AdminPageLocation | null = null;
+  for (const module of adminModules) {
+    for (const shortcut of module.shortcuts) {
+      if (shortcut.external) continue;
+      const matches = pathname === shortcut.to || pathname.startsWith(`${shortcut.to}/`);
+      if (matches && (!best || shortcut.to.length > best.shortcut.to.length)) {
+        best = { module, shortcut };
+      }
+    }
+  }
+  return best;
 }
 
 export function visibleModules(
@@ -245,7 +540,8 @@ export function visibleModules(
       shortcuts: module.shortcuts.filter(
         (shortcut) =>
           (!shortcut.adminOnly || isAdmin) &&
-          (!filterByPermissions || canViewModule(permissions, permissionForShortcut(module.key, shortcut))),
+          (!filterByPermissions ||
+            canViewModule(permissions, permissionForShortcut(module.key, shortcut))),
       ),
     }))
     .filter((module) => module.shortcuts.length > 0);
