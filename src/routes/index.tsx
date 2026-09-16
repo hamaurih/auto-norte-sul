@@ -101,6 +101,57 @@ function iconForCategory(slug: string) {
   return Car;
 }
 
+/*
+ * The imported Bling taxonomy is intentionally kept intact in the catalog,
+ * but its hundreds of technical leaves are not a good first-screen menu.
+ * These are the department doors most useful to a shopper. If one is not
+ * available for a tenant, the existing sorted category fills that position.
+ */
+const HOME_CATEGORY_SLUGS = [
+  "bling-acessorios",
+  "bling-alarmes-modulos-bloqueadores",
+  "bling-alto-falante-amplificador",
+  "bling-central-multimidia-mp5",
+  "bling-farol",
+  "bling-led-e-ultra-led",
+  "bling-calha-de-chuva",
+  "bling-limpeza-automotiva-uso-servico",
+];
+
+const HOME_CATEGORY_COPY: Record<string, string> = {
+  "bling-acessorios": "Detalhes que deixam seu carro completo",
+  "bling-alarmes-modulos-bloqueadores": "Proteção e tecnologia para o seu dia a dia",
+  "bling-alto-falante-amplificador": "Potência, qualidade e som automotivo",
+  "bling-central-multimidia-mp5": "Conectividade, navegação e entretenimento",
+  "bling-farol": "Mais segurança e presença na estrada",
+  "bling-led-e-ultra-led": "Iluminação forte para enxergar melhor",
+  "bling-calha-de-chuva": "Conforto e acabamento para o veículo",
+  "bling-limpeza-automotiva-uso-servico": "Cuidados para manter o carro impecável",
+};
+
+const HOME_CATEGORY_ACCENTS = [
+  "from-slate-950 via-slate-800 to-blue-950",
+  "from-blue-950 via-indigo-900 to-slate-900",
+  "from-violet-950 via-indigo-900 to-blue-900",
+  "from-cyan-950 via-blue-900 to-slate-950",
+  "from-slate-900 via-blue-950 to-indigo-950",
+  "from-indigo-950 via-violet-900 to-slate-950",
+  "from-sky-950 via-blue-900 to-slate-950",
+  "from-slate-900 via-emerald-950 to-slate-950",
+] as const;
+
+function homeCategories<T extends { slug: string }>(categories: T[]) {
+  const curated = HOME_CATEGORY_SLUGS.flatMap((slug) => {
+    const category = categories.find((item) => item.slug === slug);
+    return category ? [category] : [];
+  });
+  const curatedSlugs = new Set(curated.map((category) => category.slug));
+  return [...curated, ...categories.filter((category) => !curatedSlugs.has(category.slug))].slice(
+    0,
+    8,
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /*  Skeleton                                                          */
 /* ------------------------------------------------------------------ */
@@ -156,7 +207,11 @@ function Home() {
   const { data: company } = useCompanyProfile();
   const tenantId = company?.tenant_id;
   const common = { staleTime: 60_000, retry: 1 } as const;
-  const { data: banners = [], isLoading: loadingBanners, isError: errorBanners } = useQuery({
+  const {
+    data: banners = [],
+    isLoading: loadingBanners,
+    isError: errorBanners,
+  } = useQuery({
     queryKey: ["banners"],
     queryFn: fetchBanners,
     ...common,
@@ -198,6 +253,7 @@ function Home() {
     enabled: Boolean(tenantId),
     ...common,
   });
+  const shopperCategories = homeCategories(categories);
 
   const heroBanners = banners.map((b) => ({
     id: b.id,
@@ -243,30 +299,8 @@ function Home() {
       {/* ============ MINI BANNERS ============ */}
       <MiniBannersGrid banners={miniBanners} />
 
-      {/* ============ DEPARTAMENTOS ============ */}
-      {categories.length > 0 && (
-        <section className="container-x mt-10">
-          <SectionHeader title="Departamentos" subtitle="Escolha a categoria e monte seu carro" />
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8">
-            {categories.map((c) => {
-              const Icon = iconForCategory(c.slug);
-              return (
-                <Link
-                  key={c.id}
-                  to="/catalogo"
-                  search={{ category: c.slug } as never}
-                  className="group flex flex-col items-center justify-center gap-2 rounded-lg border border-border bg-card p-4 text-center transition hover:-translate-y-0.5 hover:border-primary hover:shadow-[var(--shadow-brand)]"
-                >
-                  <div className="grid h-14 w-14 place-items-center rounded-full bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-primary-foreground">
-                    <Icon className="h-6 w-6" />
-                  </div>
-                  <span className="text-xs font-semibold uppercase leading-tight">{c.name}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      )}
+      {/* ============ COMPRAR POR DEPARTAMENTO ============ */}
+      {shopperCategories.length > 0 && <ShopByDepartment categories={shopperCategories} />}
 
       {/* ============ OFERTAS DO DIA ============ */}
       {loadingOffers ? (
@@ -384,6 +418,86 @@ function SectionShell({
   );
 }
 
+function ShopByDepartment({
+  categories,
+}: {
+  categories: { id: string; name: string; slug: string; image_url: string | null }[];
+}) {
+  return (
+    <section className="container-x mt-10">
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50/80 p-4 shadow-sm sm:p-6">
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <span className="inline-flex rounded-full bg-primary/10 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.16em] text-primary">
+              Compra rápida
+            </span>
+            <h3 className="mt-3 font-display text-3xl font-black uppercase leading-none text-slate-950 md:text-4xl">
+              Encontre pelo que você procura
+            </h3>
+            <p className="mt-2 text-sm text-slate-600">
+              Os departamentos mais procurados, sem poluir sua tela.
+            </p>
+          </div>
+          <Link
+            to="/catalogo"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-800 transition hover:border-primary hover:text-primary"
+          >
+            Ver catálogo completo <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {categories.map((category, index) => {
+            const Icon = iconForCategory(category.slug);
+            const accent = HOME_CATEGORY_ACCENTS[index % HOME_CATEGORY_ACCENTS.length];
+            return (
+              <Link
+                key={category.id}
+                to="/catalogo"
+                search={{ category: category.slug } as never}
+                className={`group relative min-h-48 overflow-hidden rounded-2xl bg-gradient-to-br ${accent} p-5 text-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2`}
+              >
+                {category.image_url ? (
+                  <>
+                    <img
+                      src={category.image_url}
+                      alt=""
+                      loading="lazy"
+                      className="absolute inset-0 h-full w-full object-cover opacity-70 transition duration-500 group-hover:scale-105"
+                    />
+                    <span className="absolute inset-0 bg-slate-950/55" />
+                  </>
+                ) : (
+                  <Icon
+                    className="absolute -right-5 -top-5 size-36 text-white/10 transition duration-500 group-hover:scale-110 group-hover:rotate-6"
+                    aria-hidden="true"
+                  />
+                )}
+                <span className="relative flex h-full flex-col justify-end">
+                  <span className="mb-auto grid size-10 place-items-center rounded-xl border border-white/15 bg-white/10 backdrop-blur-sm">
+                    <Icon className="size-5" aria-hidden="true" />
+                  </span>
+                  <span className="mt-8 font-display text-xl font-black uppercase leading-tight">
+                    {category.name}
+                  </span>
+                  <span className="mt-2 line-clamp-2 text-xs leading-relaxed text-white/75">
+                    {HOME_CATEGORY_COPY[category.slug] ??
+                      "Encontre as peças e acessórios ideais para seu carro"}
+                  </span>
+                  <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-white">
+                    Explorar{" "}
+                    <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" />
+                  </span>
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ---------- Fallback Hero ---------- */
 function FallbackHero() {
   return (
@@ -397,7 +511,8 @@ function FallbackHero() {
             Equipe seu carro com <span className="text-primary">ofertas de verdade</span>
           </h1>
           <p className="mt-3 max-w-lg text-sm text-white/80 md:text-base">
-            Som, iluminação, segurança e acessórios com preço de varejo e atacado. Entrega para todo o Brasil.
+            Som, iluminação, segurança e acessórios com preço de varejo e atacado. Entrega para todo
+            o Brasil.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
@@ -509,7 +624,9 @@ function MiniBannersGrid({ banners }: { banners: MiniBannerRow[] }) {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
             <div className="absolute inset-0 flex flex-col justify-end p-4 text-white">
-              <div className="font-display text-lg font-black uppercase leading-tight">{it.title}</div>
+              <div className="font-display text-lg font-black uppercase leading-tight">
+                {it.title}
+              </div>
               {it.subtitle && <div className="mt-0.5 text-xs text-white/80">{it.subtitle}</div>}
               <span className="mt-2 inline-flex w-fit items-center gap-1 rounded bg-primary px-3 py-1 text-[10px] font-bold uppercase text-primary-foreground">
                 {it.cta} <ArrowRight className="h-3 w-3" />
@@ -525,7 +642,9 @@ function MiniBannersGrid({ banners }: { banners: MiniBannerRow[] }) {
             <it.icon className="absolute -right-4 -top-4 h-32 w-32 text-white/10" />
             <div className="relative z-10 flex h-full flex-col justify-between">
               <div>
-                <div className="font-display text-lg font-black uppercase leading-tight">{it.title}</div>
+                <div className="font-display text-lg font-black uppercase leading-tight">
+                  {it.title}
+                </div>
                 <div className="mt-1 text-xs text-white/85">{it.subtitle}</div>
               </div>
               <span className="inline-flex w-fit items-center gap-1 rounded bg-white/15 px-3 py-1 text-[10px] font-bold uppercase text-white backdrop-blur">
@@ -533,7 +652,7 @@ function MiniBannersGrid({ banners }: { banners: MiniBannerRow[] }) {
               </span>
             </div>
           </Link>
-        )
+        ),
       )}
     </section>
   );
@@ -569,18 +688,20 @@ function FeaturedShowcase({
               {main.name}
             </h4>
             {main.short_description && (
-              <p className="max-w-md text-sm text-white/70 line-clamp-3">{main.short_description}</p>
+              <p className="max-w-md text-sm text-white/70 line-clamp-3">
+                {main.short_description}
+              </p>
             )}
             <div className="mt-2 flex items-baseline gap-2">
               <span className="font-display text-3xl font-black text-primary">
                 {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
-                  main.price_b2c
+                  main.price_b2c,
                 )}
               </span>
               {main.compare_at_price && main.compare_at_price > main.price_b2c && (
                 <span className="text-sm text-white/50 line-through">
                   {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
-                    main.compare_at_price
+                    main.compare_at_price,
                   )}
                 </span>
               )}
@@ -654,9 +775,17 @@ function B2BBlock() {
 
           <div className="grid gap-3 self-center sm:grid-cols-1">
             {[
-              { icon: Percent, title: "Preço especial por grupo", desc: "Tabela dedicada ao seu perfil" },
+              {
+                icon: Percent,
+                title: "Preço especial por grupo",
+                desc: "Tabela dedicada ao seu perfil",
+              },
               { icon: Users, title: "Pedido assistido", desc: "Vendedor Norte Sul dedicado" },
-              { icon: Package, title: "Catálogo para revenda", desc: "Portfólio completo à disposição" },
+              {
+                icon: Package,
+                title: "Catálogo para revenda",
+                desc: "Portfólio completo à disposição",
+              },
             ].map(({ icon: Icon, title, desc }) => (
               <div
                 key={title}
@@ -686,11 +815,25 @@ function BrandsCarousel({
 }: {
   brands: { id: string; name: string; slug: string; logo_url: string | null }[];
 }) {
-  const placeholders = ["JBL", "Pioneer", "Positron", "Bosch", "Michelin", "Pirelli", "Taramps", "Multilaser"];
+  const placeholders = [
+    "JBL",
+    "Pioneer",
+    "Positron",
+    "Bosch",
+    "Michelin",
+    "Pirelli",
+    "Taramps",
+    "Multilaser",
+  ];
   const items =
     brands.length > 0
       ? brands.map((b) => ({ id: b.id, name: b.name, slug: b.slug, logo: b.logo_url }))
-      : placeholders.map((n) => ({ id: n, name: n, slug: n.toLowerCase(), logo: null as string | null }));
+      : placeholders.map((n) => ({
+          id: n,
+          name: n,
+          slug: n.toLowerCase(),
+          logo: null as string | null,
+        }));
 
   return (
     <section className="container-x mt-12">
@@ -704,7 +847,12 @@ function BrandsCarousel({
             className="grid h-20 w-40 shrink-0 place-items-center rounded-lg border border-border bg-card p-3 transition hover:-translate-y-0.5 hover:border-primary hover:shadow-[var(--shadow-brand)]"
           >
             {b.logo ? (
-              <img src={b.logo} alt={b.name} loading="lazy" className="max-h-12 max-w-full object-contain" />
+              <img
+                src={b.logo}
+                alt={b.name}
+                loading="lazy"
+                className="max-h-12 max-w-full object-contain"
+              />
             ) : (
               <span className="font-display text-lg font-black uppercase tracking-wider text-muted-foreground">
                 {b.name}
