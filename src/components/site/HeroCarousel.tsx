@@ -49,9 +49,9 @@ export function HeroCarousel({ banners }: { banners: Banner[] }) {
   if (!b) return null;
 
   return (
-    <section className="relative overflow-hidden bg-secondary">
+    <section className="relative overflow-hidden bg-slate-50">
       <div className="container-x">
-        <div className="relative aspect-[21/9] w-full overflow-hidden rounded-lg bg-gradient-to-br from-secondary via-black to-primary/60 md:aspect-[16/6]">
+        <div className="relative aspect-[5/4] w-full overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-primary/80 shadow-xl md:aspect-[16/6]">
           <img
             key={imageSrc}
             src={imageSrc}
@@ -63,7 +63,10 @@ export function HeroCarousel({ banners }: { banners: Banner[] }) {
               const img = e.currentTarget;
               const reveal = () => setLoadedSrc(imageSrc);
               if (typeof img.decode === "function") {
-                void img.decode().catch(() => undefined).finally(reveal);
+                void img
+                  .decode()
+                  .catch(() => undefined)
+                  .finally(reveal);
               } else {
                 reveal();
               }
@@ -75,15 +78,23 @@ export function HeroCarousel({ banners }: { banners: Banner[] }) {
               loadedSrc === imageSrc ? "opacity-100" : "opacity-0"
             }`}
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/30 to-transparent" />
-          <div className="relative flex h-full flex-col justify-center gap-3 p-6 text-white md:p-12">
-            <span className="w-fit rounded bg-primary px-2 py-1 text-[10px] font-bold uppercase tracking-widest">Destaque</span>
-            <h2 className="max-w-xl font-display text-3xl font-black uppercase leading-tight md:text-5xl">{b.title}</h2>
-            {b.subtitle && <p className="max-w-md text-sm text-white/80 md:text-base">{b.subtitle}</p>}
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/70 to-slate-950/10" />
+          <div className="relative flex h-full max-w-2xl flex-col justify-center gap-4 p-7 text-white md:p-12">
+            <span className="w-fit rounded-full bg-amber-400 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-950">
+              Destaque Norte Sul
+            </span>
+            <h2 className="text-3xl font-extrabold leading-[1.05] tracking-tight md:text-5xl">
+              {b.title}
+            </h2>
+            {b.subtitle && (
+              <p className="max-w-md text-sm leading-relaxed text-white/85 md:text-base">
+                {b.subtitle}
+              </p>
+            )}
             {b.link_url && (
               <Link
                 to={b.link_url as never}
-                className="w-fit rounded-md bg-primary px-6 py-3 text-sm font-bold uppercase tracking-wider text-primary-foreground shadow-[var(--shadow-brand)] hover:brightness-110"
+                className="w-fit rounded-xl bg-amber-400 px-5 py-3 text-sm font-bold text-slate-950 shadow-lg transition hover:bg-amber-300"
               >
                 {b.cta_label ?? "Ver mais"}
               </Link>
@@ -95,7 +106,7 @@ export function HeroCarousel({ banners }: { banners: Banner[] }) {
                 <button
                   key={k}
                   onClick={() => setI(k)}
-                  className={`h-1.5 rounded-full transition-all ${k === i ? "w-8 bg-primary" : "w-3 bg-white/50"}`}
+                  className={`h-1.5 rounded-full transition-all ${k === i ? "w-8 bg-amber-400" : "w-3 bg-white/50"}`}
                   aria-label={`Banner ${k + 1}`}
                 />
               ))}
@@ -107,7 +118,17 @@ export function HeroCarousel({ banners }: { banners: Banner[] }) {
   );
 }
 
-export function Rail({ title, subtitle, children, viewAllHref }: { title: string; subtitle?: string; children: React.ReactNode; viewAllHref?: string }) {
+export function Rail({
+  title,
+  subtitle,
+  children,
+  viewAllHref,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  viewAllHref?: string;
+}) {
   return (
     <section className="container-x mt-8">
       <div className="mb-3 flex items-end justify-between">
@@ -116,7 +137,10 @@ export function Rail({ title, subtitle, children, viewAllHref }: { title: string
           {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
         </div>
         {viewAllHref && (
-          <Link to={viewAllHref as never} className="text-xs font-semibold uppercase text-primary hover:underline">
+          <Link
+            to={viewAllHref as never}
+            className="text-xs font-semibold uppercase text-primary hover:underline"
+          >
             Ver todos →
           </Link>
         )}
