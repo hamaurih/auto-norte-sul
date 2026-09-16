@@ -51,7 +51,10 @@ export async function resolveAlias(term: string) {
 
 type CategoryTarget = { id: string; parent_id: string | null };
 
-function applyCategoryTarget<T extends { eq: (column: string, value: string) => T }>(query: T, category: CategoryTarget) {
+function applyCategoryTarget<T extends { eq: (column: string, value: string) => T }>(
+  query: T,
+  category: CategoryTarget,
+) {
   return category.parent_id
     ? query.eq("subcategory_id", category.id)
     : query.eq("category_id", category.id);
@@ -82,7 +85,11 @@ async function findBrandBySlug(slug: string, tenantId: string): Promise<{ id: st
   return data ?? null;
 }
 
-async function logNoResult(term: string, origin: "site" | "mcp" | "ia" | "admin", matched?: { alias?: string | null; brand?: string | null; category?: string | null }) {
+async function logNoResult(
+  term: string,
+  origin: "site" | "mcp" | "ia" | "admin",
+  matched?: { alias?: string | null; brand?: string | null; category?: string | null },
+) {
   try {
     await (supabase.rpc as any)("log_search_no_result", {
       p_term: term.slice(0, 200),
@@ -92,7 +99,9 @@ async function logNoResult(term: string, origin: "site" | "mcp" | "ia" | "admin"
       p_matched_brand: matched?.brand ?? null,
       p_matched_category: matched?.category ?? null,
     });
-  } catch { /* best effort */ }
+  } catch {
+    /* best effort */
+  }
 }
 
 export interface ProductRow {
@@ -221,7 +230,6 @@ export async function fetchBestSellers(): Promise<ProductRow[]> {
   return (data as unknown as ProductRow[]) ?? [];
 }
 
-
 export interface CatalogFilters {
   q?: string;
   category?: string;
@@ -232,10 +240,18 @@ export interface CatalogFilters {
   sort?: "sales" | "price_asc" | "price_desc" | "new";
 }
 
-export async function fetchCatalog(f: CatalogFilters = {}, tenantId?: string | null): Promise<ProductRow[]> {
+export async function fetchCatalog(
+  f: CatalogFilters = {},
+  tenantId?: string | null,
+): Promise<ProductRow[]> {
   const tenant = await tenantScope(tenantId);
   if (!tenant) return [];
-  let q = supabase.from("products").select(PRODUCT_LIST_SELECT).eq("tenant_id", tenant).eq("active", true).eq("available_for_online", true)
+  let q = supabase
+    .from("products")
+    .select(PRODUCT_LIST_SELECT)
+    .eq("tenant_id", tenant)
+    .eq("active", true)
+    .eq("available_for_online", true)
     .is("deleted_at", null);
 
   let brandIdFromQuery: string | null = null;
@@ -253,7 +269,9 @@ export async function fetchCatalog(f: CatalogFilters = {}, tenantId?: string | n
         .eq("tenant_id", tenant)
         .or(`name.ilike.%${safe}%,slug.ilike.%${safe}%`)
         .limit(3);
-      const exact = (brands ?? []).find((b) => b.name.toLowerCase() === rawTerm || b.slug.toLowerCase() === rawTerm);
+      const exact = (brands ?? []).find(
+        (b) => b.name.toLowerCase() === rawTerm || b.slug.toLowerCase() === rawTerm,
+      );
       const chosen = exact ?? brands?.[0] ?? null;
       if (chosen) brandIdFromQuery = chosen.id;
     }
@@ -317,7 +335,10 @@ export async function fetchCatalog(f: CatalogFilters = {}, tenantId?: string | n
   return rows;
 }
 
-export async function fetchProductBySlug(slug: string, tenantId?: string | null): Promise<ProductRow | null> {
+export async function fetchProductBySlug(
+  slug: string,
+  tenantId?: string | null,
+): Promise<ProductRow | null> {
   const tenant = await tenantScope(tenantId);
   if (!tenant) return null;
   const { data, error } = await supabase
@@ -344,11 +365,22 @@ export async function fetchProductApplications(productId: string) {
   return data ?? [];
 }
 
-export async function fetchRelated(categorySlug: string | null, excludeId: string, tenantId?: string | null) {
+export async function fetchRelated(
+  categorySlug: string | null,
+  excludeId: string,
+  tenantId?: string | null,
+) {
   const tenant = await tenantScope(tenantId);
   if (!tenant) return [];
-  let q = supabase.from("products").select(PRODUCT_LIST_SELECT).eq("tenant_id", tenant).eq("active", true).eq("available_for_online", true)
-    .is("deleted_at", null).neq("id", excludeId).limit(8);
+  let q = supabase
+    .from("products")
+    .select(PRODUCT_LIST_SELECT)
+    .eq("tenant_id", tenant)
+    .eq("active", true)
+    .eq("available_for_online", true)
+    .is("deleted_at", null)
+    .neq("id", excludeId)
+    .limit(8);
   if (categorySlug) {
     const cat = await findCategoryBySlug(categorySlug, tenant);
     if (cat) q = q.eq("category_id", cat.id);
@@ -385,9 +417,10 @@ export async function fetchSearchSuggestions(
     .eq("tenant_id", tenant)
     .or(`name.ilike.%${safe}%,slug.ilike.%${safe}%`)
     .limit(3);
-  const brandMatch = (brands ?? []).find(
-    (b) => b.name.toLowerCase() === lower || b.slug.toLowerCase() === lower,
-  ) ?? brands?.[0] ?? null;
+  const brandMatch =
+    (brands ?? []).find((b) => b.name.toLowerCase() === lower || b.slug.toLowerCase() === lower) ??
+    brands?.[0] ??
+    null;
 
   let query = supabase
     .from("products")
@@ -419,24 +452,29 @@ export async function fetchSearchSuggestions(
     console.error("Erro na busca rápida", error);
     return [];
   }
-  return (data ?? []).map((p: {
-    id: string; sku: string; name: string; slug: string; price_b2c: number;
-    images: { url: string; is_primary: boolean; sort_order: number }[] | null;
-  }) => {
-    const imgs = (p.images ?? []).slice().sort(
-      (a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order,
-    );
-    return {
-      id: p.id,
-      sku: p.sku,
-      name: p.name,
-      slug: p.slug,
-      price_b2c: p.price_b2c,
-      image: imgs[0]?.url ?? null,
-    };
-  });
+  return (data ?? []).map(
+    (p: {
+      id: string;
+      sku: string;
+      name: string;
+      slug: string;
+      price_b2c: number;
+      images: { url: string; is_primary: boolean; sort_order: number }[] | null;
+    }) => {
+      const imgs = (p.images ?? [])
+        .slice()
+        .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order);
+      return {
+        id: p.id,
+        sku: p.sku,
+        name: p.name,
+        slug: p.slug,
+        price_b2c: p.price_b2c,
+        image: imgs[0]?.url ?? null,
+      };
+    },
+  );
 }
-
 
 /**
  * Public taxonomy reads are tenant-scoped: the storefront must only ever show
@@ -447,7 +485,7 @@ export async function fetchCategories(tenantId?: string | null) {
   if (!tenantId) return [];
   const { data, error } = await supabase
     .from("categories")
-    .select("id, name, slug, icon, sort_order")
+    .select("id, name, slug, icon, image_url, sort_order")
     .eq("tenant_id", tenantId)
     .eq("active", true)
     .is("parent_id", null)
@@ -494,7 +532,9 @@ export async function fetchMiniBanners() {
 }
 
 export function primaryImage(p: ProductRow): string | null {
-  const imgs = (p.images ?? []).slice().sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order);
+  const imgs = (p.images ?? [])
+    .slice()
+    .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order);
   return imgs[0]?.url ?? null;
 }
 
