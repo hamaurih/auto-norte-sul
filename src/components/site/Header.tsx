@@ -1,6 +1,17 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Search, ShoppingCart, User, Wrench, Menu, LogOut, Car, Loader2 } from "lucide-react";
+import {
+  Car,
+  Grid2X2,
+  Loader2,
+  LogOut,
+  Menu,
+  Search,
+  ShoppingCart,
+  Truck,
+  User,
+  Wrench,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchSearchSuggestions } from "@/lib/queries";
@@ -9,6 +20,14 @@ import { useSession } from "@/lib/session";
 import { brl } from "@/lib/format";
 import { CompanyLogo } from "@/components/site/CompanyLogo";
 import { useCompanyProfile } from "@/lib/company";
+
+const STORE_NAVIGATION = [
+  { slug: "bling-acessorios", label: "Acessórios" },
+  { slug: "bling-alto-falante-amplificador", label: "Som automotivo" },
+  { slug: "bling-led-e-ultra-led", label: "Iluminação" },
+  { slug: "bling-alarmes-modulos-bloqueadores", label: "Segurança" },
+  { slug: "bling-central-multimidia-mp5", label: "Multimídia" },
+];
 
 export function Header() {
   const navigate = useNavigate();
@@ -99,18 +118,22 @@ export function Header() {
   }
 
   const showDropdown = open && enabled && (isFetching || suggestions.length > 0);
+  const navigation = STORE_NAVIGATION.flatMap((item) => {
+    const category = categories.find((candidate) => candidate.slug === item.slug);
+    return category ? [{ ...item, category }] : [];
+  });
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 text-foreground shadow-sm backdrop-blur-xl">
       {/* Top strip */}
       <div className="border-b border-white/10 bg-slate-950 text-[11px] text-white/85">
         <div className="container-x flex h-8 items-center justify-between">
-          <span className="hidden sm:inline">
+          <span className="hidden font-medium sm:inline">
             Frete para todo Brasil · PIX com 5% OFF · 10x sem juros
           </span>
           <div className="flex items-center gap-3">
-            <Link to="/b2b" className="hover:text-primary">
-              Compre no Atacado (B2B)
+            <Link to="/b2b" className="font-medium hover:text-primary">
+              Área de atacado
             </Link>
             <span className="opacity-40">|</span>
             <a
@@ -126,8 +149,12 @@ export function Header() {
       </div>
 
       {/* Main bar */}
-      <div className="container-x flex flex-wrap items-center gap-3 py-3 md:flex-nowrap">
-        <button className="md:hidden" onClick={() => setMenuOpen((v) => !v)} aria-label="Menu">
+      <div className="container-x flex flex-wrap items-center gap-3 py-3.5 md:flex-nowrap">
+        <button
+          className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white md:hidden"
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-label="Menu"
+        >
           <Menu className="h-6 w-6" />
         </button>
 
@@ -136,7 +163,7 @@ export function Header() {
           className="group flex items-center"
           aria-label={`${company?.trade_name || "Loja"} - Início`}
         >
-          <CompanyLogo className="h-14 w-auto drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] transition-transform duration-300 group-hover:scale-105 md:h-16" />
+          <CompanyLogo className="h-14 w-auto drop-shadow-[0_2px_8px_rgba(0,0,0,0.35)] transition-transform duration-300 group-hover:scale-105 md:h-[4.35rem]" />
         </Link>
 
         <div
@@ -145,11 +172,9 @@ export function Header() {
         >
           <form
             onSubmit={submit}
-            className="flex w-full items-center rounded-xl border border-border bg-white text-foreground shadow-sm transition-shadow focus-within:border-primary/60 focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--primary)_14%,transparent)]"
+            className="flex w-full items-center rounded-2xl border border-slate-200 bg-slate-50 text-foreground shadow-sm transition-shadow focus-within:border-primary/60 focus-within:bg-white focus-within:shadow-[0_0_0_3px_color-mix(in_oklch,var(--primary)_14%,transparent)]"
           >
-            <div className="hidden items-center gap-1 border-r border-border px-3 text-xs font-semibold text-muted-foreground sm:flex">
-              <span>SKU · Produto · Marca · Aplicação</span>
-            </div>
+            <Search className="ml-4 size-4 shrink-0 text-slate-400" aria-hidden="true" />
             <input
               value={q}
               onChange={(e) => {
@@ -159,12 +184,12 @@ export function Header() {
               }}
               onFocus={() => setOpen(true)}
               onKeyDown={onKeyDown}
-              placeholder="Busque por SKU, produto, marca, aplicação ou modelo do carro"
-              className="flex-1 bg-transparent px-3 py-2 text-sm outline-none"
+              placeholder="Busque peça, código, marca ou veículo"
+              className="flex-1 bg-transparent px-3 py-3 text-sm outline-none"
               autoComplete="off"
             />
             <button
-              className="grid h-full aspect-square place-items-center rounded-r-xl bg-primary px-3 text-primary-foreground transition hover:brightness-110"
+              className="m-1 grid size-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground transition hover:brightness-110"
               aria-label="Buscar"
             >
               {isFetching && enabled ? (
@@ -257,7 +282,7 @@ export function Header() {
               {isStaff && (
                 <Link
                   to="/admin"
-                  className="hidden items-center gap-1 rounded bg-primary px-2 py-1 text-xs font-bold uppercase text-primary-foreground md:flex"
+                  className="hidden items-center gap-1 rounded-xl bg-primary px-3 py-2 text-xs font-bold uppercase text-primary-foreground md:flex"
                 >
                   <Wrench className="h-3 w-3" /> Admin
                 </Link>
@@ -283,7 +308,7 @@ export function Header() {
           )}
           <Link
             to="/carrinho"
-            className="relative flex items-center gap-1 rounded px-2 py-1 text-sm hover:text-primary"
+            className="relative flex size-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-sm transition hover:border-primary hover:text-primary"
           >
             <ShoppingCart className="h-5 w-5" />
             {count > 0 && (
@@ -295,20 +320,35 @@ export function Header() {
         </nav>
       </div>
 
-      {/* Departments */}
-      <div className="border-t border-border bg-muted/45">
-        <div className="container-x scroll-rail py-2 text-sm">
-          {categories.map((c) => (
+      {/* Primary commerce navigation */}
+      <div className="border-y border-slate-200 bg-white">
+        <nav
+          className="container-x flex h-12 items-center gap-1 overflow-x-auto text-sm"
+          aria-label="Navegação da loja"
+        >
+          <Link
+            to="/catalogo"
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-slate-950 px-3 py-2 text-xs font-bold text-white transition hover:bg-primary"
+          >
+            <Grid2X2 className="size-3.5" /> Departamentos
+          </Link>
+          {navigation.map(({ category, label }) => (
             <Link
-              key={c.id}
+              key={category.id}
               to="/catalogo"
-              search={{ category: c.slug } as never}
-              className="whitespace-nowrap rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition hover:border-primary hover:bg-primary hover:text-primary-foreground"
+              search={{ category: category.slug } as never}
+              className="shrink-0 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-primary"
             >
-              {c.name}
+              {label}
             </Link>
           ))}
-        </div>
+          <Link
+            to="/b2b"
+            className="ml-auto inline-flex shrink-0 items-center gap-2 rounded-lg bg-amber-400 px-3 py-2 text-xs font-bold text-slate-950 transition hover:bg-amber-300"
+          >
+            <Truck className="size-3.5" /> Comprar no atacado
+          </Link>
+        </nav>
       </div>
 
       {/* Mobile menu drop */}
@@ -319,7 +359,7 @@ export function Header() {
               Home
             </Link>
             <Link to="/catalogo" onClick={() => setMenuOpen(false)}>
-              Catálogo
+              Todos os departamentos
             </Link>
             <Link to="/b2b" onClick={() => setMenuOpen(false)}>
               Compre no Atacado
