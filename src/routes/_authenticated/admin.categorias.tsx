@@ -44,7 +44,7 @@ function CategoriesAdmin() {
   });
 
   const { parents, childrenBy } = useMemo(() => {
-    const parents = cats.filter((c) => !c.parent_id);
+    const parents = cats.filter((c) => !c.parent_id && !c.slug.startsWith("bling-"));
     const childrenBy = new Map<string, Cat[]>();
     for (const c of cats) {
       if (c.parent_id) {
@@ -110,12 +110,12 @@ function CategoriesAdmin() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="font-display text-2xl font-bold">Categorias</h1>
+        <div><h1 className="font-display text-2xl font-bold">Taxonomia comercial</h1><p className="mt-1 text-sm text-muted-foreground">Departamento → Grupo → Subgrupo. As categorias importadas permanecem como subgrupos.</p></div>
         <button
           onClick={() => setEditing({ name: "", slug: "", parent_id: null, sort_order: 0, active: true })}
           className="inline-flex items-center gap-2 rounded bg-primary px-3 py-2 text-sm font-bold uppercase text-primary-foreground"
         >
-          <Plus className="h-4 w-4" /> Nova categoria
+          <Plus className="h-4 w-4" /> Novo departamento
         </button>
       </div>
 
@@ -125,20 +125,23 @@ function CategoriesAdmin() {
         {parents.map((c) => renderRow(c))}
       </div>
 
-      {editing && <CategoryModal initial={editing} parents={parents} onClose={() => setEditing(null)} onSave={save} />}
+      {editing && <CategoryModal initial={editing} parents={parents} categories={cats} onClose={() => setEditing(null)} onSave={save} />}
     </div>
   );
 }
 
 function CategoryModal({
-  initial, parents, onClose, onSave,
+  initial, parents, categories, onClose, onSave,
 }: {
   initial: CategoryInput;
   parents: Cat[];
+  categories: Cat[];
   onClose: () => void;
   onSave: (c: CategoryInput) => void;
 }) {
   const [form, setForm] = useState<CategoryInput>(initial);
+  const departmentIds = new Set(parents.map((parent) => parent.id));
+  const groups = categories.filter((category) => category.parent_id && departmentIds.has(category.parent_id));
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-md rounded-lg bg-card p-4 shadow-lg">
@@ -155,9 +158,12 @@ function CategoryModal({
           </Field>
           <Field label="Categoria pai">
             <select value={form.parent_id ?? ""} onChange={(e) => setForm({ ...form, parent_id: e.target.value || null })} className={inp}>
-              <option value="">— Nenhuma (categoria raiz)</option>
+              <option value="">— Departamento (nível raiz)</option>
               {parents.filter((p) => p.id !== form.id).map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
+                <option key={p.id} value={p.id}>Grupo de: {p.name}</option>
+              ))}
+              {groups.filter((p) => p.id !== form.id).map((p) => (
+                <option key={p.id} value={p.id}>Subgrupo de: {p.name}</option>
               ))}
             </select>
           </Field>
