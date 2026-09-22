@@ -29,6 +29,7 @@ export type ProductInput = {
   description?: string | null;
   brand_id?: string | null;
   category_id?: string | null;
+  category_group_id?: string | null;
   subcategory_id?: string | null;
   price_b2c: number;
   price_b2b?: number | null;
