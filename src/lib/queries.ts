@@ -49,15 +49,15 @@ export async function resolveAlias(term: string) {
   return data?.[0] ?? null;
 }
 
-type CategoryTarget = { id: string; parent_id: string | null };
+type CategoryTarget = { id: string; parent_id: string | null; level: "department" | "group" | "subgroup" };
 
 function applyCategoryTarget<T extends { eq: (column: string, value: string) => T }>(
   query: T,
   category: CategoryTarget,
 ) {
-  return category.parent_id
-    ? query.eq("subcategory_id", category.id)
-    : query.eq("category_id", category.id);
+  if (category.level === "department") return query.eq("category_id", category.id);
+  if (category.level === "group") return query.eq("category_group_id", category.id);
+  return query.eq("subcategory_id", category.id);
 }
 
 // Slugs de categoria/marca só são únicos dentro de um tenant: sem o filtro por
@@ -71,7 +71,11 @@ async function findCategoryBySlug(slug: string, tenantId: string): Promise<Categ
     .eq("slug", slug)
     .limit(1)
     .maybeSingle();
-  return data ?? null;
+  if (!data) return null;
+  if (!data.parent_id) return { ...data, level: "department" };
+  const { data: parent } = await supabase
+    .from("categories").select("parent_id").eq("id", data.parent_id).eq("tenant_id", tenantId).maybeSingle();
+  return { ...data, level: parent?.parent_id ? "subgroup" : "group" };
 }
 
 async function findBrandBySlug(slug: string, tenantId: string): Promise<{ id: string } | null> {
@@ -489,6 +493,7 @@ export async function fetchCategories(tenantId?: string | null) {
     .eq("tenant_id", tenantId)
     .eq("active", true)
     .is("parent_id", null)
+    .not("slug", "ilike", "bling-%")
     .order("sort_order");
   if (error) {
     console.error("Erro ao carregar departamentos", error);
