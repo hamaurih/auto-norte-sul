@@ -23,12 +23,14 @@ import { CompanyLogo } from "@/components/site/CompanyLogo";
 import { useCompanyProfile } from "@/lib/company";
 
 const STORE_NAVIGATION = [
-  { slug: "bling-acessorios", label: "Acessórios" },
-  { slug: "bling-alto-falante-amplificador", label: "Som automotivo" },
-  { slug: "bling-led-e-ultra-led", label: "Iluminação" },
-  { slug: "bling-alarmes-modulos-bloqueadores", label: "Segurança" },
-  { slug: "bling-central-multimidia-mp5", label: "Multimídia" },
+  { slug: "som-automotivo", label: "Som e multimídia" },
+  { slug: "iluminacao", label: "Iluminação" },
+  { slug: "seguranca", label: "Segurança" },
+  { slug: "acessorios-internos", label: "Interior" },
+  { slug: "carroceria-exterior", label: "Acessórios externos" },
 ];
+
+type TaxonomyNode = { id: string; name: string; slug: string; parent_id: string | null; sort_order: number };
 
 export function Header() {
   const navigate = useNavigate();
@@ -52,16 +54,15 @@ export function Header() {
       if (!company?.tenant_id) return [];
       const { data, error } = await supabase
         .from("categories")
-        .select("id, name, slug, icon, sort_order")
+        .select("id, name, slug, parent_id, sort_order")
         .eq("tenant_id", company.tenant_id)
         .eq("active", true)
-        .is("parent_id", null)
         .order("sort_order");
       if (error) {
         console.error("Erro ao carregar departamentos da loja", error);
         return [];
       }
-      return data ?? [];
+      return (data ?? []) as TaxonomyNode[];
     },
     staleTime: 60_000,
   });
@@ -131,8 +132,16 @@ export function Header() {
   }
 
   const showDropdown = open && enabled && (isFetching || suggestions.length > 0);
+  const departments = categories.filter((category) => !category.parent_id && !category.slug.startsWith("bling-"));
+  const childrenByParent = new Map<string, TaxonomyNode[]>();
+  for (const category of categories) {
+    if (!category.parent_id) continue;
+    const children = childrenByParent.get(category.parent_id) ?? [];
+    children.push(category);
+    childrenByParent.set(category.parent_id, children);
+  }
   const navigation = STORE_NAVIGATION.flatMap((item) => {
-    const category = categories.find((candidate) => candidate.slug === item.slug);
+    const category = departments.find((candidate) => candidate.slug === item.slug);
     return category ? [{ ...item, category }] : [];
   });
 
@@ -162,7 +171,7 @@ export function Header() {
       </div>
 
       {/* Main bar */}
-      <div className="container-x flex flex-wrap items-center gap-3 py-3.5 md:flex-nowrap">
+      <div className="container-x flex flex-wrap items-center gap-3 py-2.5 md:flex-nowrap">
         <button
           className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white transition-transform duration-150 ease-out active:scale-[0.97] motion-reduce:transform-none md:hidden"
           onClick={() => setMenuOpen((v) => !v)}
@@ -173,15 +182,15 @@ export function Header() {
 
         <Link
           to="/"
-          className="group flex items-center"
+          className="group flex shrink-0 items-center"
           aria-label={`${company?.trade_name || "Loja"} - Início`}
         >
-          <CompanyLogo className="h-14 w-auto drop-shadow-[0_2px_8px_rgba(0,0,0,0.35)] transition-transform duration-300 group-hover:scale-105 md:h-[4.35rem]" />
+          <CompanyLogo className="h-12 w-auto drop-shadow-[0_2px_8px_rgba(0,0,0,0.25)] transition-transform duration-300 group-hover:scale-[1.03] md:h-[3.65rem]" />
         </Link>
 
         <div
           ref={boxRef}
-          className="order-3 relative flex w-full basis-full md:order-none md:ml-3 md:flex-1 md:basis-auto md:max-w-2xl"
+          className="order-3 relative flex w-full basis-full md:order-none md:ml-5 md:flex-1 md:basis-auto md:max-w-3xl"
         >
           <form
             onSubmit={submit}
@@ -297,7 +306,7 @@ export function Header() {
                   to="/admin"
                   className="hidden items-center gap-1 rounded-xl bg-primary px-3 py-2 text-xs font-bold uppercase text-primary-foreground md:flex"
                 >
-                  <Wrench className="h-3 w-3" /> Admin
+                  <Wrench className="h-3.5 w-3.5" /> <span className="sr-only">Administração</span>
                 </Link>
               )}
               <button
@@ -336,7 +345,7 @@ export function Header() {
       {/* Primary commerce navigation */}
       <div className="border-y border-slate-200 bg-white">
         <nav
-          className="container-x flex h-12 items-center gap-1 overflow-x-auto text-sm"
+          className="container-x flex h-11 items-center gap-1 overflow-x-auto text-sm"
           aria-label="Navegação da loja"
         >
           <button
@@ -412,18 +421,26 @@ export function Header() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-              {categories.map((category) => (
-                <Link
-                  key={category.id}
-                  to="/catalogo"
-                  search={{ category: category.slug } as never}
-                  onClick={() => setDepartmentsOpen(false)}
-                  className="rounded-xl border border-slate-200 px-3 py-3 text-xs font-semibold leading-snug text-slate-700 transition-[transform,border-color,background-color] duration-150 ease-out hover:border-primary/40 hover:bg-slate-50 hover:text-primary active:scale-[0.98] motion-reduce:transform-none"
-                >
-                  {category.name}
-                </Link>
-              ))}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {departments.map((department) => {
+                const groups = childrenByParent.get(department.id) ?? [];
+                return (
+                  <div key={department.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+                    <Link to="/catalogo" search={{ category: department.slug } as never} onClick={() => setDepartmentsOpen(false)} className="text-sm font-extrabold text-slate-950 hover:text-primary">
+                      {department.name}
+                    </Link>
+                    <div className="mt-2 space-y-2">
+                      {groups.map((group) => {
+                        const leaves = childrenByParent.get(group.id) ?? [];
+                        return <div key={group.id}>
+                          <Link to="/catalogo" search={{ category: group.slug } as never} onClick={() => setDepartmentsOpen(false)} className="text-xs font-bold text-slate-700 hover:text-primary">{group.name}</Link>
+                          {leaves.length > 0 && <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1">{leaves.slice(0, 6).map((leaf) => <Link key={leaf.id} to="/catalogo" search={{ category: leaf.slug } as never} onClick={() => setDepartmentsOpen(false)} className="text-[11px] text-slate-500 hover:text-primary hover:underline">{leaf.name}</Link>)}</div>}
+                        </div>;
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
               <Link
                 to="/catalogo"
                 onClick={() => setDepartmentsOpen(false)}
