@@ -42,6 +42,20 @@ export const brandUpsert = createServerFn({ method: "POST" })
       logo_url: data.logo_url ?? null,
       featured: data.featured ?? false,
     };
+    if (row.parent_id) {
+      const { data: parent, error: parentError } = await tdb(context.supabase)
+        .from("categories")
+        .select("id,parent_id")
+        .eq("id", row.parent_id)
+        .eq("tenant_id", membership.tenant_id)
+        .maybeSingle();
+      if (parentError || !parent) throw new Error("Categoria pai inválida");
+      if (parent.parent_id) {
+        const { data: grandparent } = await tdb(context.supabase)
+          .from("categories").select("parent_id").eq("id", parent.parent_id).eq("tenant_id", membership.tenant_id).maybeSingle();
+        if (grandparent?.parent_id) throw new Error("A taxonomia aceita no máximo: Departamento → Grupo → Subgrupo");
+      }
+    }
     if (data.id) {
       const { error } = await tdb(context.supabase).from("brands").update(row).eq("id", data.id).eq("tenant_id", membership.tenant_id);
       if (error) throw new Error(error.message);
