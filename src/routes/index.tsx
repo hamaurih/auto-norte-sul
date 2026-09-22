@@ -11,14 +11,7 @@ import {
   Users,
   Package,
   Zap,
-  Sparkles,
-  Lightbulb,
-  Volume2,
   Wrench,
-  Car,
-  Gauge,
-  Sofa,
-  Disc3,
 } from "lucide-react";
 import { HeroCarousel, Rail } from "@/components/site/HeroCarousel";
 import { ProductCard } from "@/components/site/ProductCard";
@@ -72,34 +65,6 @@ export const Route = createFileRoute("/")({
   },
   component: Home,
 });
-
-/* ------------------------------------------------------------------ */
-/*  Ícones por categoria (fallback quando não há imagem cadastrada)   */
-/* ------------------------------------------------------------------ */
-const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  som: Volume2,
-  "som-automotivo": Volume2,
-  audio: Volume2,
-  iluminacao: Lightbulb,
-  led: Lightbulb,
-  rodas: Disc3,
-  pneus: Disc3,
-  "rodas-e-pneus": Disc3,
-  seguranca: ShieldCheck,
-  alarme: ShieldCheck,
-  alarmes: ShieldCheck,
-  performance: Gauge,
-  multimidia: Sparkles,
-  estetica: Sparkles,
-  "estetica-automotiva": Sparkles,
-  acessorios: Sofa,
-  "acessorios-internos": Sofa,
-};
-function iconForCategory(slug: string) {
-  const key = slug.toLowerCase();
-  for (const k of Object.keys(CATEGORY_ICONS)) if (key.includes(k)) return CATEGORY_ICONS[k];
-  return Car;
-}
 
 /*
  * The imported Bling taxonomy is intentionally kept intact in the catalog,
@@ -448,7 +413,6 @@ function ShopByDepartment({
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {categories.map((category, index) => {
-            const Icon = iconForCategory(category.slug);
             const accent = HOME_CATEGORY_ACCENTS[index % HOME_CATEGORY_ACCENTS.length];
             return (
               <Link
@@ -467,16 +431,8 @@ function ShopByDepartment({
                     />
                     <span className="absolute inset-0 bg-slate-950/55" />
                   </>
-                ) : (
-                  <Icon
-                    className="absolute -right-5 -top-5 size-36 text-white/10 transition duration-500 group-hover:scale-110 group-hover:rotate-6"
-                    aria-hidden="true"
-                  />
-                )}
+                ) : <span className="absolute inset-x-0 top-0 h-1 bg-amber-400/90" />}
                 <span className="relative flex h-full flex-col justify-end">
-                  <span className="mb-auto grid size-10 place-items-center rounded-xl border border-white/15 bg-white/10 backdrop-blur-sm">
-                    <Icon className="size-5" aria-hidden="true" />
-                  </span>
                   <span className="mt-8 font-display text-xl font-black uppercase leading-tight">
                     {category.name}
                   </span>
@@ -537,11 +493,9 @@ function FallbackHero() {
             <p className="mt-3 text-2xl font-bold leading-tight">
               Varejo e atacado no mesmo lugar.
             </p>
-            <ul className="mt-5 space-y-3 text-sm text-white/85">
-              <li>• Estoque para equipar seu carro</li>
-              <li>• Condições especiais para empresas</li>
-              <li>• Atendimento para todo o Brasil</li>
-            </ul>
+            <p className="mt-4 text-sm leading-relaxed text-white/80">
+              Catálogo para compra unitária e condições comerciais para empresas.
+            </p>
           </div>
         </div>
       </div>
@@ -560,70 +514,19 @@ interface MiniBannerRow {
 }
 
 function MiniBannersGrid({ banners }: { banners: MiniBannerRow[] }) {
-  const defaults: {
-    id: string;
-    title: string;
-    subtitle: string;
-    to: string;
-    accent: string;
-    icon: React.ComponentType<{ className?: string }>;
-    cta: string;
-  }[] = [
-    {
-      id: "d1",
-      title: "Super LED em promoção",
-      subtitle: "Faróis que enxergam mais longe",
-      to: "/catalogo",
-      accent: "from-primary/90 to-primary/40",
-      icon: Lightbulb,
-      cta: "Ver iluminação",
-    },
-    {
-      id: "d2",
-      title: "Multimídia e som",
-      subtitle: "Do central 2 DIN ao subwoofer",
-      to: "/catalogo",
-      accent: "from-secondary to-primary/60",
-      icon: Volume2,
-      cta: "Ver som automotivo",
-    },
-    {
-      id: "d3",
-      title: "Segurança e alarmes",
-      subtitle: "Proteja seu carro 24h",
-      to: "/catalogo",
-      accent: "from-black to-secondary",
-      icon: ShieldCheck,
-      cta: "Ver segurança",
-    },
-    {
-      id: "d4",
-      title: "Atacado para oficinas",
-      subtitle: "Preço CNPJ e pedido faturado",
-      to: "/b2b",
-      accent: "from-primary via-primary/70 to-black",
-      icon: Wrench,
-      cta: "Compre no atacado",
-    },
-  ];
-
-  const items =
-    banners.length > 0
-      ? banners.slice(0, 4).map((b) => ({
-          real: true as const,
-          id: b.id,
-          title: b.title,
-          subtitle: b.subtitle ?? "",
-          to: (b.link_url ?? "/catalogo") as string,
-          image: b.image_url,
-          cta: b.cta_label ?? "Ver mais",
-        }))
-      : defaults.map((d) => ({ real: false as const, ...d }));
+  if (banners.length === 0) return null;
+  const items = banners.slice(0, 4).map((b) => ({
+    id: b.id,
+    title: b.title,
+    subtitle: b.subtitle ?? "",
+    to: (b.link_url ?? "/catalogo") as string,
+    image: b.image_url,
+    cta: b.cta_label ?? "Ver mais",
+  }));
 
   return (
     <section className="container-x mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {items.map((it) =>
-        it.real ? (
           <Link
             key={it.id}
             to={it.to as never}
@@ -642,25 +545,6 @@ function MiniBannersGrid({ banners }: { banners: MiniBannerRow[] }) {
               </div>
               {it.subtitle && <div className="mt-0.5 text-xs text-white/80">{it.subtitle}</div>}
               <span className="mt-2 inline-flex w-fit items-center gap-1 rounded bg-primary px-3 py-1 text-[10px] font-bold uppercase text-primary-foreground">
-                {it.cta} <ArrowRight className="h-3 w-3" />
-              </span>
-            </div>
-          </Link>
-        ) : (
-          <Link
-            key={it.id}
-            to={it.to as never}
-            className={`group relative aspect-[16/10] overflow-hidden rounded-xl bg-gradient-to-br ${it.accent} p-5 text-white shadow-[var(--shadow-card)] transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-brand)]`}
-          >
-            <it.icon className="absolute -right-4 -top-4 h-32 w-32 text-white/10" />
-            <div className="relative z-10 flex h-full flex-col justify-between">
-              <div>
-                <div className="font-display text-lg font-black uppercase leading-tight">
-                  {it.title}
-                </div>
-                <div className="mt-1 text-xs text-white/85">{it.subtitle}</div>
-              </div>
-              <span className="inline-flex w-fit items-center gap-1 rounded bg-white/15 px-3 py-1 text-[10px] font-bold uppercase text-white backdrop-blur">
                 {it.cta} <ArrowRight className="h-3 w-3" />
               </span>
             </div>
