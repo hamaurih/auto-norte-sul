@@ -11,6 +11,7 @@ import {
   Truck,
   User,
   Wrench,
+  X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +37,7 @@ export function Header() {
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(-1);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [departmentsOpen, setDepartmentsOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement | null>(null);
   const { count } = useCart();
   const { data: company } = useCompanyProfile();
@@ -86,6 +88,17 @@ export function Header() {
     }
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setDepartmentsOpen(false);
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
 
   function goToCatalog(term: string) {
@@ -151,7 +164,7 @@ export function Header() {
       {/* Main bar */}
       <div className="container-x flex flex-wrap items-center gap-3 py-3.5 md:flex-nowrap">
         <button
-          className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white md:hidden"
+          className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white transition-transform duration-150 ease-out active:scale-[0.97] motion-reduce:transform-none md:hidden"
           onClick={() => setMenuOpen((v) => !v)}
           aria-label="Menu"
         >
@@ -189,7 +202,7 @@ export function Header() {
               autoComplete="off"
             />
             <button
-              className="m-1 grid size-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground transition hover:brightness-110"
+              className="m-1 grid size-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground transition-[transform,filter] duration-150 ease-out hover:brightness-110 active:scale-[0.96] motion-reduce:transform-none"
               aria-label="Buscar"
             >
               {isFetching && enabled ? (
@@ -308,7 +321,7 @@ export function Header() {
           )}
           <Link
             to="/carrinho"
-            className="relative flex size-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-sm transition hover:border-primary hover:text-primary"
+            className="relative flex size-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-sm transition-[transform,border-color,color] duration-150 ease-out hover:border-primary hover:text-primary active:scale-[0.96] motion-reduce:transform-none"
           >
             <ShoppingCart className="h-5 w-5" />
             {count > 0 && (
@@ -326,12 +339,15 @@ export function Header() {
           className="container-x flex h-12 items-center gap-1 overflow-x-auto text-sm"
           aria-label="Navegação da loja"
         >
-          <Link
-            to="/catalogo"
-            className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-slate-950 px-3 py-2 text-xs font-bold text-white transition hover:bg-primary"
+          <button
+            type="button"
+            onClick={() => setDepartmentsOpen((isOpen) => !isOpen)}
+            aria-expanded={departmentsOpen}
+            aria-controls="departments-panel"
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-slate-950 px-3 py-2 text-xs font-bold text-white transition-[transform,background-color] duration-150 ease-out hover:bg-primary active:scale-[0.97] motion-reduce:transform-none"
           >
             <Grid2X2 className="size-3.5" /> Departamentos
-          </Link>
+          </button>
           {navigation.map(({ category, label }) => (
             <Link
               key={category.id}
@@ -350,6 +366,75 @@ export function Header() {
           </Link>
         </nav>
       </div>
+
+      {departmentsOpen && (
+        <section
+          id="departments-panel"
+          aria-label="Todos os departamentos"
+          className="absolute inset-x-0 top-full z-50 border-b border-slate-200 bg-white/95 shadow-2xl backdrop-blur-xl"
+        >
+          <div className="container-x max-h-[calc(100dvh-9rem)] overflow-y-auto py-5 md:max-h-[32rem]">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-bold text-slate-950">Encontre pelo tipo de produto</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Acesse uma família ou veja todo o catálogo.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDepartmentsOpen(false)}
+                className="grid size-9 shrink-0 place-items-center rounded-xl border border-slate-200 text-slate-600 transition-[transform,background-color] duration-150 ease-out hover:bg-slate-100 active:scale-[0.96] motion-reduce:transform-none"
+                aria-label="Fechar departamentos"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            {navigation.length > 0 && (
+              <div className="mb-5">
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  Mais procurados
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {navigation.map(({ category, label }) => (
+                    <Link
+                      key={category.id}
+                      to="/catalogo"
+                      search={{ category: category.slug } as never}
+                      onClick={() => setDepartmentsOpen(false)}
+                      className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-800 transition-colors hover:bg-primary hover:text-white"
+                    >
+                      {label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+              {categories.map((category) => (
+                <Link
+                  key={category.id}
+                  to="/catalogo"
+                  search={{ category: category.slug } as never}
+                  onClick={() => setDepartmentsOpen(false)}
+                  className="rounded-xl border border-slate-200 px-3 py-3 text-xs font-semibold leading-snug text-slate-700 transition-[transform,border-color,background-color] duration-150 ease-out hover:border-primary/40 hover:bg-slate-50 hover:text-primary active:scale-[0.98] motion-reduce:transform-none"
+                >
+                  {category.name}
+                </Link>
+              ))}
+              <Link
+                to="/catalogo"
+                onClick={() => setDepartmentsOpen(false)}
+                className="rounded-xl bg-slate-950 px-3 py-3 text-xs font-bold text-white transition-[transform,background-color] duration-150 ease-out hover:bg-primary active:scale-[0.98] motion-reduce:transform-none"
+              >
+                Ver catálogo completo →
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Mobile menu drop */}
       {menuOpen && (
