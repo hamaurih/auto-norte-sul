@@ -14,7 +14,7 @@ export function ProductCard({ p, isB2B }: { p: ProductRow; isB2B: boolean }) {
       : null;
 
   return (
-    <div className="group flex w-[180px] flex-col overflow-hidden rounded-lg border border-border bg-card shadow-[var(--shadow-card)] transition hover:-translate-y-0.5 hover:shadow-lg sm:w-[220px]">
+    <div className="group flex w-[180px] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-card)] transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lg motion-reduce:transform-none sm:w-[220px]">
       <Link
         to="/produto/$slug"
         params={{ slug: p.slug }}
@@ -25,7 +25,7 @@ export function ProductCard({ p, isB2B }: { p: ProductRow; isB2B: boolean }) {
             src={img}
             alt={p.name}
             loading="lazy"
-            className="h-full w-full object-cover transition group-hover:scale-105"
+            className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03] motion-reduce:transform-none"
           />
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-muted via-muted to-secondary/10 text-muted-foreground">
@@ -96,7 +96,7 @@ export function ProductCard({ p, isB2B }: { p: ProductRow; isB2B: boolean }) {
             });
             toast.success("Adicionado ao carrinho");
           }}
-          className="mt-2 inline-flex items-center justify-center gap-1 rounded-md bg-primary px-3 py-2 text-xs font-bold uppercase tracking-wider text-primary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+          className="mt-2 inline-flex items-center justify-center gap-1 rounded-xl bg-primary px-3 py-2 text-xs font-bold uppercase tracking-wider text-primary-foreground transition-[transform,filter] duration-150 ease-out hover:brightness-110 active:scale-[0.97] motion-reduce:transform-none disabled:cursor-not-allowed disabled:opacity-40"
         >
           <ShoppingCart className="h-3.5 w-3.5" /> Comprar
         </button>
