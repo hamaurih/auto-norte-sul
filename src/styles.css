@@ -125,16 +125,36 @@
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
+  * {
+    border-color: var(--color-border);
+  }
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
-  h1, h2, h3, .font-display {
+  h1,
+  h2,
+  h3,
+  .font-display {
     font-family: var(--font-display);
     letter-spacing: -0.01em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
   }
 }
 
@@ -142,7 +162,9 @@
   max-width: 1400px;
   margin-inline: auto;
   padding-inline: 1rem;
-  @media (min-width: 768px) { padding-inline: 1.5rem; }
+  @media (min-width: 768px) {
+    padding-inline: 1.5rem;
+  }
 }
 
 @utility scroll-rail {
@@ -153,8 +175,13 @@
   scrollbar-width: none;
   padding-bottom: 0.5rem;
 }
-.scroll-rail::-webkit-scrollbar { display: none; }
-.scroll-rail > * { scroll-snap-align: start; flex: 0 0 auto; }
+.scroll-rail::-webkit-scrollbar {
+  display: none;
+}
+.scroll-rail > * {
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+}
 
 @utility price-tag {
   font-family: var(--font-display);
@@ -275,7 +302,10 @@
   border-color: oklch(0.85 0.055 255);
   border-radius: 0.9rem;
   background-color: oklch(1 0 0 / 0.9);
-  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
 }
 
 .admin-shell main :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select):focus {
@@ -319,7 +349,9 @@
 }
 
 .admin-shell main table tbody tr {
-  transition: background-color 140ms ease, transform 140ms ease;
+  transition:
+    background-color 140ms ease,
+    transform 140ms ease;
 }
 
 .admin-shell main table tbody tr:hover {
@@ -359,15 +391,34 @@
 }
 
 /* Comprovante térmico do PDV: oculto na tela, visível apenas na impressão. */
-.pdv-receipt { display: none; }
-.pdv-receipt hr { border: 0; border-top: 1px dashed #000; margin: 4px 0; }
-.pdv-receipt-center { text-align: center; }
-.pdv-receipt-row { display: flex; justify-content: space-between; gap: 8px; }
-.pdv-receipt-item { margin-bottom: 4px; }
+.pdv-receipt {
+  display: none;
+}
+.pdv-receipt hr {
+  border: 0;
+  border-top: 1px dashed #000;
+  margin: 4px 0;
+}
+.pdv-receipt-center {
+  text-align: center;
+}
+.pdv-receipt-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pdv-receipt-item {
+  margin-bottom: 4px;
+}
 
 @media print {
-  body * { visibility: hidden; }
-  .pdv-receipt, .pdv-receipt * { visibility: visible; }
+  body * {
+    visibility: hidden;
+  }
+  .pdv-receipt,
+  .pdv-receipt * {
+    visibility: visible;
+  }
   .pdv-receipt {
     display: block;
     position: fixed;
@@ -381,5 +432,7 @@
     font-size: 11px;
     line-height: 1.35;
   }
-  @page { margin: 0; }
+  @page {
+    margin: 0;
+  }
 }
