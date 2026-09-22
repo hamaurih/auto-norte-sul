@@ -11,7 +11,6 @@ import {
   Users,
   Package,
   Zap,
-  Wrench,
 } from "lucide-react";
 import { HeroCarousel, Rail } from "@/components/site/HeroCarousel";
 import { ProductCard } from "@/components/site/ProductCard";
@@ -526,7 +525,7 @@ function MiniBannersGrid({ banners }: { banners: MiniBannerRow[] }) {
 
   return (
     <section className="container-x mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      {items.map((it) =>
+      {items.map((it) => (
           <Link
             key={it.id}
             to={it.to as never}
@@ -549,8 +548,7 @@ function MiniBannersGrid({ banners }: { banners: MiniBannerRow[] }) {
               </span>
             </div>
           </Link>
-        ),
-      )}
+        ))}
     </section>
   );
 }
