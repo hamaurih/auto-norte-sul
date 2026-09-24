@@ -509,6 +509,7 @@ export const syncBlingImages = createServerFn({ method: "POST" })
       .select("id,bling_id,name")
       .eq("tenant_id", context.tenantId)
       .eq("active", true)
+      .gt("stock", 0)
       .is("deleted_at", null)
       .not("bling_id", "is", null)
       .order("id", { ascending: true })
@@ -555,6 +556,7 @@ export const syncBlingImages = createServerFn({ method: "POST" })
     let withImages = 0;
     let imagesSaved = 0;
     let failures = 0;
+    let queuedForEnrichment = 0;
     // As chamadas ao Bling continuam serializadas por blingRateLimited (450 ms
     // entre inícios), mas downloads e gravações já liberados podem avançar em
     // paralelo. Isso preserva o limite da API sem bloquear o lote inteiro em I/O.
@@ -585,7 +587,33 @@ export const syncBlingImages = createServerFn({ method: "POST" })
           .map((row: any) => String(row.url ?? "").trim())
           .filter((value: string) => isExternalBlingImageUrl(value));
         const urls = Array.from(new Set([...apiUrls, ...legacyUrls]));
-        if (!urls.length) return;
+        if (!urls.length) {
+          const { error: queueError } = await admin
+            .from("product_enrichment_jobs")
+            .insert({
+              tenant_id: context.tenantId,
+              product_id: productRow.id,
+              trigger_source: "integration",
+              status: "queued",
+              approval_mode: "manual",
+              search_query: productRow.name,
+              scheduled_at: new Date().toISOString(),
+              last_error: "Bling não retornou uma imagem válida para este produto com estoque.",
+            });
+          // A fila possui índice único para jobs abertos. Repetir uma varredura
+          // não deve criar uma segunda tarefa para o mesmo produto.
+          if (queueError && queueError.code !== "23505") throw new Error(queueError.message);
+          if (!queueError) queuedForEnrichment += 1;
+          await writeLog(sb, context.tenantId, {
+            entity: "imagem",
+            entity_id: productRow.id,
+            action: "media_missing_in_bling",
+            status: "pendente",
+            message: "Bling não retornou imagem; produto enviado para enriquecimento por fabricante/fornecedor.",
+            payload: { productId: productRow.id, stockOnly: true },
+          });
+          return;
+        }
         withImages += 1;
 
         // Download imediato + validação; nada é gravado se todas as cópias falharem.
@@ -716,7 +744,7 @@ export const syncBlingImages = createServerFn({ method: "POST" })
       action: "media_enrichment_batch",
       status: failures ? "erro" : "sucesso",
       message: `Enriquecimento de mídia: ${processed} verificados, ${withImages} com imagem no Bling, ${imagesSaved} cópias permanentes salvas, ${failures} falha(s).`,
-      payload: { processed, withImages, imagesSaved, failures, remaining },
+      payload: { processed, withImages, imagesSaved, failures, queuedForEnrichment, remaining },
     });
     return {
       ok: true,
@@ -725,6 +753,7 @@ export const syncBlingImages = createServerFn({ method: "POST" })
       withImages,
       imagesSaved,
       failures,
+      queuedForEnrichment,
       remaining,
     };
 
