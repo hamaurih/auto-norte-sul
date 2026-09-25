@@ -25,6 +25,7 @@ import {
   listTenantUsers,
   inviteTenantUser,
   updateTenantUserAccess,
+  resetTenantUserPassword,
 } from "@/lib/user-management.functions";
 import type { ManagedUser } from "@/lib/user-management.functions";
 import { Badge } from "@/components/ui/badge";
@@ -83,11 +84,18 @@ function UsersPage() {
   const listUsers = useServerFn(listTenantUsers);
   const inviteUser = useServerFn(inviteTenantUser);
   const updateUser = useServerFn(updateTenantUserAccess);
+  const resetPassword = useServerFn(resetTenantUserPassword);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ManagedUser | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [showTemporaryPassword, setShowTemporaryPassword] = useState(false);
   const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string } | null>(null);
+  const [resetTarget, setResetTarget] = useState<ManagedUser | null>(null);
+  const [resetCredentials, setResetCredentials] = useState<{
+    full_name: string;
+    email: string;
+    password: string;
+  } | null>(null);
 
   const usersQuery = useQuery({
     queryKey: ["tenant-users"],
@@ -156,6 +164,34 @@ function UsersPage() {
       queryClient.invalidateQueries({ queryKey: ["tenant-users"] });
     },
     onError: (error: Error) => toast.error(error.message || "Não foi possível atualizar o status."),
+  });
+
+  const passwordResetMutation = useMutation({
+    mutationFn: (user: ManagedUser) =>
+      resetPassword({
+        data: { membership_id: user.membership_id },
+      }),
+    onSuccess: (result, user) => {
+      const response = result as {
+        email?: string;
+        temporary_password?: string;
+        must_change_password?: boolean;
+      };
+      if (!response.temporary_password) {
+        toast.error("A senha foi redefinida, mas a senha provisória não foi retornada.");
+        return;
+      }
+      setResetCredentials({
+        full_name: user.full_name,
+        email: response.email || user.email,
+        password: response.temporary_password,
+      });
+      setResetTarget(null);
+      queryClient.invalidateQueries({ queryKey: ["tenant-users"] });
+      toast.success("Senha provisória gerada. O usuário deverá trocá-la no próximo acesso.");
+    },
+    onError: (error: Error) =>
+      toast.error(error.message || "Não foi possível redefinir a senha."),
   });
 
   function openCreate() {
@@ -306,14 +342,24 @@ function UsersPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEdit(user)}
-                        disabled={!canUpdateUsers}
-                      >
-                        <Edit3 className="h-3.5 w-3.5" /> Editar acesso
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setResetTarget(user)}
+                          disabled={!canUpdateUsers || !user.active || passwordResetMutation.isPending}
+                        >
+                          <KeyRound className="h-3.5 w-3.5" /> Redefinir senha
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEdit(user)}
+                          disabled={!canUpdateUsers}
+                        >
+                          <Edit3 className="h-3.5 w-3.5" /> Editar acesso
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -514,6 +560,93 @@ function UsersPage() {
           </div>
         </DialogContent>
       </Dialog>
+      <Dialog
+        open={Boolean(resetTarget)}
+        onOpenChange={(open) => {
+          if (!open && !passwordResetMutation.isPending) setResetTarget(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Redefinir senha do usuário</DialogTitle>
+            <DialogDescription>
+              A senha atual deixará de funcionar imediatamente. O sistema gerará uma senha provisória e exigirá uma nova senha no próximo acesso.
+            </DialogDescription>
+          </DialogHeader>
+          {resetTarget && (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-border bg-muted/40 p-3">
+                <div className="font-semibold">{resetTarget.full_name}</div>
+                <div className="text-xs text-muted-foreground">{resetTarget.email}</div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setResetTarget(null)}
+                  disabled={passwordResetMutation.isPending}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={() => passwordResetMutation.mutate(resetTarget)}
+                  disabled={passwordResetMutation.isPending}
+                >
+                  <RefreshCw className={`h-4 w-4 ${passwordResetMutation.isPending ? "animate-spin" : ""}`} />
+                  {passwordResetMutation.isPending ? "Gerando…" : "Gerar senha provisória"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(resetCredentials)}
+        onOpenChange={(open) => !open && setResetCredentials(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Senha provisória gerada</DialogTitle>
+            <DialogDescription>
+              Copie e entregue estes dados por um canal seguro. A senha é exibida somente agora e deverá ser trocada no próximo acesso.
+            </DialogDescription>
+          </DialogHeader>
+          {resetCredentials && (
+            <div className="space-y-3">
+              <div>
+                <span className="mb-1 block text-xs font-semibold uppercase text-muted-foreground">Usuário</span>
+                <Input readOnly value={resetCredentials.full_name} />
+              </div>
+              <div>
+                <span className="mb-1 block text-xs font-semibold uppercase text-muted-foreground">E-mail</span>
+                <Input readOnly value={resetCredentials.email} />
+              </div>
+              <div>
+                <span className="mb-1 block text-xs font-semibold uppercase text-muted-foreground">Senha provisória</span>
+                <Input readOnly value={resetCredentials.password} className="font-mono" />
+              </div>
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                No próximo login, o usuário será direcionado para criar a senha definitiva antes de acessar o sistema.
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    void navigator.clipboard
+                      .writeText(`E-mail: ${resetCredentials.email}\nSenha provisória: ${resetCredentials.password}`)
+                      .then(() => toast.success("Dados copiados."))
+                      .catch(() => toast.error("Não foi possível copiar os dados."));
+                  }}
+                >
+                  <Copy className="h-4 w-4" /> Copiar dados
+                </Button>
+                <Button onClick={() => setResetCredentials(null)}>Concluído</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={Boolean(createdCredentials)} onOpenChange={(open) => !open && setCreatedCredentials(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
