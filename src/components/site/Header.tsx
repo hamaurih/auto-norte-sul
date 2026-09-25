@@ -23,11 +23,11 @@ import { CompanyLogo } from "@/components/site/CompanyLogo";
 import { useCompanyProfile } from "@/lib/company";
 
 const STORE_NAVIGATION = [
-  { slug: "som-automotivo", label: "Som e multimídia" },
-  { slug: "iluminacao", label: "Iluminação" },
-  { slug: "seguranca", label: "Segurança" },
+  { slug: "som-automotivo", label: "Som e multimÃ­dia" },
+  { slug: "iluminacao", label: "IluminaÃ§Ã£o" },
+  { slug: "seguranca", label: "SeguranÃ§a" },
   { slug: "acessorios-internos", label: "Interior" },
-  { slug: "carroceria-exterior", label: "Acessórios externos" },
+  { slug: "carroceria-exterior", label: "AcessÃ³rios externos" },
 ];
 
 type TaxonomyNode = { id: string; name: string; slug: string; parent_id: string | null; sort_order: number };
@@ -146,16 +146,16 @@ export function Header() {
   });
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 text-foreground shadow-sm backdrop-blur-xl">
+    <header className="sticky top-0 z-40 w-full border-b border-border bg-white text-foreground shadow-sm">
       {/* Top strip */}
       <div className="border-b border-white/10 bg-slate-950 text-[11px] text-white/85">
         <div className="container-x flex h-8 items-center justify-between">
           <span className="hidden font-medium sm:inline">
-            Frete para todo Brasil · PIX com 5% OFF · 10x sem juros
+            Frete para todo Brasil Â· PIX com 5% OFF Â· 10x sem juros
           </span>
           <div className="flex items-center gap-3">
             <Link to="/b2b" className="font-medium hover:text-primary">
-              Área de atacado
+              Ãrea de atacado
             </Link>
             <span className="opacity-40">|</span>
             <a
@@ -183,7 +183,7 @@ export function Header() {
         <Link
           to="/"
           className="group flex shrink-0 items-center"
-          aria-label={`${company?.trade_name || "Loja"} - Início`}
+          aria-label={`${company?.trade_name || "Loja"} - InÃ­cio`}
         >
           <CompanyLogo className="h-12 w-auto drop-shadow-[0_2px_8px_rgba(0,0,0,0.25)] transition-transform duration-300 group-hover:scale-[1.03] md:h-[3.65rem]" />
         </Link>
@@ -206,7 +206,7 @@ export function Header() {
               }}
               onFocus={() => setOpen(true)}
               onKeyDown={onKeyDown}
-              placeholder="Busque peça, código, marca ou veículo"
+              placeholder="Busque peÃ§a, cÃ³digo, marca ou veÃ­culo"
               className="flex-1 bg-transparent px-3 py-3 text-sm outline-none"
               autoComplete="off"
             />
@@ -225,7 +225,7 @@ export function Header() {
           {showDropdown && (
             <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-md border border-border bg-white text-foreground shadow-2xl">
               {suggestions.length === 0 && isFetching ? (
-                <div className="px-3 py-4 text-center text-xs text-muted-foreground">Buscando…</div>
+                <div className="px-3 py-4 text-center text-xs text-muted-foreground">Buscandoâ¦</div>
               ) : (
                 <>
                   <ul className="max-h-[70vh] overflow-y-auto">
@@ -274,7 +274,7 @@ export function Header() {
                     onClick={() => goToCatalog(q)}
                     className="block w-full border-t border-border bg-muted/50 px-3 py-2 text-center text-xs font-bold uppercase tracking-wider text-primary hover:bg-muted"
                   >
-                    Ver todos os resultados para “{q}”
+                    Ver todos os resultados para â{q}â
                   </button>
                 </>
               )}
@@ -306,7 +306,7 @@ export function Header() {
                   to="/admin"
                   className="hidden items-center gap-1 rounded-xl bg-primary px-3 py-2 text-xs font-bold uppercase text-primary-foreground md:flex"
                 >
-                  <Wrench className="h-3.5 w-3.5" /> <span className="sr-only">Administração</span>
+                  <Wrench className="h-3.5 w-3.5" /> <span className="sr-only">AdministraÃ§Ã£o</span>
                 </Link>
               )}
               <button
@@ -346,7 +346,7 @@ export function Header() {
       <div className="border-y border-slate-200 bg-white">
         <nav
           className="container-x flex h-11 items-center gap-1 overflow-x-auto text-sm"
-          aria-label="Navegação da loja"
+          aria-label="NavegaÃ§Ã£o da loja"
         >
           <button
             type="button"
@@ -387,7 +387,7 @@ export function Header() {
               <div>
                 <p className="text-sm font-bold text-slate-950">Encontre pelo tipo de produto</p>
                 <p className="mt-1 text-xs text-slate-500">
-                  Acesse uma família ou veja todo o catálogo.
+                  Acesse uma famÃ­lia ou veja todo o catÃ¡logo.
                 </p>
               </div>
               <button
@@ -446,7 +446,7 @@ export function Header() {
                 onClick={() => setDepartmentsOpen(false)}
                 className="rounded-xl bg-slate-950 px-3 py-3 text-xs font-bold text-white transition-[transform,background-color] duration-150 ease-out hover:bg-primary active:scale-[0.98] motion-reduce:transform-none"
               >
-                Ver catálogo completo →
+                Ver catÃ¡logo completo â
               </Link>
             </div>
           </div>
@@ -455,7 +455,7 @@ export function Header() {
 
       {/* Mobile menu drop */}
       {menuOpen && (
-        <div className="border-t border-border bg-background p-4 md:hidden">
+        <div className="border-t border-border bg-white p-4 shadow-lg md:hidden">
           <div className="flex flex-col gap-2 text-sm">
             <Link to="/" onClick={() => setMenuOpen(false)}>
               Home
@@ -500,7 +500,7 @@ export function Header() {
             )}
             {isB2BApproved && (
               <span className="mt-2 rounded bg-success px-2 py-1 text-xs font-bold uppercase text-success-foreground">
-                Preço atacado ativo
+                PreÃ§o atacado ativo
               </span>
             )}
           </div>
