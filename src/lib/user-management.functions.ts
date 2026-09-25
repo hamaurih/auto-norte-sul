@@ -54,6 +54,10 @@ const updateSchema = z.object({
   permissions: z.array(permissionSchema).min(1).optional(),
 });
 
+const resetPasswordSchema = z.object({
+  membership_id: z.string().uuid(),
+});
+
 type TenantRole = "owner" | "admin" | "manager" | "sales" | "viewer";
 type TenantMembership = {
   id: string;
@@ -648,4 +652,68 @@ export const updateTenantUserAccess = createServerFn({ method: "POST" })
     );
 
     return { ok: true };
+  });
+
+
+export const resetTenantUserPassword = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => resetPasswordSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const supabaseAdmin = await getSupabaseAdmin();
+    await requireTenantAdmin(supabaseAdmin, context.userId, context.tenantId, "update");
+
+    const { data: target, error: targetError } = await supabaseAdmin
+      .from("tenant_memberships")
+      .select("id, user_id, role, active")
+      .eq("id", data.membership_id)
+      .eq("tenant_id", context.tenantId)
+      .maybeSingle();
+    if (targetError) throw new Error(targetError.message);
+    if (!target) throw new Error("Usuário não encontrado neste ambiente.");
+    if (!target.active) throw new Error("Ative o usuário antes de redefinir a senha.");
+    if (target.user_id === context.userId) {
+      throw new Error("Por segurança, use a opção de alterar sua própria senha.");
+    }
+
+    const { data: authUser, error: authUserError } =
+      await supabaseAdmin.auth.admin.getUserById(target.user_id);
+    if (authUserError || !authUser.user) {
+      throw new Error(authUserError?.message ?? "Usuário de autenticação não encontrado.");
+    }
+
+    const { randomBytes } = await import("node:crypto");
+    const temporaryPassword = `Ns!${randomBytes(12).toString("base64url")}7a`;
+    const appMetadata = (authUser.user.app_metadata ?? {}) as Record<string, unknown>;
+
+    const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
+      target.user_id,
+      {
+        password: temporaryPassword,
+        app_metadata: {
+          ...appMetadata,
+          must_change_password: true,
+        },
+      },
+    );
+    if (passwordError) throw new Error(passwordError.message);
+
+    await writeAuditEvent(
+      supabaseAdmin,
+      context.tenantId,
+      context.userId,
+      "user.password_reset",
+      target.user_id,
+      {
+        target_role: systemRoleForTenantRole(target.role),
+        must_change_password: true,
+        password_delivery: "manual_one_time_display",
+      },
+    );
+
+    return {
+      ok: true,
+      email: authUser.user.email?.toLowerCase() ?? "",
+      temporary_password: temporaryPassword,
+      must_change_password: true,
+    };
   });
