@@ -1,12 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { z } from "zod";
-import { fetchBrands, fetchCatalog, fetchCategories, type CatalogFilters } from "@/lib/queries";
+import { fetchBrands, fetchCatalog, fetchCatalogTaxonomy, type CatalogFilters } from "@/lib/queries";
 import { ProductCard } from "@/components/site/ProductCard";
 import { useSession } from "@/lib/session";
 import { useCompanyProfile } from "@/lib/company";
-import { Filter } from "lucide-react";
+import { ChevronDown, ChevronRight, Filter, FolderTree } from "lucide-react";
+
+type CatalogCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  parent_id: string | null;
+  sort_order: number;
+};
 
 const searchSchema = z.object({
   q: z.string().optional(),
@@ -20,8 +28,8 @@ export const Route = createFileRoute("/catalogo")({
   validateSearch: searchSchema,
   head: () => ({
     meta: [
-      { title: "Catálogo · Norte Sul Acessórios" },
-      { name: "description", content: "Todo o catálogo Norte Sul: acessórios automotivos com filtros por categoria, marca, preço e aplicação." },
+      { title: "CatÃ¡logo Â· Norte Sul AcessÃ³rios" },
+      { name: "description", content: "Todo o catÃ¡logo Norte Sul: acessÃ³rios automotivos com filtros por categoria, marca, preÃ§o e aplicaÃ§Ã£o." },
     ],
   }),
   component: Catalog,
@@ -50,8 +58,8 @@ function Catalog() {
   // Taxonomy lists are tenant-scoped: without the tenant id in the key/filter
   // other tenants' categories/brands leak in and appear duplicated.
   const { data: categories = [] } = useQuery({
-    queryKey: ["categories", tenantId],
-    queryFn: () => fetchCategories(tenantId),
+    queryKey: ["catalog-taxonomy", tenantId],
+    queryFn: () => fetchCatalogTaxonomy(tenantId),
     enabled: Boolean(tenantId),
   });
   const { data: brands = [] } = useQuery({
@@ -68,12 +76,12 @@ function Catalog() {
     <div className="container-x py-6">
       <div className="mb-4 flex items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-3xl font-bold uppercase leading-none">Catálogo</h1>
+          <h1 className="font-display text-3xl font-bold uppercase leading-none">CatÃ¡logo</h1>
           <p className="text-sm text-muted-foreground">
             {isLoading ? "Carregando..." : `${products.length} produto(s)`}
-            {search.q && <> · busca: <b>{search.q}</b></>}
-            {search.category && <> · categoria: <b>{search.category}</b></>}
-            {search.brand && <> · marca: <b>{search.brand}</b></>}
+            {search.q && <> Â· busca: <b>{search.q}</b></>}
+            {search.category && <> Â· categoria: <b>{search.category}</b></>}
+            {search.brand && <> Â· marca: <b>{search.brand}</b></>}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -86,35 +94,16 @@ function Catalog() {
             className="rounded-md border border-border bg-card px-3 py-2 text-sm"
           >
             <option value="sales">Mais vendidos</option>
-            <option value="price_asc">Menor preço</option>
-            <option value="price_desc">Maior preço</option>
-            <option value="new">Lançamentos</option>
+            <option value="price_asc">Menor preÃ§o</option>
+            <option value="price_desc">Maior preÃ§o</option>
+            <option value="new">LanÃ§amentos</option>
           </select>
         </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-[240px_1fr]">
         <aside className={`space-y-4 rounded-lg border border-border bg-card p-4 ${openFilters ? "block" : "hidden md:block"}`}>
-          <div>
-            <h4 className="mb-2 font-display text-sm font-bold uppercase">Categorias</h4>
-            <ul className="space-y-1 text-sm">
-              <li>
-                <button className={`hover:text-primary ${!search.category ? "font-bold text-primary" : ""}`} onClick={() => update({ category: undefined })}>
-                  Todas
-                </button>
-              </li>
-              {categories.map((c) => (
-                <li key={c.id}>
-                  <button
-                    className={`text-left hover:text-primary ${search.category === c.slug ? "font-bold text-primary" : ""}`}
-                    onClick={() => update({ category: c.slug })}
-                  >
-                    {c.name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <CategoryTree categories={categories} selectedSlug={search.category} onSelect={(category) => update({ category })} />
 
           <div>
             <h4 className="mb-2 font-display text-sm font-bold uppercase">Marcas</h4>
@@ -164,6 +153,106 @@ function Catalog() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function CategoryTree({
+  categories,
+  selectedSlug,
+  onSelect,
+}: {
+  categories: CatalogCategory[];
+  selectedSlug?: string;
+  onSelect: (category?: string) => void;
+}) {
+  const [openNodes, setOpenNodes] = useState<Set<string>>(new Set());
+  const byParent = useMemo(() => {
+    const map = new Map<string, CatalogCategory[]>();
+    for (const category of categories) {
+      if (!category.parent_id) continue;
+      const children = map.get(category.parent_id) ?? [];
+      children.push(category);
+      map.set(category.parent_id, children);
+    }
+    return map;
+  }, [categories]);
+  const departments = categories.filter((category) => !category.parent_id && !category.slug.startsWith("bling-"));
+  const selected = categories.find((category) => category.slug === selectedSlug);
+  const selectedParent = selected?.parent_id ? categories.find((category) => category.id === selected.parent_id) : null;
+  const activeNodes = new Set([selected?.id, selected?.parent_id, selectedParent?.parent_id].filter(Boolean));
+  const isOpen = (id: string) => openNodes.has(id) || activeNodes.has(id);
+  const toggle = (id: string) => setOpenNodes((current) => {
+    const next = new Set(current);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+  const itemClass = (slug: string, level: "department" | "group" | "subgroup") =>
+    `flex min-h-9 flex-1 items-center rounded-md px-2 text-left transition hover:bg-primary/8 hover:text-primary ${
+      selectedSlug === slug ? "bg-primary/10 font-bold text-primary" : level === "department" ? "font-semibold text-foreground" : "text-muted-foreground"
+    }`;
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center gap-2 font-display text-sm font-bold uppercase">
+        <FolderTree className="size-4 text-primary" /> Categorias
+      </div>
+      <button className={itemClass("", "department")} onClick={() => onSelect(undefined)}>Todas as categorias</button>
+      <ul className="mt-1 space-y-1 text-sm">
+        {departments.map((department) => {
+          const groups = byParent.get(department.id) ?? [];
+          const expanded = isOpen(department.id);
+          return (
+            <li key={department.id}>
+              <div className="flex items-center gap-0.5">
+                {groups.length > 0 && (
+                  <button
+                    className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted"
+                    onClick={() => toggle(department.id)}
+                    aria-label={`${expanded ? "Recolher" : "Expandir"} ${department.name}`}
+                  >
+                    {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+                  </button>
+                )}
+                <button className={itemClass(department.slug, "department")} onClick={() => onSelect(department.slug)}>{department.name}</button>
+              </div>
+              {expanded && groups.length > 0 && (
+                <ul className="ml-5 border-l border-border pl-2">
+                  {groups.map((group) => {
+                    const subgroups = byParent.get(group.id) ?? [];
+                    const groupExpanded = isOpen(group.id);
+                    return (
+                      <li key={group.id} className="mt-0.5">
+                        <div className="flex items-center gap-0.5">
+                          {subgroups.length > 0 && (
+                            <button
+                              className="grid size-7 shrink-0 place-items-center rounded text-muted-foreground hover:bg-muted"
+                              onClick={() => toggle(group.id)}
+                              aria-label={`${groupExpanded ? "Recolher" : "Expandir"} ${group.name}`}
+                            >
+                              {groupExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                            </button>
+                          )}
+                          <button className={itemClass(group.slug, "group")} onClick={() => onSelect(group.slug)}>{group.name}</button>
+                        </div>
+                        {groupExpanded && subgroups.length > 0 && (
+                          <ul className="ml-5 border-l border-border/70 py-0.5 pl-2">
+                            {subgroups.map((subgroup) => (
+                              <li key={subgroup.id}>
+                                <button className={itemClass(subgroup.slug, "subgroup")} onClick={() => onSelect(subgroup.slug)}>{subgroup.name}</button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
