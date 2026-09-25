@@ -105,26 +105,7 @@ function Catalog() {
         <aside className={`space-y-4 rounded-lg border border-border bg-card p-4 ${openFilters ? "block" : "hidden md:block"}`}>
           <CategoryTree categories={categories} selectedSlug={search.category} onSelect={(category) => update({ category })} />
 
-          <div>
-            <h4 className="mb-2 font-display text-sm font-bold uppercase">Marcas</h4>
-            <ul className="space-y-1 text-sm">
-              <li>
-                <button className={`hover:text-primary ${!search.brand ? "font-bold text-primary" : ""}`} onClick={() => update({ brand: undefined })}>
-                  Todas
-                </button>
-              </li>
-              {brands.map((b) => (
-                <li key={b.id}>
-                  <button
-                    className={`text-left hover:text-primary ${search.brand === b.slug ? "font-bold text-primary" : ""}`}
-                    onClick={() => update({ brand: b.slug })}
-                  >
-                    {b.name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <BrandFilter brands={brands} selectedSlug={search.brand} onSelect={(brand) => update({ brand })} />
 
           <div>
             <label className="flex items-center gap-2 text-sm">
@@ -153,6 +134,68 @@ function Catalog() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function BrandFilter({
+  brands,
+  selectedSlug,
+  onSelect,
+}: {
+  brands: { id: string; name: string; slug: string }[];
+  selectedSlug?: string;
+  onSelect: (brand?: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [showAll, setShowAll] = useState(false);
+  const normalizedQuery = query.trim().toLocaleLowerCase("pt-BR");
+  const filteredBrands = useMemo(
+    () => normalizedQuery ? brands.filter((brand) => brand.name.toLocaleLowerCase("pt-BR").includes(normalizedQuery)) : brands,
+    [brands, normalizedQuery],
+  );
+  const visibleBrands = normalizedQuery || showAll ? filteredBrands : filteredBrands.slice(0, 8);
+  const hasMore = !normalizedQuery && brands.length > 8;
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h4 className="font-display text-sm font-bold uppercase">Marcas</h4>
+        <span className="text-xs text-muted-foreground">{brands.length}</span>
+      </div>
+      <input
+        type="search"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="Buscar marca"
+        aria-label="Buscar marca"
+        className="mb-2 h-9 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"
+      />
+      <ul className={`space-y-1 text-sm ${showAll || normalizedQuery ? "max-h-56 overflow-y-auto pr-1" : ""}`}>
+        <li>
+          <button className={`min-h-8 text-left hover:text-primary ${!selectedSlug ? "font-bold text-primary" : ""}`} onClick={() => onSelect(undefined)}>
+            Todas as marcas
+          </button>
+        </li>
+        {visibleBrands.map((brand) => (
+          <li key={brand.id}>
+            <button
+              className={`min-h-8 text-left hover:text-primary ${selectedSlug === brand.slug ? "font-bold text-primary" : ""}`}
+              onClick={() => onSelect(brand.slug)}
+            >
+              {brand.name}
+            </button>
+          </li>
+        ))}
+        {normalizedQuery && filteredBrands.length === 0 && (
+          <li className="py-1 text-xs text-muted-foreground">Nenhuma marca encontrada.</li>
+        )}
+      </ul>
+      {hasMore && (
+        <button className="mt-2 text-xs font-semibold text-primary hover:underline" onClick={() => setShowAll((value) => !value)}>
+          {showAll ? "Mostrar menos" : `Ver mais marcas (${brands.length - 8})`}
+        </button>
+      )}
     </div>
   );
 }
