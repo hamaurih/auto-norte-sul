@@ -28,8 +28,8 @@ export const Route = createFileRoute("/catalogo")({
   validateSearch: searchSchema,
   head: () => ({
     meta: [
-      { title: "CatÃ¡logo Â· Norte Sul AcessÃ³rios" },
-      { name: "description", content: "Todo o catÃ¡logo Norte Sul: acessÃ³rios automotivos com filtros por categoria, marca, preÃ§o e aplicaÃ§Ã£o." },
+      { title: "Catálogo · Norte Sul Acessórios" },
+      { name: "description", content: "Todo o catálogo Norte Sul: acessórios automotivos com filtros por categoria, marca, preço e aplicação." },
     ],
   }),
   component: Catalog,
@@ -76,12 +76,12 @@ function Catalog() {
     <div className="container-x py-6">
       <div className="mb-4 flex items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-3xl font-bold uppercase leading-none">CatÃ¡logo</h1>
+          <h1 className="font-display text-3xl font-bold uppercase leading-none">Catálogo</h1>
           <p className="text-sm text-muted-foreground">
             {isLoading ? "Carregando..." : `${products.length} produto(s)`}
-            {search.q && <> Â· busca: <b>{search.q}</b></>}
-            {search.category && <> Â· categoria: <b>{search.category}</b></>}
-            {search.brand && <> Â· marca: <b>{search.brand}</b></>}
+            {search.q && <> · busca: <b>{search.q}</b></>}
+            {search.category && <> · categoria: <b>{search.category}</b></>}
+            {search.brand && <> · marca: <b>{search.brand}</b></>}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -94,9 +94,9 @@ function Catalog() {
             className="rounded-md border border-border bg-card px-3 py-2 text-sm"
           >
             <option value="sales">Mais vendidos</option>
-            <option value="price_asc">Menor preÃ§o</option>
-            <option value="price_desc">Maior preÃ§o</option>
-            <option value="new">LanÃ§amentos</option>
+            <option value="price_asc">Menor preço</option>
+            <option value="price_desc">Maior preço</option>
+            <option value="new">Lançamentos</option>
           </select>
         </div>
       </div>
