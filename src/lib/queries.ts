@@ -6,7 +6,7 @@ import { sanitizeSearchTerm, sanitizeOrQuery } from "./sanitize";
 /**
  * Public catalog/taxonomy reads must never resolve a category, brand, alias or
  * product that belongs to another tenant. Callers that already know the active
- * tenant (Header, Home, Catálogo) pass it explicitly; loaders without React
+ * tenant (Header, Home, CatÃ¡logo) pass it explicitly; loaders without React
  * context fall back to resolving the tenant of the active storefront slug.
  */
 let tenantIdPromise: Promise<string | null> | null = null;
@@ -33,8 +33,8 @@ async function tenantScope(tenantId?: string | null): Promise<string | null> {
   return tenantId ?? (await resolveActiveTenantId());
 }
 
-// Resolve termo → alias (categoria/marca/produto). Retorna o alias de maior peso ativo.
-// O alias em si é resolvido por termo; a segurança multi-tenant vem da resolução
+// Resolve termo â alias (categoria/marca/produto). Retorna o alias de maior peso ativo.
+// O alias em si Ã© resolvido por termo; a seguranÃ§a multi-tenant vem da resoluÃ§Ã£o
 // do alvo (marca/categoria/produto), sempre filtrada por `tenant_id`.
 export async function resolveAlias(term: string) {
   const n = normalizeTerm(term);
@@ -60,9 +60,9 @@ function applyCategoryTarget<T extends { eq: (column: string, value: string) => 
   return query.eq("subcategory_id", category.id);
 }
 
-// Slugs de categoria/marca só são únicos dentro de um tenant: sem o filtro por
+// Slugs de categoria/marca sÃ³ sÃ£o Ãºnicos dentro de um tenant: sem o filtro por
 // `tenant_id` o mesmo slug pode resolver para outra loja (ou quebrar o
-// `maybeSingle` por múltiplas linhas).
+// `maybeSingle` por mÃºltiplas linhas).
 async function findCategoryBySlug(slug: string, tenantId: string): Promise<CategoryTarget | null> {
   const { data } = await supabase
     .from("categories")
@@ -132,7 +132,7 @@ export interface ProductRow {
 // (see column-level GRANT revoke on `anon`). The browser client can be either
 // anon or authenticated, so this projection intentionally omits them to keep
 // anonymous catalog reads working. B2B pricing for approved customers is
-// resolved server-side via `displayPrice` — if we need per-product B2B prices
+// resolved server-side via `displayPrice` â if we need per-product B2B prices
 // on the browser later, fetch them through an authenticated server function.
 const PRODUCT_SELECT = `
   id, sku, name, slug, short_description, description,
@@ -143,7 +143,7 @@ const PRODUCT_SELECT = `
   images:product_images(url, is_primary, sort_order)
 `;
 
-// Lighter projection for list/rail rendering — omits heavy `description`
+// Lighter projection for list/rail rendering â omits heavy `description`
 // (which can be very large) and keeps only fields ProductCard reads.
 const PRODUCT_LIST_SELECT = `
   id, sku, name, slug, short_description,
@@ -211,7 +211,7 @@ export async function fetchNewArrivals(): Promise<ProductRow[]> {
     .order("created_at", { ascending: false })
     .limit(12);
   if (error) {
-    console.error("Erro ao carregar lançamentos", error);
+    console.error("Erro ao carregar lanÃ§amentos", error);
     return fetchBestSellers();
   }
   return (data as unknown as ProductRow[]) ?? [];
@@ -280,7 +280,7 @@ export async function fetchCatalog(
       if (chosen) brandIdFromQuery = chosen.id;
     }
 
-    // 2) Alias comercial (só se ainda não achou marca)
+    // 2) Alias comercial (sÃ³ se ainda nÃ£o achou marca)
     if (!brandIdFromQuery && !f.category) {
       const alias = await resolveAlias(f.q);
       if (alias) {
@@ -331,7 +331,7 @@ export async function fetchCatalog(
 
   const { data, error } = await q.limit(60);
   if (error) {
-    console.error("Erro ao carregar catálogo", error);
+    console.error("Erro ao carregar catÃ¡logo", error);
     return [];
   }
   const rows = (data as unknown as ProductRow[]) ?? [];
@@ -453,7 +453,7 @@ export async function fetchSearchSuggestions(
   }
   const { data, error } = await query.order("sales_count", { ascending: false }).limit(limit);
   if (error) {
-    console.error("Erro na busca rápida", error);
+    console.error("Erro na busca rÃ¡pida", error);
     return [];
   }
   return (data ?? []).map(
@@ -497,6 +497,25 @@ export async function fetchCategories(tenantId?: string | null) {
     .order("sort_order");
   if (error) {
     console.error("Erro ao carregar departamentos", error);
+    return [];
+  }
+  return data ?? [];
+}
+
+// A vitrine mostra somente os departamentos. O catÃ¡logo precisa da Ã¡rvore
+// inteira para permitir navegaÃ§Ã£o comercial sem despejar todas as folhas numa
+// lista plana.
+export async function fetchCatalogTaxonomy(tenantId?: string | null) {
+  if (!tenantId) return [];
+  const { data, error } = await supabase
+    .from("categories")
+    .select("id, name, slug, parent_id, sort_order")
+    .eq("tenant_id", tenantId)
+    .eq("active", true)
+    .order("sort_order")
+    .order("name");
+  if (error) {
+    console.error("Erro ao carregar Ã¡rvore de categorias", error);
     return [];
   }
   return data ?? [];
