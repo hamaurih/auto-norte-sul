@@ -122,6 +122,45 @@ const specs: Record<string, IntegrationSpec> = {
       { key: "webhook_url", label: "URL de Webhook" },
     ],
   },
+  cielo: {
+    intro: "Configure a Cielo para receber pagamentos no e-commerce e manter os dados de confirmação e conciliação centralizados.",
+    fields: [
+      { key: "merchant_id", label: "Merchant ID" },
+      { key: "merchant_key", label: "Merchant Key", type: "password", is_secret: true, help: "Chave secreta da Cielo. Nunca será exibida novamente." },
+      { key: "environment", label: "Ambiente", placeholder: "produção" },
+      { key: "webhook_url", label: "URL de webhook", placeholder: "https://www.nortesulauto.com.br/api/public/payments/cielo/webhook" },
+    ],
+    warning: "Salvar as credenciais não ativa cobranças por si só. A operadora só deve ser ativada após o teste de conexão retornar sucesso.",
+  },
+  rede: {
+    fields: [
+      { key: "pv", label: "Número do estabelecimento (PV)" },
+      { key: "token", label: "Token de integração", type: "password", is_secret: true },
+      { key: "environment", label: "Ambiente", placeholder: "produção" },
+      { key: "webhook_url", label: "URL de webhook", placeholder: "https://www.nortesulauto.com.br/api/public/payments/rede/webhook" },
+    ],
+    warning: "Mantenha a integração desativada até validar a captura e a confirmação de pagamento.",
+  },
+  getnet: {
+    fields: [
+      { key: "client_id", label: "Client ID" },
+      { key: "client_secret", label: "Client Secret", type: "password", is_secret: true },
+      { key: "seller_id", label: "Seller ID" },
+      { key: "environment", label: "Ambiente", placeholder: "produção" },
+      { key: "webhook_url", label: "URL de webhook", placeholder: "https://www.nortesulauto.com.br/api/public/payments/getnet/webhook" },
+    ],
+    warning: "Mantenha a integração desativada até validar a captura e a confirmação de pagamento.",
+  },
+  stripe: {
+    fields: [
+      { key: "secret_key", label: "Secret Key", type: "password", is_secret: true },
+      { key: "publishable_key", label: "Publishable Key" },
+      { key: "webhook_secret", label: "Webhook signing secret", type: "password", is_secret: true },
+      { key: "environment", label: "Ambiente", placeholder: "produção" },
+      { key: "webhook_url", label: "URL de webhook", placeholder: "https://www.nortesulauto.com.br/api/public/payments/stripe/webhook" },
+    ],
+    warning: "Mantenha a integração desativada até validar a captura e a confirmação de pagamento.",
+  },
   stone: {
     intro:
       "Conciliação oficial Stone: recebe arquivos Pix por webhook e importa vendas, taxas, cancelamentos e dados de liquidação. A captura transacional (PIX/cartão no checkout e PDV) usa uma credencial Stone/Pagar.me diferente — são sistemas separados.",
