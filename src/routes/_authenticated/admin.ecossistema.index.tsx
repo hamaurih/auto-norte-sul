@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { z } from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/ecossistema/")({
+  validateSearch: z.object({ categoria: z.string().optional() }),
   component: EcossistemaIndex,
 });
 
@@ -70,6 +72,11 @@ const iconBySlug: Record<string, LucideIcon> = {
   pagbank: CreditCard,
   pagarme: CreditCard,
   asaas: CreditCard,
+  stone: CreditCard,
+  cielo: CreditCard,
+  rede: CreditCard,
+  getnet: CreditCard,
+  stripe: CreditCard,
 };
 
 const categoryLabels: Record<string, string> = {
@@ -98,6 +105,7 @@ function formatDate(iso: string | null) {
 }
 
 function EcossistemaIndex() {
+  const search = Route.useSearch();
   const qc = useQueryClient();
   const listFn = useServerFn(listIntegrations);
   const { data, isLoading } = useQuery({
@@ -125,16 +133,33 @@ function EcossistemaIndex() {
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Carregando integrações…</p>;
 
-  const grouped = (data ?? []).reduce<Record<string, Integration[]>>((acc, i) => {
+  const filteredIntegrations = search.categoria
+    ? (data ?? []).filter((integration) => integration.category === search.categoria)
+    : (data ?? []);
+  const grouped = filteredIntegrations.reduce<Record<string, Integration[]>>((acc, i) => {
     (acc[i.category] ||= []).push(i);
     return acc;
   }, {});
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-muted-foreground">
-        Hub central para conectar, configurar, testar e monitorar todas as integrações externas do sistema.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-bold uppercase">
+            {search.categoria === "payment" ? "Operadoras de pagamento" : "Ecossistema de integrações"}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {search.categoria === "payment"
+              ? "Configure chaves, webhooks e ambiente de cada adquirente em um único local."
+              : "Hub central para conectar, configurar, testar e monitorar todas as integrações externas do sistema."}
+          </p>
+        </div>
+        {search.categoria && (
+          <Button asChild variant="outline" size="sm">
+            <Link to="/admin/ecossistema">Ver todas as integrações</Link>
+          </Button>
+        )}
+      </div>
       {Object.entries(grouped).map(([cat, list]) => (
         <section key={cat}>
           <h2 className="mb-2 font-display text-sm font-bold uppercase tracking-wider text-muted-foreground">
