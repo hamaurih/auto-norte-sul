@@ -36,6 +36,7 @@ import {
   PlusCircle,
   type LucideIcon,
   ClipboardList,
+  CreditCard,
 } from "lucide-react";
 import { canViewModule, type PermissionMap, type PermissionModuleKey } from "@/lib/permissions";
 
@@ -349,6 +350,13 @@ export const adminModules: AdminModule[] = [
         label: "Ecossistema",
         description: "Conexões ativas",
         icon: Network,
+        adminOnly: true,
+      },
+      {
+        to: "/admin/ecossistema?categoria=payment",
+        label: "Operadoras de pagamento",
+        description: "Stone, Cielo, PagBank e outras",
+        icon: CreditCard,
         adminOnly: true,
       },
       {
