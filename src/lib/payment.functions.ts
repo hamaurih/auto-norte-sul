@@ -5,6 +5,7 @@ type CreatePaymentIntentInput = {
   orderId: string;
   idempotencyKey: string;
   providerCode?: string;
+  boletoDueDays?: 15 | 30 | 45 | 60 | 90 | 120;
 };
 
 export const createPaymentIntent = createServerFn({ method: "POST" })
@@ -25,7 +26,7 @@ export const createPaymentIntent = createServerFn({ method: "POST" })
 
     const { data: order, error: orderError } = await (supabaseAdmin as any)
       .from("orders")
-      .select("id,payment_method,status,user_id")
+      .select("id,payment_method,status,user_id,is_b2b,customer_document")
       .eq("tenant_id", context.tenantId)
       .eq("id", data.orderId)
       .maybeSingle();
@@ -48,6 +49,15 @@ export const createPaymentIntent = createServerFn({ method: "POST" })
     }
     if (!["pix", "cartao", "boleto"].includes(String(order.payment_method))) {
       throw new Error("A Stone está habilitada neste checkout apenas para PIX, cartão e boleto.");
+    }
+    const boletoDueDays = data.boletoDueDays ?? 15;
+    if (order.payment_method === "boleto") {
+    if (!order.is_b2b || !/^(?:\d{11}|\d{14})$/.test(String(order.customer_document ?? "").replace(/\D/g, ""))) {
+        throw new Error("Boleto Stone é exclusivo para cliente B2B aprovado com CPF ou CNPJ válido.");
+      }
+      if (![15, 30, 45, 60, 90, 120].includes(boletoDueDays)) {
+        throw new Error("Prazo de boleto inválido. Escolha 15, 30, 45, 60, 90 ou 120 dias.");
+      }
     }
 
     let intent: any = null;
@@ -83,6 +93,7 @@ export const createPaymentIntent = createServerFn({ method: "POST" })
       supabaseAdmin as any,
       context.tenantId,
       intent.id as string,
+      boletoDueDays,
     );
 
     return {
