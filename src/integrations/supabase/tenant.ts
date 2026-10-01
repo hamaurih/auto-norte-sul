@@ -19,7 +19,7 @@ export function activeTenantSlug(): string {
     // vitrine consultar o tenant de demonstração e parecer sem produtos.
     const hostname = window.location.hostname.toLowerCase();
     if (hostname === "nortesulauto.com.br" || hostname === "www.nortesulauto.com.br") {
-      return DEFAULT_TENANT_SLUG;
+      return "norte-sul-real";
     }
     return window.localStorage.getItem(STORAGE_KEY) ?? DEFAULT_TENANT_SLUG;
   } catch {
