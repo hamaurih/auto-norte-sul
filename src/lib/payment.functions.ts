@@ -46,8 +46,8 @@ export const createPaymentIntent = createServerFn({ method: "POST" })
     if (order.status !== "aguardando_pagamento") {
       throw new Error("Pedido não está aguardando pagamento.");
     }
-    if (!["pix", "cartao"].includes(String(order.payment_method))) {
-      throw new Error("A Stone está habilitada neste checkout apenas para PIX e cartão.");
+    if (!["pix", "cartao", "boleto"].includes(String(order.payment_method))) {
+      throw new Error("A Stone está habilitada neste checkout apenas para PIX, cartão e boleto.");
     }
 
     let intent: any = null;
