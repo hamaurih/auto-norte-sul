@@ -66,7 +66,7 @@ function CartPage() {
             <span className="text-sm font-semibold">Total</span>
             <span className="price-tag text-2xl">{brl(subtotal)}</span>
           </div>
-          <p className="text-xs text-muted-foreground">{installments(subtotal, 10)}</p>
+          <p className="text-xs text-muted-foreground">{installments(subtotal, 6)} sem juros</p>
           <Link
             to="/checkout"
             className="mt-4 block rounded-md bg-primary px-4 py-3 text-center text-sm font-bold uppercase text-primary-foreground shadow-[var(--shadow-brand)] hover:brightness-110"
