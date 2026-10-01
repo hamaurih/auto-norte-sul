@@ -166,7 +166,7 @@ function paymentSettings(method: string, amountCents: number) {
       credit_card_settings: {
         operation_type: "auth_and_capture",
         installments_setup: { interest_type: "simple" },
-        installments: Array.from({ length: 10 }, (_, index) => ({
+        installments: Array.from({ length: 6 }, (_, index) => ({
           number: index + 1,
           total: amountCents,
         })),
@@ -174,8 +174,8 @@ function paymentSettings(method: string, amountCents: number) {
     };
   }
   if (method === "boleto") {
-    // O checkout hospedado da Stone/Pagar.me gera o boleto e a linha digitável
-    // conforme as regras de vencimento configuradas no dashboard.
+    // O checkout hospedado da Stone/Pagar.me exibe o boleto e gera a linha
+    // digitável conforme as regras de vencimento configuradas no dashboard.
     return { accepted_payment_methods: ["boleto"] };
   }
   throw new Error("A Stone está habilitada neste fluxo apenas para PIX, cartão e boleto.");
@@ -185,6 +185,7 @@ export async function createStonePaymentLink(
   admin: AdminClient,
   tenantId: string,
   intentId: string,
+  boletoDueDays = 15,
 ) {
   const context = await getStoneTransactionContext(admin, tenantId);
   const { data: intent, error: intentError } = await admin
@@ -203,7 +204,7 @@ export async function createStonePaymentLink(
 
   const { data: order, error: orderError } = await admin
     .from("orders")
-    .select("id,total,customer_name,customer_email,customer_document,status")
+    .select("id,total,customer_name,customer_email,customer_phone,customer_document,shipping_zip,shipping_street,shipping_number,shipping_complement,shipping_neighborhood,shipping_city,shipping_state,is_b2b,status")
     .eq("tenant_id", tenantId)
     .eq("id", intent.order_id)
     .maybeSingle();
@@ -214,6 +215,71 @@ export async function createStonePaymentLink(
   const amountCents = Math.round(Number(intent.amount) * 100);
   if (!Number.isSafeInteger(amountCents) || amountCents < 100) {
     throw new Error("Valor inválido para cobrança Stone.");
+  }
+
+  if (intent.method === "boleto") {
+    const document = String(order.customer_document ?? "").replace(/\D/g, "");
+    if (!order.is_b2b || !/^(?:\d{11}|\d{14})$/.test(document)) {
+      throw new Error("Boleto Stone é exclusivo para cliente B2B aprovado com CPF ou CNPJ válido.");
+    }
+    if (![15, 30, 45, 60, 90, 120].includes(boletoDueDays)) {
+      throw new Error("Prazo de boleto Stone inválido.");
+    }
+    const isCompany = document.length === 14;
+    const dueAt = new Date();
+    dueAt.setDate(dueAt.getDate() + boletoDueDays);
+    dueAt.setHours(12, 0, 0, 0);
+    const remoteOrder = await stoneFetch(context, "/orders", {
+      method: "POST",
+      headers: { "Idempotency-Key": String(intent.idempotency_key) },
+      body: JSON.stringify({
+        code: intent.id,
+        items: [{ amount: amountCents, description: `Pedido Norte Sul #${String(order.id).slice(0, 8)}`, quantity: 1 }],
+        customer: {
+          name: String(order.customer_name ?? "Cliente B2B"),
+          email: String(order.customer_email ?? "financeiro@nortesulauto.com.br"),
+          document,
+          document_type: isCompany ? "CNPJ" : "CPF",
+          type: isCompany ? "company" : "individual",
+          address: {
+            line_1: `${String(order.shipping_street ?? "").trim()}, ${String(order.shipping_number ?? "").trim()}`.trim(),
+            line_2: [order.shipping_complement, order.shipping_neighborhood].filter(Boolean).join(" · ") || undefined,
+            zip_code: String(order.shipping_zip ?? "").replace(/\D/g, ""),
+            city: String(order.shipping_city ?? ""),
+            state: String(order.shipping_state ?? "").toUpperCase(),
+            country: "BR",
+          },
+        },
+        payments: [{
+          payment_method: "boleto",
+          boleto: {
+            due_at: dueAt.toISOString(),
+            instructions: `Boleto Norte Sul · prazo negociado de ${boletoDueDays} dias.`,
+            document_number: String(intent.id).replace(/-/g, "").slice(0, 16),
+            type: "DM",
+          },
+        }],
+      }),
+    });
+    const charge = Array.isArray(remoteOrder?.charges) ? remoteOrder.charges[0] : null;
+    const transaction = charge?.last_transaction ?? remoteOrder?.last_transaction ?? {};
+    const boletoUrl = String(transaction?.url ?? "");
+    const barcode = String(transaction?.line ?? "");
+    const externalId = String(charge?.id ?? remoteOrder?.id ?? "");
+    if (!externalId || !/^https:\/\//i.test(boletoUrl)) {
+      throw new Error("Stone não retornou um boleto registrado válido.");
+    }
+    const { data: updated, error: updateError } = await admin
+      .from("payment_intents")
+      .update({
+        status: "pending", external_id: externalId, checkout_url: boletoUrl, boleto_url: boletoUrl,
+        boleto_barcode: barcode || null, expires_at: dueAt.toISOString(),
+        provider_metadata: { ...(intent.provider_metadata ?? {}), stone_order_id: remoteOrder?.id ?? null, stone_charge_id: charge?.id ?? null, boleto_due_days: boletoDueDays, boleto_due_at: dueAt.toISOString(), checkout: "stone_pagarme_v5_registered_boleto" },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("tenant_id", tenantId).eq("id", intent.id).select("*").single();
+    if (updateError) throw new Error(updateError.message);
+    return updated;
   }
 
   const link = await stoneFetch(context, "/paymentlinks", {
