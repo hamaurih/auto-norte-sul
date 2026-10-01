@@ -126,12 +126,13 @@ export async function ensureStoneProviderReady(admin: AdminClient, tenantId: str
       active: true,
       priority: 10,
       adapter_key: "stone-pagarme-v5",
-      supported_methods: ["pix", "cartao"],
+      supported_methods: ["pix", "cartao", "boleto"],
       capabilities: {
         checkout: true,
         hosted_checkout: true,
         pix: true,
         credit_card: true,
+        boleto: true,
         webhook: true,
         reconciliation: true,
         pix_reconciliation: true,
@@ -172,7 +173,12 @@ function paymentSettings(method: string, amountCents: number) {
       },
     };
   }
-  throw new Error("A Stone está habilitada neste fluxo apenas para PIX e cartão.");
+  if (method === "boleto") {
+    // O checkout hospedado da Stone/Pagar.me gera o boleto e a linha digitável
+    // conforme as regras de vencimento configuradas no dashboard.
+    return { accepted_payment_methods: ["boleto"] };
+  }
+  throw new Error("A Stone está habilitada neste fluxo apenas para PIX, cartão e boleto.");
 }
 
 export async function createStonePaymentLink(
