@@ -79,7 +79,7 @@ export function ProductCard({ p, isB2B }: { p: ProductRow; isB2B: boolean }) {
             </span>
           )}
           <span className="mt-0.5 block text-[10px] text-muted-foreground">
-            10x de {brl(price.effective / 10)}
+            6x de {brl(price.effective / 6)} sem juros
           </span>
         </div>
 
