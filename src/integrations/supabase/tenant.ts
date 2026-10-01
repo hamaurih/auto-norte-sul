@@ -14,6 +14,13 @@ export const DEFAULT_TENANT_SLUG =
 export function activeTenantSlug(): string {
   if (typeof window === "undefined") return DEFAULT_TENANT_SLUG;
   try {
+    // O domínio público nunca deve herdar uma seleção de ambiente que um
+    // usuário autorizado fez anteriormente no mesmo navegador. Isso faria a
+    // vitrine consultar o tenant de demonstração e parecer sem produtos.
+    const hostname = window.location.hostname.toLowerCase();
+    if (hostname === "nortesulauto.com.br" || hostname === "www.nortesulauto.com.br") {
+      return DEFAULT_TENANT_SLUG;
+    }
     return window.localStorage.getItem(STORAGE_KEY) ?? DEFAULT_TENANT_SLUG;
   } catch {
     return DEFAULT_TENANT_SLUG;
