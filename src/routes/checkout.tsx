@@ -32,7 +32,8 @@ const schema = z.object({
   shipping_neighborhood:  z.string().trim().min(2).max(120),
   shipping_city:          z.string().trim().min(2).max(120),
   shipping_state:         z.string().trim().length(2, "UF (2 letras)"),
-  payment_method:         z.enum(["pix", "cartao", "faturado_b2b"]),
+  payment_method:         z.enum(["pix", "cartao", "boleto", "faturado_b2b"]),
+  boleto_due_days:        z.union([z.literal(15), z.literal(30), z.literal(45), z.literal(60), z.literal(90), z.literal(120)]),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -59,6 +60,7 @@ function Checkout() {
     shipping_city:         "",
     shipping_state:        "",
     payment_method:        "pix",
+    boleto_due_days:       15,
   });
 
   useEffect(() => {
@@ -135,6 +137,10 @@ function Checkout() {
       toast.error("Documento inválido");
       return;
     }
+    if (parsed.data.payment_method === "boleto" && !isB2BApproved) {
+      toast.error("Boleto Stone é exclusivo para cliente B2B aprovado com CPF ou CNPJ válido.");
+      return;
+    }
 
     if (!user) return;
     setSaving(true);
@@ -158,6 +164,7 @@ function Checkout() {
           // O servidor busca preços e valida estoque — nunca confiamos no frontend.
           items: items.map((i) => ({ product_id: i.productId, quantity: i.quantity })),
           paymentMethod: parsed.data.payment_method,
+          boletoDueDays: parsed.data.payment_method === "boleto" ? parsed.data.boleto_due_days : undefined,
           idempotencyKey: idempotencyKey.current,
         },
       });
@@ -166,13 +173,14 @@ function Checkout() {
       idempotencyKey.current = crypto.randomUUID();
       cartStore.clear();
 
-      if (parsed.data.payment_method === "pix" || parsed.data.payment_method === "cartao") {
+      if (["pix", "cartao", "boleto"].includes(parsed.data.payment_method)) {
         try {
           const payment = await createPaymentIntent({
             data: {
               orderId: result.id,
               idempotencyKey: crypto.randomUUID(),
               providerCode: "stone",
+              boletoDueDays: parsed.data.payment_method === "boleto" ? parsed.data.boleto_due_days : undefined,
             },
           });
           if (payment.checkoutUrl) {
@@ -284,7 +292,8 @@ function Checkout() {
             <div className="grid gap-2 sm:grid-cols-2">
               {[
                 { v: "pix",          label: `PIX Stone — 5% de desconto (${brl(pixDiscount > 0 ? pixDiscount : subtotal * PIX_DISCOUNT)})` },
-                { v: "cartao",       label: "Cartão Stone — até 10×" },
+                { v: "cartao",       label: "Cartão Stone — até 6× sem juros" },
+                ...(isB2BApproved ? [{ v: "boleto", label: "Boleto Stone para CPF ou CNPJ" }] : []),
                 ...(isB2BApproved ? [{ v: "faturado_b2b", label: "Faturado 28 dias (B2B)" }] : []),
               ].map((o) => (
                 <label key={o.v} className={`cursor-pointer rounded-md border p-3 text-sm ${form.payment_method === o.v ? "border-primary bg-primary/5" : "border-border"}`}>
@@ -293,6 +302,15 @@ function Checkout() {
                 </label>
               ))}
             </div>
+            {form.payment_method === "boleto" && (
+              <div className="mt-3 rounded-md border border-primary/20 bg-primary/5 p-3">
+                <label className="block text-xs font-bold uppercase text-muted-foreground">Prazo de vencimento negociado</label>
+                <select value={form.boleto_due_days} onChange={(e) => set("boleto_due_days", Number(e.target.value) as FormData["boleto_due_days"])} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
+                  {[15, 30, 45, 60, 90, 120].map((days) => <option key={days} value={days}>{days} dias{days === 120 ? " — grande negociação" : ""}</option>)}
+                </select>
+                <p className="mt-2 text-xs text-muted-foreground">Boleto registrado diretamente pela Stone para cliente B2B aprovado, com CPF ou CNPJ.</p>
+              </div>
+            )}
           </fieldset>
         </div>
 
