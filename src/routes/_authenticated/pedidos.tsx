@@ -82,14 +82,18 @@ function Pedidos() {
               </ul>
               {o.status === "aguardando_pagamento" && (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {["pix", "cartao"].includes(String(o.payment_method)) && (
+                  {["pix", "cartao", "boleto"].includes(String(o.payment_method)) && (
                     <button
                       type="button"
                       disabled={paymentMutation.isPending}
                       onClick={() => paymentMutation.mutate(o.id)}
                       className="rounded-md bg-primary px-3 py-1.5 text-xs font-bold uppercase text-primary-foreground disabled:opacity-50"
                     >
-                      {paymentMutation.isPending ? "Abrindo Stone…" : "Pagar com Stone"}
+                      {paymentMutation.isPending
+                        ? "Abrindo Stone…"
+                        : o.payment_method === "boleto"
+                          ? "Gerar boleto pela Stone"
+                          : "Pagar com Stone"}
                     </button>
                   )}
                   <button
