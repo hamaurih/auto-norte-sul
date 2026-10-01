@@ -18,6 +18,7 @@ export type StorefrontOrderInput = {
   };
   items: Array<{ product_id: string; quantity: number }>;
   paymentMethod: "pix" | "cartao" | "boleto" | "faturado_b2b";
+  boletoDueDays?: number;
   idempotencyKey: string;
 };
 
@@ -48,6 +49,7 @@ const storefrontOrderSchema = z.object({
   items: z.array(z.object({ product_id: z.string().uuid(), quantity: z.number().int().min(1).max(1000) }))
     .min(1).max(100),
   paymentMethod: z.enum(["pix", "cartao", "boleto", "faturado_b2b"]),
+  boletoDueDays: z.union([z.literal(15), z.literal(30), z.literal(45), z.literal(60), z.literal(90), z.literal(120)]).optional(),
   idempotencyKey: z.string().uuid(),
 });
 const orderIdInputSchema = z.object({ orderId: z.string().uuid() });
@@ -82,7 +84,7 @@ export const createStorefrontOrder = createServerFn({ method: "POST" })
     );
     if (error) throw new Error(error.message);
     if (!orderId) throw new Error("Pedido não retornado");
-    return { id: orderId as string };
+    return { id: orderId as string, boletoDueDays: data.boletoDueDays ?? 15 };
   });
 
 export const cancelOrder = createServerFn({ method: "POST" })
