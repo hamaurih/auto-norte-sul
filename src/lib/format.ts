@@ -3,7 +3,7 @@ export const brl = (v: number | null | undefined) =>
     ? v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
     : "—";
 
-export const installments = (v: number, n = 10) =>
+export const installments = (v: number, n = 6) =>
   `em até ${n}x de ${brl(v / n)} sem juros`;
 
 export const slugify = (s: string) =>
