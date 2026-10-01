@@ -72,8 +72,11 @@ export async function getStoneContext(sb: any, tenantId: string): Promise<StoneC
   const merchantDocument = onlyDigits(await read("merchant_document"));
   const webhookUrl = (await read("webhook_url")).trim() || DEFAULT_WEBHOOK_URL;
   let webhookToken = (await read("webhook_token")).trim();
-  if (!webhookToken) {
-    webhookToken = crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", "");
+  // A Stone limita a URL cadastrada a 100 caracteres. O endpoint público usa
+  // 69 caracteres, deixando exatamente 24 para um token (96 bits em hex).
+  // Tokens legados maiores são substituídos no próximo teste de conexão.
+  if (!/^[a-f0-9]{24}$/i.test(webhookToken)) {
+    webhookToken = crypto.randomUUID().replaceAll("-", "").slice(0, 24);
     await saveSecret(sb, tenantId, id, "webhook_token", webhookToken);
   }
 
@@ -114,6 +117,9 @@ export async function configureStoneWebhook(sb: any, tenantId: string) {
   const context = await getStoneContext(sb, tenantId);
   const url = new URL(context.webhookUrl);
   url.searchParams.set("token", context.webhookToken);
+  if (url.toString().length > 100) {
+    throw new Error("A URL do webhook Stone excede o limite de 100 caracteres. Use a URL padrão do sistema.");
+  }
   const body = JSON.stringify({ url: url.toString() });
   const registration = await stoneRawRequest(context, "/webhook", {
     method: "POST",
