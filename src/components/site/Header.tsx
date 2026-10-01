@@ -151,7 +151,7 @@ export function Header() {
       <div className="border-b border-white/10 bg-slate-950 text-[11px] text-white/85">
         <div className="container-x flex h-8 items-center justify-between">
           <span className="hidden font-medium sm:inline">
-            Frete para todo Brasil · PIX com 5% OFF · 10x sem juros
+            Frete para todo Brasil · PIX com 5% OFF · até 6x sem juros · boleto B2B
           </span>
           <div className="flex items-center gap-3">
             <Link to="/b2b" className="font-medium hover:text-primary">
