@@ -107,7 +107,7 @@ function ProductPage() {
                 <span className="rounded bg-success px-2 py-0.5 text-[10px] font-bold uppercase text-success-foreground">Atacado</span>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">{installments(price.effective, 10)}</p>
+            <p className="text-xs text-muted-foreground">{installments(price.effective, 6)} sem juros</p>
             {!isB2BApproved && product.price_b2b && (
               <div className="mt-2 rounded border border-dashed border-primary/40 bg-primary/5 p-2 text-xs">
                 <b>Você é lojista?</b>{" "}
