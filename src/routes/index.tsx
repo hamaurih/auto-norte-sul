@@ -6,6 +6,7 @@ import {
   ShieldCheck,
   Percent,
   CreditCard,
+  ReceiptText,
   MessageCircle,
   Handshake,
   Users,
@@ -147,8 +148,8 @@ function HomeFallback() {
           <div className="aspect-[21/9] w-full animate-pulse rounded-lg bg-muted md:aspect-[16/6]" />
         </section>
       </div>
-      <section className="container-x mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">
-        {["Frete Brasil", "10x sem juros", "PIX 5% OFF", "Compra segura"].map((label) => (
+      <section className="container-x mt-4 grid grid-cols-2 gap-2 md:grid-cols-5">
+        {["Frete Brasil", "Até 6x sem juros", "PIX 5% OFF", "Boleto B2B", "Compra segura"].map((label) => (
           <div key={label} className="h-10 animate-pulse rounded-lg border border-border bg-card" />
         ))}
       </section>
@@ -244,11 +245,12 @@ function Home() {
       </div>
 
       {/* ============ TRUST STRIP ============ */}
-      <section className="container-x mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">
+      <section className="container-x mt-4 grid grid-cols-2 gap-2 md:grid-cols-5">
         {[
           { icon: Truck, label: "Frete Brasil" },
-          { icon: CreditCard, label: "10x sem juros" },
+          { icon: CreditCard, label: "Até 6x sem juros" },
           { icon: Percent, label: "PIX 5% OFF" },
+          { icon: ReceiptText, label: "Boleto B2B (CPF/CNPJ)" },
           { icon: ShieldCheck, label: "Compra segura" },
         ].map(({ icon: Icon, label }) => (
           <div
