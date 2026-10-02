@@ -466,6 +466,7 @@ function IntegrationDetail() {
   const settingFor = (key: string) => settings?.find((x) => x.key === key);
   const valueFor = (key: string) => settingFor(key)?.value_encrypted ?? "";
   const isSecretFilled = (key: string, is_secret?: boolean) => !!is_secret && Boolean(settingFor(key)?.configured);
+  const stoneCheckoutKeyConfigured = slug === "stone" && isSecretFilled("transaction_secret_key", true);
 
   return (
     <div className="space-y-4">
@@ -500,6 +501,18 @@ function IntegrationDetail() {
         </Alert>
       )}
       {spec.intro && <p className="text-sm text-muted-foreground">{spec.intro}</p>}
+
+      {slug === "stone" && (
+        <Alert className={stoneCheckoutKeyConfigured ? "border-emerald-500/30 bg-emerald-500/5" : "border-amber-500/30 bg-amber-500/5"}>
+          <AlertDescription>
+            {stoneCheckoutKeyConfigured ? (
+              <>Cobranças: credencial transacional cadastrada. Clique em <strong>Testar conexão</strong> para validar a chave e liberar PIX, cartão e boleto.</>
+            ) : (
+              <>Cobranças: ainda bloqueadas com segurança. Falta cadastrar a <strong>Secret Key transacional Stone/Pagar.me</strong> no campo abaixo. A chave de conciliação já salva não serve para cobrar clientes.</>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
