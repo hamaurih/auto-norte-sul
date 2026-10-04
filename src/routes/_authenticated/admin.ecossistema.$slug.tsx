@@ -342,11 +342,14 @@ const specs: Record<string, IntegrationSpec> = {
     ],
   },
   asaas: {
+    intro: "Asaas será o meio de cobrança do site: PIX, cartão e boleto. A Stone permanece somente para conciliação e operação presencial.",
     fields: [
-      { key: "api_key", label: "API Key", type: "password", is_secret: true },
-      { key: "environment", label: "Ambiente", placeholder: "sandbox" },
-      { key: "webhook_url", label: "URL de Webhook" },
+      { key: "api_key", label: "API Key do Asaas", type: "password", is_secret: true, help: "Use a chave do ambiente selecionado. Nunca será exibida novamente." },
+      { key: "environment", label: "Ambiente", placeholder: "sandbox ou production", help: "Use sandbox para homologação; use production somente após os testes aprovados." },
+      { key: "webhook_url", label: "URL pública do webhook", placeholder: "https://www.nortesulauto.com.br/api/public/asaas/webhook", help: "Cadastre exatamente esta URL no painel do Asaas." },
+      { key: "webhook_token", label: "Token de autenticação do webhook", type: "password", is_secret: true, help: "Gere no Asaas e salve também aqui. Não use a API Key como token." },
     ],
+    warning: "O checkout só é ativado após a API Key responder com sucesso. O webhook autenticado confirma pagamentos e estornos; sem ele, não libere vendas reais.",
   },
   "mobile-app": {
     fields: [
