@@ -12,17 +12,17 @@ export const createPaymentIntent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: CreatePaymentIntentInput) => input)
   .handler(async ({ data, context }) => {
-    const providerCode = data.providerCode ?? "stone";
-    if (providerCode !== "stone") {
-      throw new Error("Stone é o provider transacional principal deste ambiente.");
+    const providerCode = data.providerCode ?? "asaas";
+    if (providerCode !== "asaas") {
+      throw new Error("Asaas é o provider transacional principal deste ambiente.");
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { ensureStoneProviderReady, createStonePaymentLink } = await import(
-      "@/lib/stone-payments.server"
+    const { ensureAsaasProviderReady, createAsaasPayment } = await import(
+      "@/lib/asaas-payments.server"
     );
 
-    const stone = await ensureStoneProviderReady(supabaseAdmin as any, context.tenantId);
+    const asaas = await ensureAsaasProviderReady(supabaseAdmin as any, context.tenantId);
 
     const { data: order, error: orderError } = await (supabaseAdmin as any)
       .from("orders")
@@ -48,12 +48,12 @@ export const createPaymentIntent = createServerFn({ method: "POST" })
       throw new Error("Pedido não está aguardando pagamento.");
     }
     if (!["pix", "cartao", "boleto"].includes(String(order.payment_method))) {
-      throw new Error("A Stone está habilitada neste checkout apenas para PIX, cartão e boleto.");
+      throw new Error("O Asaas está habilitado neste checkout apenas para PIX, cartão e boleto.");
     }
     const boletoDueDays = data.boletoDueDays ?? 15;
     if (order.payment_method === "boleto") {
     if (!order.is_b2b || !/^(?:\d{11}|\d{14})$/.test(String(order.customer_document ?? "").replace(/\D/g, ""))) {
-        throw new Error("Boleto Stone é exclusivo para cliente B2B aprovado com CPF ou CNPJ válido.");
+        throw new Error("Boleto Asaas é exclusivo para cliente B2B aprovado com CPF ou CNPJ válido.");
       }
       if (![15, 30, 45, 60, 90, 120].includes(boletoDueDays)) {
         throw new Error("Prazo de boleto inválido. Escolha 15, 30, 45, 60, 90 ou 120 dias.");
@@ -66,7 +66,7 @@ export const createPaymentIntent = createServerFn({ method: "POST" })
       .select("*")
       .eq("tenant_id", context.tenantId)
       .eq("order_id", data.orderId)
-      .eq("provider_id", stone.providerId)
+      .eq("provider_id", asaas.providerId)
       .in("status", ["created", "pending", "requires_action"])
       .order("created_at", { ascending: false })
       .limit(1)
@@ -81,7 +81,7 @@ export const createPaymentIntent = createServerFn({ method: "POST" })
           p_order_id: data.orderId,
           p_actor_user_id: context.userId,
           p_idempotency_key: data.idempotencyKey,
-          p_provider_code: "stone",
+          p_provider_code: "asaas",
         },
       );
       if (error) throw new Error(error.message);
@@ -89,7 +89,7 @@ export const createPaymentIntent = createServerFn({ method: "POST" })
       intent = created;
     }
 
-    const ready = await createStonePaymentLink(
+    const ready = await createAsaasPayment(
       supabaseAdmin as any,
       context.tenantId,
       intent.id as string,
