@@ -342,6 +342,24 @@ export const integrationTestConnection = createServerFn({ method: "POST" })
       }
     }
 
+    if (definition.slug === "asaas") {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { ensureAsaasProviderReady } = await import("@/lib/asaas-payments.server");
+        const asaas = await ensureAsaasProviderReady(supabaseAdmin as any, context.tenantId);
+        await sb.from("integration_logs").insert({
+          tenant_id: context.tenantId, integration_id: data.id, event_type: "asaas_connection_validated", status: "success",
+          message: `Asaas validado no ambiente ${asaas.environment}. Checkout habilitado para PIX, cartão e boleto.`,
+          payload: { environment: asaas.environment, webhook_configured: Boolean(asaas.webhookToken) },
+        });
+        return { ok: true, message: `Asaas conectado no ambiente ${asaas.environment}.` };
+      } catch (cause: any) {
+        const message = String(cause?.message ?? cause).slice(0, 500);
+        await sb.from("integration_logs").insert({ tenant_id: context.tenantId, integration_id: data.id, event_type: "asaas_connection_failed", status: "error", message });
+        throw new Error(message);
+      }
+    }
+
     const { data: settings, error } = await sb
       .from("integration_settings")
       .select("key,value_encrypted")
