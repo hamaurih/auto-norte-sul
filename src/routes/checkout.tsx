@@ -138,7 +138,7 @@ function Checkout() {
       return;
     }
     if (parsed.data.payment_method === "boleto" && !isB2BApproved) {
-      toast.error("Boleto Stone é exclusivo para cliente B2B aprovado com CPF ou CNPJ válido.");
+      toast.error("Boleto Asaas é exclusivo para cliente B2B aprovado com CPF ou CNPJ válido.");
       return;
     }
 
@@ -179,16 +179,16 @@ function Checkout() {
             data: {
               orderId: result.id,
               idempotencyKey: crypto.randomUUID(),
-              providerCode: "stone",
+              providerCode: "asaas",
               boletoDueDays: parsed.data.payment_method === "boleto" ? parsed.data.boleto_due_days : undefined,
             },
           });
           if (payment.checkoutUrl) {
-            toast.success("Pedido criado. Abrindo pagamento seguro Stone…");
+            toast.success("Pedido criado. Abrindo pagamento seguro Asaas…");
             window.location.assign(payment.checkoutUrl);
             return;
           }
-          throw new Error("A Stone não retornou o link de pagamento.");
+          throw new Error("O Asaas não retornou o link de pagamento.");
         } catch (paymentError: any) {
           console.error(paymentError);
           toast.warning("Pedido criado e estoque reservado. O pagamento pode ser concluído em Meus Pedidos.", {
@@ -291,9 +291,9 @@ function Checkout() {
             <legend className="px-2 font-display text-sm font-bold uppercase">Pagamento</legend>
             <div className="grid gap-2 sm:grid-cols-2">
               {[
-                { v: "pix",          label: `PIX Stone — 5% de desconto (${brl(pixDiscount > 0 ? pixDiscount : subtotal * PIX_DISCOUNT)})` },
-                { v: "cartao",       label: "Cartão Stone — até 6× sem juros" },
-                ...(isB2BApproved ? [{ v: "boleto", label: "Boleto Stone para CPF ou CNPJ" }] : []),
+                { v: "pix",          label: `PIX Asaas — 5% de desconto (${brl(pixDiscount > 0 ? pixDiscount : subtotal * PIX_DISCOUNT)})` },
+                { v: "cartao",       label: "Cartão Asaas — até 6× sem juros" },
+                ...(isB2BApproved ? [{ v: "boleto", label: "Boleto Asaas para CPF ou CNPJ" }] : []),
                 ...(isB2BApproved ? [{ v: "faturado_b2b", label: "Faturado 28 dias (B2B)" }] : []),
               ].map((o) => (
                 <label key={o.v} className={`cursor-pointer rounded-md border p-3 text-sm ${form.payment_method === o.v ? "border-primary bg-primary/5" : "border-border"}`}>
@@ -308,7 +308,7 @@ function Checkout() {
                 <select value={form.boleto_due_days} onChange={(e) => set("boleto_due_days", Number(e.target.value) as FormData["boleto_due_days"])} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
                   {[15, 30, 45, 60, 90, 120].map((days) => <option key={days} value={days}>{days} dias{days === 120 ? " — grande negociação" : ""}</option>)}
                 </select>
-                <p className="mt-2 text-xs text-muted-foreground">Boleto registrado diretamente pela Stone para cliente B2B aprovado, com CPF ou CNPJ.</p>
+                <p className="mt-2 text-xs text-muted-foreground">Boleto registrado pelo Asaas para cliente B2B aprovado, com CPF ou CNPJ.</p>
               </div>
             )}
           </fieldset>
