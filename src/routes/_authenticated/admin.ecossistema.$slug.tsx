@@ -342,10 +342,12 @@ const specs: Record<string, IntegrationSpec> = {
     ],
   },
   asaas: {
-    intro: "Asaas será o meio de cobrança do site: PIX, cartão e boleto. A Stone permanece somente para conciliação e operação presencial.",
+    intro: "Asaas será o meio de cobrança do site: PIX, cartão e boleto. Produção e Sandbox usam chaves separadas; selecione Sandbox para homologar sem criar cobranças reais.",
     fields: [
-      { key: "api_key", label: "API Key do Asaas", type: "password", is_secret: true, help: "Use a chave do ambiente selecionado. Nunca será exibida novamente." },
-      { key: "environment", label: "Ambiente", placeholder: "sandbox ou production", help: "Use sandbox para homologação; use production somente após os testes aprovados." },
+      { key: "api_key", label: "API Key — Produção", type: "password", is_secret: true, help: "Usada exclusivamente quando o ambiente estiver em production. Nunca é exibida novamente." },
+      { key: "sandbox_api_key", label: "API Key — Sandbox", type: "password", is_secret: true, help: "Cole aqui a chave criada no Sandbox do Asaas. Ela nunca substitui a chave de produção." },
+      { key: "environment", label: "Ambiente ativo", placeholder: "sandbox ou production", help: "Digite sandbox para executar testes; production para receber pagamentos reais." },
+      { key: "wallet_id", label: "Wallet ID (opcional)", placeholder: "wal_...", help: "Informe o Wallet ID somente se usar split/repasse no Asaas. Para PIX, cartão e boleto próprios, deixe em branco." },
       { key: "webhook_url", label: "URL pública do webhook", placeholder: "https://www.nortesulauto.com.br/api/public/asaas/webhook", help: "Cadastre exatamente esta URL no painel do Asaas." },
       { key: "webhook_token", label: "Token de autenticação do webhook", type: "password", is_secret: true, help: "Gere no Asaas e salve também aqui. Não use a API Key como token." },
     ],
