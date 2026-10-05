@@ -83,13 +83,31 @@ type CardData = { holderName: string; number: string; expiryMonth: string; expir
 
 export async function createAsaasPayment(admin: AdminClient, tenantId: string, intentId: string, boletoDueDays = 15, card?: CardData, remoteIp?: string, installments = 1) {
   const c = await ensureAsaasProviderReady(admin, tenantId);
-  const { data: intent, error: intentError } = await admin.from("payment_intents").select("id,order_id,provider_id,method,amount,status,external_id,checkout_url,provider_metadata").eq("tenant_id", tenantId).eq("id", intentId).maybeSingle();
+  const { data: intent, error: intentError } = await admin.from("payment_intents").select("id,order_id,provider_id,method,amount,status,external_id,checkout_url,pix_copy_paste,pix_qr_code_url,expires_at,provider_metadata").eq("tenant_id", tenantId).eq("id", intentId).maybeSingle();
   if (intentError) throw new Error(intentError.message); if (!intent) throw new Error("Intenção de pagamento não encontrada.");
   if (intent.provider_id !== c.providerId) throw new Error("Provider da intenção não corresponde ao Asaas ativo.");
   // Uma tentativa já registrada não pode criar outra cobrança, inclusive no
   // parcelamento (que não possui URL de fatura). Isso evita cobrança duplicada
   // quando o cliente atualiza a tela ou tenta novamente.
-  if (intent.external_id) return intent;
+  if (intent.external_id) {
+    // Cobranças antigas podem já possuir o ID no Asaas, mas não terem gravado
+    // o QR Code. Recuperamos o payload antes de devolver a cobrança ao checkout.
+    if (intent.method === "pix" && (!intent.pix_copy_paste || !intent.pix_qr_code_url)) {
+      const pix = await request(c, `/payments/${encodeURIComponent(String(intent.external_id))}/pixQrCode`, { method: "GET", headers: { "Content-Type": "" } });
+      if (!pix?.payload || !pix?.encodedImage) {
+        throw new Error("A cobrança PIX ainda não retornou o QR Code. Tente novamente em instantes.");
+      }
+      const recovered = await admin.from("payment_intents").update({
+        pix_copy_paste: String(pix.payload),
+        pix_qr_code_url: `data:image/png;base64,${pix.encodedImage}`,
+        expires_at: pix.expirationDate ?? intent.expires_at ?? null,
+        updated_at: new Date().toISOString(),
+      }).eq("tenant_id", tenantId).eq("id", intent.id).select("*").single();
+      if (recovered.error) throw new Error(recovered.error.message);
+      return recovered.data;
+    }
+    return intent;
+  }
   const { data: order, error: orderError } = await admin.from("orders").select("id,status,customer_name,customer_email,customer_phone,customer_document,shipping_zip,shipping_street,shipping_number,shipping_complement,shipping_neighborhood,is_b2b").eq("tenant_id", tenantId).eq("id", intent.order_id).maybeSingle();
   if (orderError) throw new Error(orderError.message); if (!order || order.status !== "aguardando_pagamento") throw new Error("Pedido não está aguardando pagamento.");
   if (intent.method === "boleto" && (!order.is_b2b || !/^(\d{11}|\d{14})$/.test(digits(order.customer_document)))) throw new Error("Boleto Asaas é exclusivo para cliente B2B aprovado com CPF ou CNPJ válido.");

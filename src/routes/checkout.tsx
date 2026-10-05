@@ -269,6 +269,9 @@ function Checkout() {
             navigate({ to: "/pedidos" });
             return;
           }
+          if (parsed.data.payment_method === "pix" && (!payment.pixQrCodeUrl || !payment.pixCopyPaste)) {
+            throw new Error("A cobrança PIX foi criada, mas o QR Code ainda não está disponível. Tente novamente nesta tela.");
+          }
           setPaymentView({ method: parsed.data.payment_method, pixCopyPaste: payment.pixCopyPaste, pixQrCodeUrl: payment.pixQrCodeUrl, boletoUrl: payment.boletoUrl, boletoBarcode: payment.boletoBarcode, status: payment.status });
           return;
         } catch (paymentError: any) {
