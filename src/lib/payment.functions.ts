@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequestIP } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 
 type CreatePaymentIntentInput = {
@@ -6,6 +7,13 @@ type CreatePaymentIntentInput = {
   idempotencyKey: string;
   providerCode?: string;
   boletoDueDays?: 15 | 30 | 45 | 60 | 90 | 120;
+  card?: {
+    holderName: string;
+    number: string;
+    expiryMonth: string;
+    expiryYear: string;
+    ccv: string;
+  };
 };
 
 export const createPaymentIntent = createServerFn({ method: "POST" })
@@ -94,6 +102,8 @@ export const createPaymentIntent = createServerFn({ method: "POST" })
       context.tenantId,
       intent.id as string,
       boletoDueDays,
+      data.card,
+      getRequestIP({ xForwardedFor: true }) ?? undefined,
     );
 
     return {

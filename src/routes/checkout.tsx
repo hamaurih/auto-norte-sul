@@ -23,9 +23,9 @@ const PIX_DISCOUNT = 0.05; // 5%
 const schema = z.object({
   customer_name:          z.string().trim().min(3, "Informe o nome completo").max(120),
   customer_email:         z.string().trim().email("Email inválido").max(255),
-  customer_phone:         z.string().trim().min(8, "Informe o telefone").max(20),
+  customer_phone:         z.string().trim().refine((v) => /^\d{10,11}$/.test(v.replace(/\D/g, "")), "Informe um telefone com DDD"),
   customer_document:      z.string().trim().min(11, "CPF ou CNPJ inválido").max(18),
-  shipping_zip:           z.string().trim().min(8, "CEP inválido").max(10),
+  shipping_zip:           z.string().trim().refine((v) => /^\d{8}$/.test(v.replace(/\D/g, "")), "CEP inválido"),
   shipping_street:        z.string().trim().min(2).max(200),
   shipping_number:        z.string().trim().min(1).max(20),
   shipping_complement:    z.string().max(120).optional().or(z.literal("")),
@@ -37,6 +37,8 @@ const schema = z.object({
 });
 
 type FormData = z.infer<typeof schema>;
+type CardForm = { holderName: string; number: string; expiry: string; ccv: string };
+type PaymentView = { method: "pix" | "boleto" | "cartao"; pixCopyPaste?: string | null; pixQrCodeUrl?: string | null; boletoUrl?: string | null; boletoBarcode?: string | null; status: string };
 
 function Checkout() {
   const { items, subtotal } = useCart();
@@ -44,6 +46,8 @@ function Checkout() {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [fetchingCep, setFetchingCep] = useState(false);
+  const [paymentView, setPaymentView] = useState<PaymentView | null>(null);
+  const [card, setCard] = useState<CardForm>({ holderName: "", number: "", expiry: "", ccv: "" });
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof FormData, string>>>({});
   const idempotencyKey = useRef(crypto.randomUUID());
 
@@ -70,6 +74,13 @@ function Checkout() {
   // UI-23: Calcula total com desconto PIX
   const pixDiscount  = form.payment_method === "pix" ? subtotal * PIX_DISCOUNT : 0;
   const total        = subtotal - pixDiscount;
+
+  const updateCard = <K extends keyof CardForm>(key: K, value: CardForm[K]) => setCard((current) => ({ ...current, [key]: value }));
+  const maskCard = (value: string) => value.replace(/\D/g, "").slice(0, 19).replace(/(\d{4})(?=\d)/g, "$1 ");
+  const maskExpiry = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 4);
+    return digits.length > 2 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits;
+  };
 
   const set = <K extends keyof FormData>(k: K, v: FormData[K]) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -138,7 +149,12 @@ function Checkout() {
       return;
     }
     if (parsed.data.payment_method === "boleto" && !isB2BApproved) {
-      toast.error("Boleto Asaas é exclusivo para cliente B2B aprovado com CPF ou CNPJ válido.");
+      toast.error("Boleto é exclusivo para cliente B2B aprovado com CPF ou CNPJ válido.");
+      return;
+    }
+    const [expiryMonth = "", expiryYear = ""] = card.expiry.split("/");
+    if (parsed.data.payment_method === "cartao" && (!card.holderName.trim() || card.number.replace(/\D/g, "").length < 13 || expiryMonth.length !== 2 || expiryYear.length !== 2 || card.ccv.replace(/\D/g, "").length < 3)) {
+      toast.error("Preencha todos os dados do cartão.");
       return;
     }
 
@@ -171,8 +187,6 @@ function Checkout() {
       if (!result.id) throw new Error("Pedido não retornado");
 
       idempotencyKey.current = crypto.randomUUID();
-      cartStore.clear();
-
       if (["pix", "cartao", "boleto"].includes(parsed.data.payment_method)) {
         try {
           const payment = await createPaymentIntent({
@@ -181,14 +195,20 @@ function Checkout() {
               idempotencyKey: crypto.randomUUID(),
               providerCode: "asaas",
               boletoDueDays: parsed.data.payment_method === "boleto" ? parsed.data.boleto_due_days : undefined,
+              card: parsed.data.payment_method === "cartao" ? { holderName: card.holderName, number: card.number, expiryMonth, expiryYear, ccv: card.ccv } : undefined,
             },
           });
-          if (payment.checkoutUrl) {
-            toast.success("Pedido criado. Abrindo pagamento seguro Asaas…");
-            window.location.assign(payment.checkoutUrl);
-            return;
+          cartStore.clear();
+          if (parsed.data.payment_method === "cartao") {
+            if (payment.status === "paid") {
+              toast.success("Pagamento aprovado. Estamos confirmando seu pedido.");
+              navigate({ to: "/pedidos" });
+              return;
+            }
+            throw new Error("O cartão não foi aprovado. Revise os dados ou tente outro meio de pagamento.");
           }
-          throw new Error("O Asaas não retornou o link de pagamento.");
+          setPaymentView({ method: parsed.data.payment_method, pixCopyPaste: payment.pixCopyPaste, pixQrCodeUrl: payment.pixQrCodeUrl, boletoUrl: payment.boletoUrl, boletoBarcode: payment.boletoBarcode, status: payment.status });
+          return;
         } catch (paymentError: any) {
           console.error(paymentError);
           toast.warning("Pedido criado e estoque reservado. O pagamento pode ser concluído em Meus Pedidos.", {
@@ -291,9 +311,9 @@ function Checkout() {
             <legend className="px-2 font-display text-sm font-bold uppercase">Pagamento</legend>
             <div className="grid gap-2 sm:grid-cols-2">
               {[
-                { v: "pix",          label: `PIX Asaas — 5% de desconto (${brl(pixDiscount > 0 ? pixDiscount : subtotal * PIX_DISCOUNT)})` },
-                { v: "cartao",       label: "Cartão Asaas — até 6× sem juros" },
-                ...(isB2BApproved ? [{ v: "boleto", label: "Boleto Asaas para CPF ou CNPJ" }] : []),
+                { v: "pix",          label: `PIX — 5% de desconto (${brl(pixDiscount > 0 ? pixDiscount : subtotal * PIX_DISCOUNT)})` },
+                { v: "cartao",       label: "Cartão de crédito" },
+                ...(isB2BApproved ? [{ v: "boleto", label: "Boleto para CPF ou CNPJ" }] : []),
                 ...(isB2BApproved ? [{ v: "faturado_b2b", label: "Faturado 28 dias (B2B)" }] : []),
               ].map((o) => (
                 <label key={o.v} className={`cursor-pointer rounded-md border p-3 text-sm ${form.payment_method === o.v ? "border-primary bg-primary/5" : "border-border"}`}>
@@ -308,7 +328,16 @@ function Checkout() {
                 <select value={form.boleto_due_days} onChange={(e) => set("boleto_due_days", Number(e.target.value) as FormData["boleto_due_days"])} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
                   {[15, 30, 45, 60, 90, 120].map((days) => <option key={days} value={days}>{days} dias{days === 120 ? " — grande negociação" : ""}</option>)}
                 </select>
-                <p className="mt-2 text-xs text-muted-foreground">Boleto registrado pelo Asaas para cliente B2B aprovado, com CPF ou CNPJ.</p>
+                <p className="mt-2 text-xs text-muted-foreground">Boleto disponível para cliente B2B aprovado, com CPF ou CNPJ.</p>
+              </div>
+            )}
+            {form.payment_method === "cartao" && (
+              <div className="mt-3 grid gap-3 rounded-md border border-primary/20 bg-primary/5 p-3 sm:grid-cols-2">
+                <div className="sm:col-span-2"><Field label="Nome impresso no cartão"><input required value={card.holderName} autoComplete="cc-name" onChange={(e) => updateCard("holderName", e.target.value)} className={inp()} /></Field></div>
+                <div className="sm:col-span-2"><Field label="Número do cartão"><input required value={card.number} inputMode="numeric" autoComplete="cc-number" onChange={(e) => updateCard("number", maskCard(e.target.value))} placeholder="0000 0000 0000 0000" className={inp()} /></Field></div>
+                <Field label="Validade"><input required value={card.expiry} inputMode="numeric" autoComplete="cc-exp" onChange={(e) => updateCard("expiry", maskExpiry(e.target.value))} placeholder="MM/AA" className={inp()} /></Field>
+                <Field label="CVV"><input required value={card.ccv} inputMode="numeric" autoComplete="cc-csc" onChange={(e) => updateCard("ccv", e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="000" className={inp()} /></Field>
+                <p className="sm:col-span-2 text-xs text-muted-foreground">Pagamento processado em ambiente seguro. Os dados do cartão não são armazenados pela Norte Sul.</p>
               </div>
             )}
           </fieldset>
@@ -349,8 +378,16 @@ function Checkout() {
           </p>
         </aside>
       </form>
+      {paymentView && <PaymentPanel payment={paymentView} onClose={() => navigate({ to: "/pedidos" })} />}
     </div>
   );
+}
+
+function PaymentPanel({ payment, onClose }: { payment: PaymentView; onClose: () => void }) {
+  const copy = async (value: string) => { await navigator.clipboard.writeText(value); toast.success("Código copiado."); };
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"><section className="w-full max-w-md rounded-xl bg-background p-6 shadow-2xl" role="dialog" aria-modal="true">
+    {payment.method === "pix" ? <><h2 className="font-display text-2xl font-bold uppercase">Pague com PIX</h2><p className="mt-2 text-sm text-muted-foreground">Aponte a câmera para o QR Code ou use o código de copia e cola.</p>{payment.pixQrCodeUrl && <img src={payment.pixQrCodeUrl} alt="QR Code PIX" className="mx-auto my-5 h-52 w-52 rounded-md" />}{payment.pixCopyPaste && <button type="button" onClick={() => copy(payment.pixCopyPaste!)} className="w-full rounded-md bg-primary px-4 py-3 text-sm font-bold text-primary-foreground">Copiar código PIX</button>}</> : <><h2 className="font-display text-2xl font-bold uppercase">Boleto gerado</h2><p className="mt-2 text-sm text-muted-foreground">Use a linha digitável ou abra o boleto para pagamento.</p>{payment.boletoBarcode && <button type="button" onClick={() => copy(payment.boletoBarcode!)} className="mt-4 w-full rounded-md bg-primary px-4 py-3 text-sm font-bold text-primary-foreground">Copiar código de barras</button>}{payment.boletoUrl && <a href={payment.boletoUrl} target="_blank" rel="noreferrer" className="mt-3 block w-full rounded-md border border-primary px-4 py-3 text-center text-sm font-bold text-primary">Abrir boleto</a>}</>}<button type="button" onClick={onClose} className="mt-4 w-full rounded-md border border-border px-4 py-3 text-sm font-bold">Ver meus pedidos</button>
+  </section></div>;
 }
 
 const inp = (err?: string) =>

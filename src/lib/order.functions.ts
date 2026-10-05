@@ -36,9 +36,9 @@ const storefrontOrderSchema = z.object({
   customer: z.object({
     name: z.string().trim().min(3).max(120),
     email: z.string().trim().email().max(255),
-    phone: z.string().trim().min(8).max(30),
+    phone: z.string().trim().refine((v) => /^\d{10,11}$/.test(v.replace(/\D/g, "")), "Telefone inválido"),
     document: z.string().trim().min(11).max(20),
-    shipping_zip: z.string().trim().min(8).max(10),
+    shipping_zip: z.string().trim().refine((v) => /^\d{8}$/.test(v.replace(/\D/g, "")), "CEP inválido"),
     shipping_street: z.string().trim().min(2).max(200),
     shipping_number: z.string().trim().min(1).max(20),
     shipping_complement: z.string().trim().max(120).optional().or(z.literal("")),

@@ -63,6 +63,10 @@ export async function ensureAsaasProviderReady(admin: AdminClient, tenantId: str
 
 function todayPlus(days: number) { const d = new Date(); d.setDate(d.getDate() + days); return d.toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" }); }
 function digits(value: unknown) { return String(value ?? "").replace(/\D/g, ""); }
+// O Asaas aceita CEP brasileiro com 8 dígitos e celular com DDD (10/11 dígitos).
+// Mantemos apenas a parte local quando o cliente informou o prefixo +55.
+function asaasPostalCode(value: unknown) { return digits(value).slice(0, 8); }
+function asaasMobilePhone(value: unknown) { return digits(value).slice(-11); }
 function method(method: string) { return method === "cartao" ? "CREDIT_CARD" : method === "boleto" ? "BOLETO" : "PIX"; }
 
 async function customerForOrder(c: AsaasContext, order: any) {
@@ -70,12 +74,14 @@ async function customerForOrder(c: AsaasContext, order: any) {
   const existing = await request(c, `/customers?externalReference=${encodeURIComponent(externalReference)}&limit=1`, { method: "GET" });
   if (existing?.data?.[0]?.id) return existing.data[0].id as string;
   const document = digits(order.customer_document);
-  const created = await request(c, "/customers", { method: "POST", body: JSON.stringify({ name: String(order.customer_name), email: String(order.customer_email), cpfCnpj: document, mobilePhone: digits(order.customer_phone), postalCode: digits(order.shipping_zip), address: String(order.shipping_street), addressNumber: String(order.shipping_number), complement: order.shipping_complement || undefined, province: String(order.shipping_neighborhood), externalReference }) });
+  const created = await request(c, "/customers", { method: "POST", body: JSON.stringify({ name: String(order.customer_name), email: String(order.customer_email), cpfCnpj: document, mobilePhone: asaasMobilePhone(order.customer_phone), postalCode: asaasPostalCode(order.shipping_zip), address: String(order.shipping_street), addressNumber: String(order.shipping_number), complement: order.shipping_complement || undefined, province: String(order.shipping_neighborhood), externalReference }) });
   if (!created?.id) throw new Error("Asaas não retornou o cliente da cobrança.");
   return created.id as string;
 }
 
-export async function createAsaasPayment(admin: AdminClient, tenantId: string, intentId: string, boletoDueDays = 15) {
+type CardData = { holderName: string; number: string; expiryMonth: string; expiryYear: string; ccv: string };
+
+export async function createAsaasPayment(admin: AdminClient, tenantId: string, intentId: string, boletoDueDays = 15, card?: CardData, remoteIp?: string) {
   const c = await ensureAsaasProviderReady(admin, tenantId);
   const { data: intent, error: intentError } = await admin.from("payment_intents").select("id,order_id,provider_id,method,amount,status,external_id,checkout_url,provider_metadata").eq("tenant_id", tenantId).eq("id", intentId).maybeSingle();
   if (intentError) throw new Error(intentError.message); if (!intent) throw new Error("Intenção de pagamento não encontrada.");
@@ -86,11 +92,42 @@ export async function createAsaasPayment(admin: AdminClient, tenantId: string, i
   if (intent.method === "boleto" && (!order.is_b2b || !/^(\d{11}|\d{14})$/.test(digits(order.customer_document)))) throw new Error("Boleto Asaas é exclusivo para cliente B2B aprovado com CPF ou CNPJ válido.");
   if (intent.method === "boleto" && ![15,30,45,60,90,120].includes(boletoDueDays)) throw new Error("Prazo de boleto inválido.");
   const customer = await customerForOrder(c, order);
-  const payment = await request(c, "/payments", { method: "POST", body: JSON.stringify({ customer, billingType: method(intent.method), value: Number(intent.amount), dueDate: todayPlus(intent.method === "boleto" ? boletoDueDays : 1), description: `Pedido Norte Sul #${String(order.id).slice(0,8)}`, externalReference: intent.id }) });
+  if (intent.method === "cartao" && !card) {
+    throw new Error("Informe os dados do cartão para concluir o pagamento.");
+  }
+  const cardNumber = digits(card?.number);
+  const expiryMonth = digits(card?.expiryMonth);
+  const expiryYear = digits(card?.expiryYear);
+  const ccv = digits(card?.ccv);
+  if (intent.method === "cartao" && (!cardNumber || !/^\d{1,2}$/.test(expiryMonth) || !/^\d{2,4}$/.test(expiryYear) || !/^\d{3,4}$/.test(ccv))) {
+    throw new Error("Revise os dados do cartão e tente novamente.");
+  }
+  const payment = await request(c, "/payments", { method: "POST", body: JSON.stringify({
+    customer,
+    billingType: method(intent.method),
+    value: Number(intent.amount),
+    dueDate: todayPlus(intent.method === "boleto" ? boletoDueDays : 1),
+    description: `Pedido Norte Sul #${String(order.id).slice(0,8)}`,
+    externalReference: intent.id,
+    ...(intent.method === "cartao" ? {
+      creditCard: { holderName: String(card?.holderName ?? "").trim(), number: cardNumber, expiryMonth, expiryYear, ccv },
+      creditCardHolderInfo: {
+        name: String(card?.holderName ?? "").trim(),
+        email: String(order.customer_email),
+        cpfCnpj: digits(order.customer_document),
+        postalCode: asaasPostalCode(order.shipping_zip),
+        addressNumber: String(order.shipping_number),
+        phone: asaasMobilePhone(order.customer_phone),
+      },
+      // O provedor exige o IP de origem no checkout transparente. A função
+      // preserva o dado apenas durante a requisição e nunca o persiste.
+      remoteIp,
+    } : {}),
+  }) });
   if (!payment?.id || !payment?.invoiceUrl) throw new Error("Asaas não retornou uma cobrança válida.");
   let pix: any = null;
   if (intent.method === "pix") pix = await request(c, `/payments/${encodeURIComponent(payment.id)}/pixQrCode`, { method: "GET", headers: { "Content-Type": "" } });
-  const updated = await admin.from("payment_intents").update({ status: "pending", external_id: String(payment.id), checkout_url: String(payment.invoiceUrl), boleto_url: payment.bankSlipUrl ?? null, boleto_barcode: payment.identificationField ?? null, pix_copy_paste: pix?.payload ?? null, pix_qr_code_url: pix?.encodedImage ? `data:image/png;base64,${pix.encodedImage}` : null, expires_at: pix?.expirationDate ?? null, provider_metadata: { ...(intent.provider_metadata ?? {}), asaas_payment_id: payment.id, asaas_customer_id: customer, asaas_environment: c.environment, boleto_due_days: intent.method === "boleto" ? boletoDueDays : undefined }, updated_at: new Date().toISOString() }).eq("tenant_id", tenantId).eq("id", intent.id).select("*").single();
+  const updated = await admin.from("payment_intents").update({ status: normalize(payment.status) ?? "pending", external_id: String(payment.id), checkout_url: String(payment.invoiceUrl), boleto_url: payment.bankSlipUrl ?? null, boleto_barcode: payment.identificationField ?? null, pix_copy_paste: pix?.payload ?? null, pix_qr_code_url: pix?.encodedImage ? `data:image/png;base64,${pix.encodedImage}` : null, expires_at: pix?.expirationDate ?? null, provider_metadata: { ...(intent.provider_metadata ?? {}), asaas_payment_id: payment.id, asaas_customer_id: customer, asaas_environment: c.environment, boleto_due_days: intent.method === "boleto" ? boletoDueDays : undefined }, updated_at: new Date().toISOString() }).eq("tenant_id", tenantId).eq("id", intent.id).select("*").single();
   if (updated.error) throw new Error(updated.error.message); return updated.data;
 }
 
