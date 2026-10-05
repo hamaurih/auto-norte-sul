@@ -86,7 +86,10 @@ export async function createAsaasPayment(admin: AdminClient, tenantId: string, i
   const { data: intent, error: intentError } = await admin.from("payment_intents").select("id,order_id,provider_id,method,amount,status,external_id,checkout_url,provider_metadata").eq("tenant_id", tenantId).eq("id", intentId).maybeSingle();
   if (intentError) throw new Error(intentError.message); if (!intent) throw new Error("Intenção de pagamento não encontrada.");
   if (intent.provider_id !== c.providerId) throw new Error("Provider da intenção não corresponde ao Asaas ativo.");
-  if (intent.external_id && intent.checkout_url) return intent;
+  // Uma tentativa já registrada não pode criar outra cobrança, inclusive no
+  // parcelamento (que não possui URL de fatura). Isso evita cobrança duplicada
+  // quando o cliente atualiza a tela ou tenta novamente.
+  if (intent.external_id) return intent;
   const { data: order, error: orderError } = await admin.from("orders").select("id,status,customer_name,customer_email,customer_phone,customer_document,shipping_zip,shipping_street,shipping_number,shipping_complement,shipping_neighborhood,is_b2b").eq("tenant_id", tenantId).eq("id", intent.order_id).maybeSingle();
   if (orderError) throw new Error(orderError.message); if (!order || order.status !== "aguardando_pagamento") throw new Error("Pedido não está aguardando pagamento.");
   if (intent.method === "boleto" && (!order.is_b2b || !/^(\d{11}|\d{14})$/.test(digits(order.customer_document)))) throw new Error("Boleto Asaas é exclusivo para cliente B2B aprovado com CPF ou CNPJ válido.");
