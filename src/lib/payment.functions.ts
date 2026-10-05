@@ -7,6 +7,7 @@ type CreatePaymentIntentInput = {
   idempotencyKey: string;
   providerCode?: string;
   boletoDueDays?: 15 | 30 | 45 | 60 | 90 | 120;
+  installments?: 1 | 2 | 3 | 4 | 5 | 6;
   card?: {
     holderName: string;
     number: string;
@@ -59,6 +60,10 @@ export const createPaymentIntent = createServerFn({ method: "POST" })
       throw new Error("O Asaas está habilitado neste checkout apenas para PIX, cartão e boleto.");
     }
     const boletoDueDays = data.boletoDueDays ?? 15;
+    const installments = data.installments ?? 1;
+    if (!Number.isInteger(installments) || installments < 1 || installments > 6) {
+      throw new Error("Escolha de 1 a 6 parcelas para o cartão.");
+    }
     if (order.payment_method === "boleto") {
     if (!order.is_b2b || !/^(?:\d{11}|\d{14})$/.test(String(order.customer_document ?? "").replace(/\D/g, ""))) {
         throw new Error("Boleto Asaas é exclusivo para cliente B2B aprovado com CPF ou CNPJ válido.");
@@ -104,6 +109,7 @@ export const createPaymentIntent = createServerFn({ method: "POST" })
       boletoDueDays,
       data.card,
       getRequestIP({ xForwardedFor: true }) ?? undefined,
+      installments,
     );
 
     return {

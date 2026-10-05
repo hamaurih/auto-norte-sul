@@ -37,7 +37,7 @@ const schema = z.object({
 });
 
 type FormData = z.infer<typeof schema>;
-type CardForm = { holderName: string; number: string; expiry: string; ccv: string };
+type CardForm = { holderName: string; number: string; expiry: string; ccv: string; installments: 1 | 2 | 3 | 4 | 5 | 6 };
 type PaymentView = { method: "pix" | "boleto" | "cartao"; pixCopyPaste?: string | null; pixQrCodeUrl?: string | null; boletoUrl?: string | null; boletoBarcode?: string | null; status: string };
 
 function Checkout() {
@@ -47,7 +47,7 @@ function Checkout() {
   const [saving, setSaving] = useState(false);
   const [fetchingCep, setFetchingCep] = useState(false);
   const [paymentView, setPaymentView] = useState<PaymentView | null>(null);
-  const [card, setCard] = useState<CardForm>({ holderName: "", number: "", expiry: "", ccv: "" });
+  const [card, setCard] = useState<CardForm>({ holderName: "", number: "", expiry: "", ccv: "", installments: 1 });
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof FormData, string>>>({});
   const idempotencyKey = useRef(crypto.randomUUID());
 
@@ -152,6 +152,10 @@ function Checkout() {
       toast.error("Boleto é exclusivo para cliente B2B aprovado com CPF ou CNPJ válido.");
       return;
     }
+    if (total < 5 && parsed.data.payment_method !== "faturado_b2b") {
+      toast.error("O valor mínimo para pagamento é R$ 5,00.");
+      return;
+    }
     const [expiryMonth = "", expiryYear = ""] = card.expiry.split("/");
     if (parsed.data.payment_method === "cartao" && (!card.holderName.trim() || card.number.replace(/\D/g, "").length < 13 || expiryMonth.length !== 2 || expiryYear.length !== 2 || card.ccv.replace(/\D/g, "").length < 3)) {
       toast.error("Preencha todos os dados do cartão.");
@@ -195,6 +199,7 @@ function Checkout() {
               idempotencyKey: crypto.randomUUID(),
               providerCode: "asaas",
               boletoDueDays: parsed.data.payment_method === "boleto" ? parsed.data.boleto_due_days : undefined,
+              installments: parsed.data.payment_method === "cartao" ? card.installments : 1,
               card: parsed.data.payment_method === "cartao" ? { holderName: card.holderName, number: card.number, expiryMonth, expiryYear, ccv: card.ccv } : undefined,
             },
           });
@@ -205,7 +210,9 @@ function Checkout() {
               navigate({ to: "/pedidos" });
               return;
             }
-            throw new Error("O cartão não foi aprovado. Revise os dados ou tente outro meio de pagamento.");
+            toast.success("Pagamento recebido. Estamos confirmando seu pedido.");
+            navigate({ to: "/pedidos" });
+            return;
           }
           setPaymentView({ method: parsed.data.payment_method, pixCopyPaste: payment.pixCopyPaste, pixQrCodeUrl: payment.pixQrCodeUrl, boletoUrl: payment.boletoUrl, boletoBarcode: payment.boletoBarcode, status: payment.status });
           return;
@@ -312,7 +319,7 @@ function Checkout() {
             <div className="grid gap-2 sm:grid-cols-2">
               {[
                 { v: "pix",          label: `PIX — 5% de desconto (${brl(pixDiscount > 0 ? pixDiscount : subtotal * PIX_DISCOUNT)})` },
-                { v: "cartao",       label: "Cartão de crédito" },
+                { v: "cartao",       label: "Cartão — até 6× sem juros" },
                 ...(isB2BApproved ? [{ v: "boleto", label: "Boleto para CPF ou CNPJ" }] : []),
                 ...(isB2BApproved ? [{ v: "faturado_b2b", label: "Faturado 28 dias (B2B)" }] : []),
               ].map((o) => (
@@ -337,6 +344,7 @@ function Checkout() {
                 <div className="sm:col-span-2"><Field label="Número do cartão"><input required value={card.number} inputMode="numeric" autoComplete="cc-number" onChange={(e) => updateCard("number", maskCard(e.target.value))} placeholder="0000 0000 0000 0000" className={inp()} /></Field></div>
                 <Field label="Validade"><input required value={card.expiry} inputMode="numeric" autoComplete="cc-exp" onChange={(e) => updateCard("expiry", maskExpiry(e.target.value))} placeholder="MM/AA" className={inp()} /></Field>
                 <Field label="CVV"><input required value={card.ccv} inputMode="numeric" autoComplete="cc-csc" onChange={(e) => updateCard("ccv", e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="000" className={inp()} /></Field>
+                <div className="sm:col-span-2"><Field label="Parcelamento"><select value={card.installments} onChange={(e) => updateCard("installments", Number(e.target.value) as CardForm["installments"])} className={inp()}>{[1,2,3,4,5,6].map((count) => <option key={count} value={count}>{count}× de {brl(total / count)} sem juros</option>)}</select></Field></div>
                 <p className="sm:col-span-2 text-xs text-muted-foreground">Pagamento processado em ambiente seguro. Os dados do cartão não são armazenados pela Norte Sul.</p>
               </div>
             )}
