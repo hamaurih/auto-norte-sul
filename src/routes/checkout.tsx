@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import { createStorefrontOrder } from "@/lib/order.functions";
 import { createPaymentIntent } from "@/lib/payment.functions";
@@ -14,6 +15,7 @@ import {
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/checkout")({
+  validateSearch: z.object({ pedido: z.string().uuid().optional() }),
   head: () => ({ meta: [{ title: "Checkout · Norte Sul" }] }),
   component: Checkout,
 });
@@ -44,9 +46,14 @@ function Checkout() {
   const { items, subtotal } = useCart();
   const { user, loading, isB2BApproved } = useSession();
   const navigate = useNavigate();
+  const { pedido: resumeOrderId } = Route.useSearch();
   const [saving, setSaving] = useState(false);
   const [fetchingCep, setFetchingCep] = useState(false);
   const [paymentView, setPaymentView] = useState<PaymentView | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [pendingOrderId, setPendingOrderId] = useState<string | null>(resumeOrderId ?? null);
+  const [resumeTotal, setResumeTotal] = useState<number | null>(null);
+  const [resumeLoading, setResumeLoading] = useState(Boolean(resumeOrderId));
   const [card, setCard] = useState<CardForm>({ holderName: "", number: "", expiry: "", ccv: "", installments: 1 });
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof FormData, string>>>({});
   const idempotencyKey = useRef(crypto.randomUUID());
@@ -71,9 +78,52 @@ function Checkout() {
     if (user?.email) setForm((f) => ({ ...f, customer_email: user.email ?? "" }));
   }, [user?.email]);
 
+  // Retoma um pedido pendente sem recriá-lo nem mandar o cliente ao catálogo.
+  useEffect(() => {
+    if (!resumeOrderId || !user) return;
+    let active = true;
+    setResumeLoading(true);
+    void supabase
+      .from("orders")
+      .select("id,status,total,payment_method,customer_name,customer_email,customer_phone,customer_document,shipping_zip,shipping_street,shipping_number,shipping_complement,shipping_neighborhood,shipping_city,shipping_state")
+      .eq("id", resumeOrderId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error || !data || data.status !== "aguardando_pagamento") {
+          setPaymentError("Este pedido não está disponível para pagamento.");
+          return;
+        }
+        const paymentMethod = String(data.payment_method);
+        if (!["pix", "cartao", "boleto"].includes(paymentMethod)) {
+          setPaymentError("A forma de pagamento deste pedido não pode ser retomada online.");
+          return;
+        }
+        setPendingOrderId(data.id);
+        setResumeTotal(Number(data.total));
+        setForm((current) => ({
+          ...current,
+          customer_name: data.customer_name ?? "",
+          customer_email: data.customer_email ?? current.customer_email,
+          customer_phone: data.customer_phone ?? "",
+          customer_document: data.customer_document ?? "",
+          shipping_zip: data.shipping_zip ?? "",
+          shipping_street: data.shipping_street ?? "",
+          shipping_number: data.shipping_number ?? "",
+          shipping_complement: data.shipping_complement ?? "",
+          shipping_neighborhood: data.shipping_neighborhood ?? "",
+          shipping_city: data.shipping_city ?? "",
+          shipping_state: data.shipping_state ?? "",
+          payment_method: paymentMethod as FormData["payment_method"],
+        }));
+      })
+      .finally(() => { if (active) setResumeLoading(false); });
+    return () => { active = false; };
+  }, [resumeOrderId, user]);
+
   // UI-23: Calcula total com desconto PIX
   const pixDiscount  = form.payment_method === "pix" ? subtotal * PIX_DISCOUNT : 0;
-  const total        = subtotal - pixDiscount;
+  const total        = resumeTotal ?? (subtotal - pixDiscount);
 
   const updateCard = <K extends keyof CardForm>(key: K, value: CardForm[K]) => setCard((current) => ({ ...current, [key]: value }));
   const maskCard = (value: string) => value.replace(/\D/g, "").slice(0, 19).replace(/(\d{4})(?=\d)/g, "$1 ");
@@ -118,7 +168,7 @@ function Checkout() {
     );
   }
 
-  if (items.length === 0) {
+  if (!resumeOrderId && items.length === 0) {
     return (
       <div className="container-x py-16 text-center">
         <h1 className="font-display text-2xl font-bold uppercase">Carrinho vazio</h1>
@@ -164,9 +214,12 @@ function Checkout() {
 
     if (!user) return;
     setSaving(true);
+    setPaymentError(null);
     try {
-      const result = await createStorefrontOrder({
-        data: {
+      let orderId = pendingOrderId;
+      if (!orderId) {
+        const result = await createStorefrontOrder({
+          data: {
           customer: {
             name:                  parsed.data.customer_name,
             email:                 parsed.data.customer_email,
@@ -186,16 +239,18 @@ function Checkout() {
           paymentMethod: parsed.data.payment_method,
           boletoDueDays: parsed.data.payment_method === "boleto" ? parsed.data.boleto_due_days : undefined,
           idempotencyKey: idempotencyKey.current,
-        },
-      });
-      if (!result.id) throw new Error("Pedido não retornado");
-
-      idempotencyKey.current = crypto.randomUUID();
+          },
+        });
+        if (!result.id) throw new Error("Pedido não retornado");
+        orderId = result.id;
+        setPendingOrderId(orderId);
+        idempotencyKey.current = crypto.randomUUID();
+      }
       if (["pix", "cartao", "boleto"].includes(parsed.data.payment_method)) {
         try {
           const payment = await createPaymentIntent({
             data: {
-              orderId: result.id,
+              orderId,
               idempotencyKey: crypto.randomUUID(),
               providerCode: "asaas",
               boletoDueDays: parsed.data.payment_method === "boleto" ? parsed.data.boleto_due_days : undefined,
@@ -218,10 +273,9 @@ function Checkout() {
           return;
         } catch (paymentError: any) {
           console.error(paymentError);
-          toast.warning("Pedido criado e estoque reservado. O pagamento pode ser concluído em Meus Pedidos.", {
-            description: paymentError?.message,
-          });
-          navigate({ to: "/pedidos" });
+          const message = paymentError?.message ?? "Não foi possível gerar a cobrança agora.";
+          setPaymentError(message);
+          toast.error(message);
           return;
         }
       }
@@ -239,6 +293,8 @@ function Checkout() {
   return (
     <div className="container-x py-6">
       <h1 className="mb-4 font-display text-3xl font-bold uppercase">Checkout</h1>
+      {resumeLoading && <div className="mb-4 rounded-md border border-border bg-card p-3 text-sm">Carregando o pedido para pagamento…</div>}
+      {paymentError && <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><b>Pagamento ainda não foi concluído.</b> {paymentError} Revise os dados e tente novamente nesta tela.</div>}
       <form onSubmit={submit} className="grid gap-6 md:grid-cols-[1fr_320px]">
         <div className="space-y-6">
 

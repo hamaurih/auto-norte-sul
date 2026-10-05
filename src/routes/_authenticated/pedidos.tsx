@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { brl } from "@/lib/format";
 import { cancelOrder } from "@/lib/order.functions";
-import { createPaymentIntent } from "@/lib/payment.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/pedidos")({
@@ -20,24 +19,6 @@ function Pedidos() {
     onSuccess: async () => {
       toast.success("Pedido cancelado e estoque liberado.");
       await queryClient.invalidateQueries({ queryKey: ["orders", user?.id] });
-    },
-    onError: (error: Error) => toast.error(error.message),
-  });
-  const paymentMutation = useMutation({
-    mutationFn: (orderId: string) =>
-      createPaymentIntent({
-        data: {
-          orderId,
-          idempotencyKey: crypto.randomUUID(),
-          providerCode: "stone",
-        },
-      }),
-    onSuccess: (payment) => {
-      if (!payment.checkoutUrl) {
-        toast.error("A Stone não retornou o link de pagamento.");
-        return;
-      }
-      window.location.assign(payment.checkoutUrl);
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -83,22 +64,17 @@ function Pedidos() {
               {o.status === "aguardando_pagamento" && (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {["pix", "cartao", "boleto"].includes(String(o.payment_method)) && (
-                    <button
-                      type="button"
-                      disabled={paymentMutation.isPending}
-                      onClick={() => paymentMutation.mutate(o.id)}
-                      className="rounded-md bg-primary px-3 py-1.5 text-xs font-bold uppercase text-primary-foreground disabled:opacity-50"
+                    <Link
+                      to="/checkout"
+                      search={{ pedido: o.id } as never}
+                      className="rounded-md bg-primary px-3 py-1.5 text-xs font-bold uppercase text-primary-foreground"
                     >
-                      {paymentMutation.isPending
-                        ? "Abrindo Stone…"
-                        : o.payment_method === "boleto"
-                          ? "Gerar boleto pela Stone"
-                          : "Pagar com Stone"}
-                    </button>
+                      Continuar pagamento
+                    </Link>
                   )}
                   <button
                     type="button"
-                    disabled={cancelMutation.isPending || paymentMutation.isPending}
+                    disabled={cancelMutation.isPending}
                     onClick={() => cancelMutation.mutate(o.id)}
                     className="rounded-md border border-destructive px-3 py-1.5 text-xs font-semibold text-destructive disabled:opacity-50"
                   >
