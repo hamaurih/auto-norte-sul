@@ -80,22 +80,21 @@ function AuthPage() {
           toast.error("A senha deve ter no mínimo 8 caracteres.");
           return;
         }
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { full_name: name },
-            emailRedirectTo: window.location.origin,
-          },
+        const response = await fetch("/api/public/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, password }),
+        });
+        const payload: any = await response.json().catch(() => ({}));
+        if (!response.ok || !payload?.access_token || !payload?.refresh_token) throw new Error(payload?.error ?? "Não foi possível criar a conta.");
+        const { data, error } = await supabase.auth.setSession({
+          access_token: payload.access_token,
+          refresh_token: payload.refresh_token,
         });
         if (error) throw error;
-        if (data.session?.user) {
-          toast.success("Conta criada! Você já está conectado(a).");
-          await redirectAfterAuth(data.session.user.id);
-        } else {
-          toast.success("Conta criada! Verifique seu e-mail para confirmar o acesso.");
-          setMode("login");
-        }
+        toast.success("Conta criada! Você já está conectado(a).");
+        if (data.user) await redirectAfterAuth(data.user.id);
+        else navigate({ to: "/" });
       } else {
         const response = await fetch("/api/public/login", {
           method: "POST",
