@@ -43,7 +43,7 @@ async function context(admin: AdminClient, tenantId: string): Promise<AsaasConte
   // O provider só é criado se ainda não existir. Não fazemos upsert/escritas
   // administrativas a cada compra.
   const { data: existingProvider, error: providerLookupError } = await admin.from("payment_providers")
-    .select("id").eq("tenant_id", tenantId).eq("code", "asaas").eq("environment", environment).maybeSingle();
+    .select("id,active").eq("tenant_id", tenantId).eq("code", "asaas").eq("environment", environment).maybeSingle();
   if (providerLookupError) throw new Error(providerLookupError.message);
   let providerId = existingProvider?.id as string | undefined;
   if (!providerId) {
@@ -53,6 +53,13 @@ async function context(admin: AdminClient, tenantId: string): Promise<AsaasConte
         { onConflict: "tenant_id,code,environment" }).select("id").single();
     if (providerError) throw new Error(providerError.message);
     providerId = provider.id;
+  } else if (!existingProvider.active) {
+    // Mantém o meio de pagamento disponível sem fazer a verificação externa
+    // completa em toda venda.
+    const { error: activateError } = await admin.from("payment_providers")
+      .update({ active: true, updated_at: new Date().toISOString() })
+      .eq("id", providerId).eq("tenant_id", tenantId);
+    if (activateError) throw new Error(activateError.message);
   }
   return { integrationId: integration.id, providerId, apiKey, environment, baseUrl: environment === "sandbox" ? SANDBOX_API : PROD_API, webhookToken: webhookTokenValue.trim() };
 }
