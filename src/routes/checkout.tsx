@@ -258,20 +258,26 @@ function Checkout() {
               card: parsed.data.payment_method === "cartao" ? { holderName: card.holderName, number: card.number, expiryMonth, expiryYear, ccv: card.ccv } : undefined,
             },
           });
-          cartStore.clear();
           if (parsed.data.payment_method === "cartao") {
             if (payment.status === "paid") {
+              cartStore.clear();
               toast.success("Pagamento aprovado. Estamos confirmando seu pedido.");
               navigate({ to: "/pedidos" });
               return;
             }
-            toast.success("Pagamento recebido. Estamos confirmando seu pedido.");
-            navigate({ to: "/pedidos" });
+            // O cliente permanece no checkout até existir uma confirmação, sem ser levado ao catálogo ou aos pedidos.
+            setPaymentView({ method: "cartao", status: payment.status });
+            setPaymentError("O cartão ainda está sendo confirmado. Confira os dados ou aguarde a análise; você continuará nesta tela.");
             return;
           }
           if (parsed.data.payment_method === "pix" && (!payment.pixQrCodeUrl || !payment.pixCopyPaste)) {
             throw new Error("A cobrança PIX foi criada, mas o QR Code ainda não está disponível. Tente novamente nesta tela.");
           }
+          if (parsed.data.payment_method === "boleto" && (!payment.boletoUrl || !payment.boletoBarcode)) {
+            throw new Error("O boleto ainda está sendo preparado. Tente novamente nesta tela.");
+          }
+          // Só limpamos o carrinho depois de ter algo útil para mostrar ao cliente.
+          cartStore.clear();
           setPaymentView({ method: parsed.data.payment_method, pixCopyPaste: payment.pixCopyPaste, pixQrCodeUrl: payment.pixQrCodeUrl, boletoUrl: payment.boletoUrl, boletoBarcode: payment.boletoBarcode, status: payment.status });
           return;
         } catch (paymentError: any) {
@@ -438,8 +444,9 @@ function Checkout() {
             </div>
           </div>
           <button disabled={saving} className="mt-4 w-full rounded-md bg-primary px-4 py-3 text-sm font-bold uppercase text-primary-foreground shadow-[var(--shadow-brand)] hover:brightness-110 disabled:opacity-50">
-            {saving ? "Verificando e enviando…" : "Confirmar pedido"}
+            {saving ? "Preparando pagamento…" : pendingOrderId ? "Tentar pagamento novamente" : "Confirmar pedido"}
           </button>
+          {saving && <p className="mt-2 text-center text-xs font-medium text-primary">Aguarde nesta página: o QR Code ou a resposta do cartão aparecerá aqui.</p>}
           <p className="mt-2 text-center text-[10px] text-muted-foreground">
             Preços e estoque são confirmados no servidor antes do pedido.
           </p>
@@ -453,7 +460,7 @@ function Checkout() {
 function PaymentPanel({ payment, onClose }: { payment: PaymentView; onClose: () => void }) {
   const copy = async (value: string) => { await navigator.clipboard.writeText(value); toast.success("Código copiado."); };
   return <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"><section className="w-full max-w-md rounded-xl bg-background p-6 shadow-2xl" role="dialog" aria-modal="true">
-    {payment.method === "pix" ? <><h2 className="font-display text-2xl font-bold uppercase">Pague com PIX</h2><p className="mt-2 text-sm text-muted-foreground">Aponte a câmera para o QR Code ou use o código de copia e cola.</p>{payment.pixQrCodeUrl && <img src={payment.pixQrCodeUrl} alt="QR Code PIX" className="mx-auto my-5 h-52 w-52 rounded-md" />}{payment.pixCopyPaste && <button type="button" onClick={() => copy(payment.pixCopyPaste!)} className="w-full rounded-md bg-primary px-4 py-3 text-sm font-bold text-primary-foreground">Copiar código PIX</button>}</> : <><h2 className="font-display text-2xl font-bold uppercase">Boleto gerado</h2><p className="mt-2 text-sm text-muted-foreground">Use a linha digitável ou abra o boleto para pagamento.</p>{payment.boletoBarcode && <button type="button" onClick={() => copy(payment.boletoBarcode!)} className="mt-4 w-full rounded-md bg-primary px-4 py-3 text-sm font-bold text-primary-foreground">Copiar código de barras</button>}{payment.boletoUrl && <a href={payment.boletoUrl} target="_blank" rel="noreferrer" className="mt-3 block w-full rounded-md border border-primary px-4 py-3 text-center text-sm font-bold text-primary">Abrir boleto</a>}</>}<button type="button" onClick={onClose} className="mt-4 w-full rounded-md border border-border px-4 py-3 text-sm font-bold">Ver meus pedidos</button>
+    {payment.method === "pix" ? <><h2 className="font-display text-2xl font-bold uppercase">Pague com PIX</h2><p className="mt-2 text-sm text-muted-foreground">Aponte a câmera para o QR Code ou use o código de copia e cola.</p>{payment.pixQrCodeUrl && <img src={payment.pixQrCodeUrl} alt="QR Code PIX" className="mx-auto my-5 h-52 w-52 rounded-md" />}{payment.pixCopyPaste && <button type="button" onClick={() => copy(payment.pixCopyPaste!)} className="w-full rounded-md bg-primary px-4 py-3 text-sm font-bold text-primary-foreground">Copiar código PIX</button>}</> : payment.method === "cartao" ? <><h2 className="font-display text-2xl font-bold uppercase">Processando cartão</h2><p className="mt-2 text-sm text-muted-foreground">A resposta do cartão ainda está sendo confirmada. Você permanecerá nesta página e não será enviado ao catálogo.</p></> : <><h2 className="font-display text-2xl font-bold uppercase">Boleto gerado</h2><p className="mt-2 text-sm text-muted-foreground">Use a linha digitável ou abra o boleto para pagamento.</p>{payment.boletoBarcode && <button type="button" onClick={() => copy(payment.boletoBarcode!)} className="mt-4 w-full rounded-md bg-primary px-4 py-3 text-sm font-bold text-primary-foreground">Copiar código de barras</button>}{payment.boletoUrl && <a href={payment.boletoUrl} target="_blank" rel="noreferrer" className="mt-3 block w-full rounded-md border border-primary px-4 py-3 text-center text-sm font-bold text-primary">Abrir boleto</a>}</>}<button type="button" onClick={onClose} className="mt-4 w-full rounded-md border border-border px-4 py-3 text-sm font-bold">Ver meus pedidos</button>
   </section></div>;
 }
 
