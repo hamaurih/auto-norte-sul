@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import {
-  CheckCircle2,
   CircleDollarSign,
   Clock3,
   RefreshCw,
@@ -199,7 +198,7 @@ function OrdersList() {
                 <th className="p-3 text-left">Pedido</th>
                 <th className="p-3 text-left">Cliente</th>
                 <th className="p-3 text-left">Data</th>
-                <th className="p-3 text-left">Pedido</th>
+                <th className="p-3 text-left">Status do pedido</th>
                 <th className="p-3 text-left">Financeiro</th>
                 <th className="p-3 text-left">Canal</th>
                 <th className="p-3 text-right">Total</th>
