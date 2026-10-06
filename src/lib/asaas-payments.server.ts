@@ -27,23 +27,42 @@ async function context(admin: AdminClient, tenantId: string): Promise<AsaasConte
   const { data: integration, error } = await admin.from("integrations").select("id").eq("slug", "asaas").maybeSingle();
   if (error) throw new Error(error.message);
   if (!integration?.id) throw new Error("Integração Asaas não cadastrada.");
+
   const configuredEnvironment = (await setting(admin, tenantId, integration.id, "environment")).trim().toLowerCase();
   const environment: AsaasEnvironment = configuredEnvironment === "production" || configuredEnvironment === "producao" ? "production" : "sandbox";
-  // Mantém credenciais totalmente separadas: o Sandbox nunca usa, por engano, a chave de produção.
-  const apiKey = (await setting(admin, tenantId, integration.id, environment === "sandbox" ? "sandbox_api_key" : "api_key")).trim();
+  // Leitura das credenciais em paralelo: diminui uma ida ao banco no checkout.
+  const [apiKeyValue, webhookTokenValue] = await Promise.all([
+    setting(admin, tenantId, integration.id, environment === "sandbox" ? "sandbox_api_key" : "api_key"),
+    setting(admin, tenantId, integration.id, "webhook_token"),
+  ]);
+  const apiKey = apiKeyValue.trim();
   if (!apiKey) throw new Error(environment === "sandbox"
     ? "Cadastre a API Key do Sandbox do Asaas antes de testar."
     : "Cadastre a API Key de produção do Asaas antes de cobrar.");
-  const { data: provider, error: providerError } = await admin.from("payment_providers")
-    .upsert({ tenant_id: tenantId, code: "asaas", display_name: "Asaas", adapter_key: "asaas-v3", environment,
-      supported_methods: ["pix", "cartao", "boleto"], capabilities: { checkout: true, hosted_checkout: true, pix: true, credit_card: true, boleto: true, webhook: true, refund: true, pci_card_data_on_erp: false }, priority: 5, active: false, updated_at: new Date().toISOString() },
-      { onConflict: "tenant_id,code,environment" }).select("id").single();
-  if (providerError) throw new Error(providerError.message);
-  return { integrationId: integration.id, providerId: provider.id, apiKey, environment, baseUrl: environment === "sandbox" ? SANDBOX_API : PROD_API, webhookToken: (await setting(admin, tenantId, integration.id, "webhook_token")).trim() };
+
+  // O provider só é criado se ainda não existir. Não fazemos upsert/escritas
+  // administrativas a cada compra.
+  const { data: existingProvider, error: providerLookupError } = await admin.from("payment_providers")
+    .select("id").eq("tenant_id", tenantId).eq("code", "asaas").eq("environment", environment).maybeSingle();
+  if (providerLookupError) throw new Error(providerLookupError.message);
+  let providerId = existingProvider?.id as string | undefined;
+  if (!providerId) {
+    const { data: provider, error: providerError } = await admin.from("payment_providers")
+      .upsert({ tenant_id: tenantId, code: "asaas", display_name: "Asaas", adapter_key: "asaas-v3", environment,
+        supported_methods: ["pix", "cartao", "boleto"], capabilities: { checkout: true, hosted_checkout: true, pix: true, credit_card: true, boleto: true, webhook: true, refund: true, pci_card_data_on_erp: false }, priority: 5, active: true, updated_at: new Date().toISOString() },
+        { onConflict: "tenant_id,code,environment" }).select("id").single();
+    if (providerError) throw new Error(providerError.message);
+    providerId = provider.id;
+  }
+  return { integrationId: integration.id, providerId, apiKey, environment, baseUrl: environment === "sandbox" ? SANDBOX_API : PROD_API, webhookToken: webhookTokenValue.trim() };
 }
 
-async function request(c: AsaasContext, path: string, init: RequestInit = {}) {
-  const response = await fetch(`${c.baseUrl}${path}`, { ...init, headers: { Accept: "application/json", "Content-Type": "application/json", access_token: c.apiKey, "User-Agent": "NorteSulERP/1.0", ...(init.headers ?? {}) }, signal: AbortSignal.timeout(20_000) });
+export async function getAsaasPaymentContext(admin: AdminClient, tenantId: string) {
+  return context(admin, tenantId);
+}
+
+async function request(c: AsaasContext, path: string, init: RequestInit = {}, timeoutMs = 30_000) {
+  const response = await fetch(`${c.baseUrl}${path}`, { ...init, headers: { Accept: "application/json", "Content-Type": "application/json", access_token: c.apiKey, "User-Agent": "NorteSulERP/1.0", ...(init.headers ?? {}) }, signal: AbortSignal.timeout(timeoutMs) });
   const raw = await response.text(); let body: any = null;
   try { body = raw ? JSON.parse(raw) : null; } catch { body = { errors: [{ description: raw }] }; }
   if (!response.ok) throw new Error(`Asaas respondeu ${response.status}: ${String(body?.errors?.[0]?.description ?? body?.message ?? "erro na API").slice(0, 500)}`);
@@ -70,7 +89,9 @@ function asaasMobilePhone(value: unknown) { return digits(value).slice(-11); }
 function method(method: string) { return method === "cartao" ? "CREDIT_CARD" : method === "boleto" ? "BOLETO" : "PIX"; }
 
 async function customerForOrder(c: AsaasContext, order: any) {
-  const externalReference = String(order.id);
+  // Referência estável e sem expor documento: permite reutilizar o mesmo
+  // cliente no Asaas nos próximos pedidos, em vez de sempre criar outro.
+  const externalReference = `customer:${await hash(digits(order.customer_document))}`;
   const existing = await request(c, `/customers?externalReference=${encodeURIComponent(externalReference)}&limit=1`, { method: "GET" });
   if (existing?.data?.[0]?.id) return existing.data[0].id as string;
   const document = digits(order.customer_document);
@@ -147,7 +168,7 @@ export async function createAsaasPayment(admin: AdminClient, tenantId: string, i
     description: `Pedido Norte Sul #${String(order.id).slice(0,8)}`,
     ...(isInstallment ? { installmentCount: installments, totalValue: Number(intent.amount), paymentExternalReference: intent.id } : { externalReference: intent.id }),
     ...cardPayload,
-  }) });
+  }) }, intent.method === "cartao" ? 65_000 : 30_000);
   if (!payment?.id) throw new Error("Não foi possível gerar a cobrança.");
   let pix: any = null;
   if (intent.method === "pix") pix = await request(c, `/payments/${encodeURIComponent(payment.id)}/pixQrCode`, { method: "GET", headers: { "Content-Type": "" } });
