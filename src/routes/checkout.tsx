@@ -75,8 +75,33 @@ function Checkout() {
   });
 
   useEffect(() => {
-    if (user?.email) setForm((f) => ({ ...f, customer_email: user.email ?? "" }));
-  }, [user?.email]);
+    if (!user) return;
+    // Recupera os dados do último pedido do próprio cliente. Assim, no retorno
+    // ao checkout ele só confere as informações, sem preencher tudo de novo.
+    void supabase
+      .from("orders")
+      .select("customer_name,customer_email,customer_phone,customer_document,shipping_zip,shipping_street,shipping_number,shipping_complement,shipping_neighborhood,shipping_city,shipping_state")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        setForm((current) => ({
+          ...current,
+          customer_name: current.customer_name || data?.customer_name || String(user.user_metadata?.full_name ?? ""),
+          customer_email: current.customer_email || data?.customer_email || user.email || "",
+          customer_phone: current.customer_phone || data?.customer_phone || String(user.user_metadata?.phone ?? ""),
+          customer_document: current.customer_document || data?.customer_document || "",
+          shipping_zip: current.shipping_zip || data?.shipping_zip || "",
+          shipping_street: current.shipping_street || data?.shipping_street || "",
+          shipping_number: current.shipping_number || data?.shipping_number || "",
+          shipping_complement: current.shipping_complement || data?.shipping_complement || "",
+          shipping_neighborhood: current.shipping_neighborhood || data?.shipping_neighborhood || "",
+          shipping_city: current.shipping_city || data?.shipping_city || "",
+          shipping_state: current.shipping_state || data?.shipping_state || "",
+        }));
+      });
+  }, [user]);
 
   // Retoma um pedido pendente sem recriá-lo nem mandar o cliente ao catálogo.
   useEffect(() => {
