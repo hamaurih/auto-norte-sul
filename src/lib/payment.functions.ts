@@ -27,11 +27,12 @@ export const createPaymentIntent = createServerFn({ method: "POST" })
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { ensureAsaasProviderReady, createAsaasPayment } = await import(
+    const { getAsaasPaymentContext, createAsaasPayment } = await import(
       "@/lib/asaas-payments.server"
     );
 
-    const asaas = await ensureAsaasProviderReady(supabaseAdmin as any, context.tenantId);
+    // A validação administrativa da conta não deve bloquear cada compra.
+    const asaas = await getAsaasPaymentContext(supabaseAdmin as any, context.tenantId);
 
     const { data: order, error: orderError } = await (supabaseAdmin as any)
       .from("orders")
