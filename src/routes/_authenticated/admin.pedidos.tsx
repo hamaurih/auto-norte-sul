@@ -2,12 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import {
-  BriefcaseBusiness,
+  CheckCircle2,
   CircleDollarSign,
+  Clock3,
   RefreshCw,
   Search,
   ShoppingBag,
-  Store,
+  XCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl } from "@/lib/format";
@@ -48,17 +49,34 @@ function OrdersList() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [channelFilter, setChannelFilter] = useState<"" | "b2b" | "b2c">("");
+  const [financialFilter, setFinancialFilter] = useState<"" | "paid" | "pending" | "cancelled">("");
 
   const { data = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["admin-orders"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: orders, error: ordersError } = await supabase
         .from("orders")
         .select("id, customer_name, customer_email, status, total, created_at, is_b2b, bling_number")
         .order("created_at", { ascending: false })
         .limit(100);
-      if (error) throw error;
-      return data ?? [];
+      if (ordersError) throw ordersError;
+      const orderIds = (orders ?? []).map((order) => order.id);
+      if (!orderIds.length) return [];
+      const { data: intents, error: intentsError } = await supabase
+        .from("payment_intents")
+        .select("order_id,status")
+        .in("order_id", orderIds);
+      if (intentsError) throw intentsError;
+      const statusesByOrder = new Map<string, string[]>();
+      for (const intent of intents ?? []) {
+        const statuses = statusesByOrder.get(intent.order_id) ?? [];
+        statuses.push(String(intent.status ?? "").toLowerCase());
+        statusesByOrder.set(intent.order_id, statuses);
+      }
+      return (orders ?? []).map((order) => ({
+        ...order,
+        financialStatus: financialStatus(order.status, statusesByOrder.get(order.id) ?? []),
+      }));
     },
   });
 
@@ -80,13 +98,19 @@ function OrdersList() {
       const matchesChannel =
         !channelFilter ||
         (channelFilter === "b2b" ? order.is_b2b : !order.is_b2b);
-      return matchesSearch && matchesStatus && matchesChannel;
+      const matchesFinancial = !financialFilter || order.financialStatus === financialFilter;
+      return matchesSearch && matchesStatus && matchesChannel && matchesFinancial;
     });
-  }, [channelFilter, data, query, statusFilter]);
+  }, [channelFilter, data, financialFilter, query, statusFilter]);
 
-  const totalValue = data.reduce((sum, order) => sum + Number(order.total ?? 0), 0);
-  const b2bCount = data.filter((order) => order.is_b2b).length;
-  const b2cCount = data.length - b2bCount;
+  // Receita é somente aquilo que efetivamente foi pago. Valores pendentes e
+  // cancelados são mostrados separadamente para não inflar o saldo.
+  const paidOrders = data.filter((order) => order.financialStatus === "paid");
+  const pendingOrders = data.filter((order) => order.financialStatus === "pending");
+  const cancelledOrders = data.filter((order) => order.financialStatus === "cancelled");
+  const paidValue = paidOrders.reduce((sum, order) => sum + Number(order.total ?? 0), 0);
+  const pendingValue = pendingOrders.reduce((sum, order) => sum + Number(order.total ?? 0), 0);
+  const cancelledValue = cancelledOrders.reduce((sum, order) => sum + Number(order.total ?? 0), 0);
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -116,14 +140,17 @@ function OrdersList() {
         </div>
       </header>
 
-      <section aria-label="Resumo dos pedidos" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard icon={ShoppingBag} label="Pedidos carregados" value={String(data.length)} tone="blue" />
-        <SummaryCard icon={CircleDollarSign} label="Valor total" value={brl(totalValue)} tone="emerald" />
-        <SummaryCard icon={BriefcaseBusiness} label="Pedidos B2B" value={String(b2bCount)} tone="violet" />
-        <SummaryCard icon={Store} label="Pedidos B2C" value={String(b2cCount)} tone="amber" />
+      <section aria-label="Resumo financeiro dos pedidos" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard icon={CircleDollarSign} label="Receita recebida" value={brl(paidValue)} detail={`${paidOrders.length} pedido(s) pago(s)`} tone="emerald" />
+        <SummaryCard icon={Clock3} label="A receber" value={brl(pendingValue)} detail={`${pendingOrders.length} pedido(s) pendente(s)`} tone="amber" />
+        <SummaryCard icon={XCircle} label="Cancelados" value={brl(cancelledValue)} detail={`${cancelledOrders.length} pedido(s) cancelado(s)`} tone="rose" />
+        <SummaryCard icon={ShoppingBag} label="Pedidos carregados" value={String(data.length)} detail="Últimos 100 pedidos" tone="blue" />
       </section>
+      <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+        <b>Saldo de vendas:</b> {brl(paidValue)}. Este valor considera apenas pedidos com pagamento confirmado.
+      </p>
 
-      <section className="admin-filter-bar grid gap-3 lg:grid-cols-[minmax(280px,1fr)_220px_180px]">
+      <section className="admin-filter-bar grid gap-3 lg:grid-cols-[minmax(240px,1fr)_190px_160px_170px]">
         <label className="relative">
           <span className="sr-only">Buscar pedido</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
@@ -149,6 +176,15 @@ function OrdersList() {
             <option value="b2c">B2C</option>
           </select>
         </label>
+        <label>
+          <span className="sr-only">Filtrar por situação financeira</span>
+          <select value={financialFilter} onChange={(event) => setFinancialFilter(event.target.value as "" | "paid" | "pending" | "cancelled")} className="w-full">
+            <option value="">Situação financeira</option>
+            <option value="paid">Pagos</option>
+            <option value="pending">A receber</option>
+            <option value="cancelled">Cancelados</option>
+          </select>
+        </label>
       </section>
 
       {isError ? (
@@ -163,7 +199,8 @@ function OrdersList() {
                 <th className="p-3 text-left">Pedido</th>
                 <th className="p-3 text-left">Cliente</th>
                 <th className="p-3 text-left">Data</th>
-                <th className="p-3 text-left">Status</th>
+                <th className="p-3 text-left">Pedido</th>
+                <th className="p-3 text-left">Financeiro</th>
                 <th className="p-3 text-left">Canal</th>
                 <th className="p-3 text-right">Total</th>
                 <th className="p-3 text-left">Bling</th>
@@ -185,6 +222,7 @@ function OrdersList() {
                       {displayStatus(order.status)}
                     </span>
                   </td>
+                  <td className="p-3"><FinancialBadge status={order.financialStatus} /></td>
                   <td className="p-3">
                     <span className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${order.is_b2b ? "bg-violet-100 text-violet-700" : "bg-blue-100 text-blue-700"}`}>
                       {order.is_b2b ? "B2B" : "B2C"}
@@ -222,17 +260,20 @@ const summaryTones = {
   emerald: "border-emerald-200 bg-gradient-to-br from-emerald-50 to-white text-emerald-700",
   violet: "border-violet-200 bg-gradient-to-br from-violet-50 to-white text-violet-700",
   amber: "border-amber-200 bg-gradient-to-br from-amber-50 to-white text-amber-700",
+  rose: "border-rose-200 bg-gradient-to-br from-rose-50 to-white text-rose-700",
 } as const;
 
 function SummaryCard({
   icon: Icon,
   label,
   value,
+  detail,
   tone,
 }: {
   icon: typeof ShoppingBag;
   label: string;
   value: string;
+  detail?: string;
   tone: keyof typeof summaryTones;
 }) {
   return (
@@ -244,8 +285,28 @@ function SummaryCard({
         <div className="min-w-0">
           <p className="truncate text-xs font-bold text-muted-foreground">{label}</p>
           <p className="mt-0.5 truncate font-display text-xl font-extrabold text-foreground">{value}</p>
+          {detail && <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground">{detail}</p>}
         </div>
       </div>
     </article>
   );
+}
+
+
+function financialStatus(orderStatus: string | null, paymentStatuses: string[]): "paid" | "pending" | "cancelled" {
+  if (paymentStatuses.some((status) => ["paid", "received", "confirmed"].includes(status))) return "paid";
+  if (paymentStatuses.some((status) => ["cancelled", "canceled", "expired", "refunded"].includes(status))) return "cancelled";
+  const normalizedOrderStatus = String(orderStatus ?? "").toLowerCase();
+  if (["paid", "pago", "approved", "aprovado"].includes(normalizedOrderStatus)) return "paid";
+  if (["cancelled", "cancelado", "canceled"].includes(normalizedOrderStatus)) return "cancelled";
+  return "pending";
+}
+
+function FinancialBadge({ status }: { status: "paid" | "pending" | "cancelled" }) {
+  const config = {
+    paid: { label: "Pago", className: "bg-emerald-100 text-emerald-800" },
+    pending: { label: "A receber", className: "bg-amber-100 text-amber-800" },
+    cancelled: { label: "Cancelado", className: "bg-rose-100 text-rose-800" },
+  }[status];
+  return <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-extrabold ${config.className}`}>{config.label}</span>;
 }
