@@ -86,7 +86,14 @@ function AuthPage() {
           body: JSON.stringify({ name, email, password }),
         });
         const payload: any = await response.json().catch(() => ({}));
-        if (!response.ok || !payload?.access_token || !payload?.refresh_token) throw new Error(payload?.error ?? "Não foi possível criar a conta.");
+        if (!response.ok) {
+          toast.error(typeof payload?.error === "string" ? payload.error : "Não foi possível criar a conta. Tente novamente.");
+          return;
+        }
+        if (!payload?.access_token || !payload?.refresh_token) {
+          toast.error(typeof payload?.error === "string" ? payload.error : "Conta criada, mas não foi possível iniciar a sessão. Entre com seu e-mail e senha.");
+          return;
+        }
         const { data, error } = await supabase.auth.setSession({
           access_token: payload.access_token,
           refresh_token: payload.refresh_token,
