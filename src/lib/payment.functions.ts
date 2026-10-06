@@ -110,6 +110,7 @@ export const createPaymentIntent = createServerFn({ method: "POST" })
       data.card,
       getRequestIP({ xForwardedFor: true }) ?? undefined,
       installments,
+      asaas,
     );
 
     return {
