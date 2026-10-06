@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseUrl, supabasePublishableKey } from "@/integrations/supabase/env";
+import { DEFAULT_TENANT_SLUG } from "@/integrations/supabase/tenant";
 
 function json(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
@@ -48,6 +49,27 @@ export const Route = createFileRoute("/api/public/signup")({
             if (/weak and easy to guess|password.*weak/i.test(message)) return json(422, { error: "Esta senha é muito comum ou já foi exposta. Escolha outra para proteger sua conta." });
             console.error("[Signup] create user failed", message);
             return json(400, { error: "Não foi possível criar a conta. Revise os dados e tente novamente." });
+          }
+
+          // A conta criada na vitrine é vinculada à carteira do tenant atual.
+          // Falhas de cadastro comercial não impedem a criação da conta de compra.
+          const { data: storefront } = await supabaseAdmin
+            .from("tenant_storefronts")
+            .select("tenant_id")
+            .eq("slug", DEFAULT_TENANT_SLUG)
+            .maybeSingle();
+          const tenantId = storefront?.tenant_id as string | undefined;
+          if (tenantId) {
+            const { data: existing } = await supabaseAdmin
+              .from("customers")
+              .select("id")
+              .eq("tenant_id", tenantId)
+              .eq("email", email)
+              .maybeSingle();
+            const result = existing?.id
+              ? await supabaseAdmin.from("customers").update({ user_id: created.user.id, name, active: true }).eq("id", existing.id)
+              : await supabaseAdmin.from("customers").insert({ tenant_id: tenantId, user_id: created.user.id, name, email, active: true });
+            if (result.error) console.error("[Signup] customer link failed", result.error.message);
           }
 
           const login = await fetch(`${supabaseUrl()}/auth/v1/token?grant_type=password`, {

@@ -10,6 +10,10 @@ import {
   Loader2,
   RefreshCw,
   Search,
+  KeyRound,
+  ShieldCheck,
+  UserRound,
+  UserX,
   UserCheck,
   Users,
 } from "lucide-react";
@@ -19,6 +23,11 @@ import {
   getBlingCustomerCutoverStatus,
   importBlingCustomersCutover,
 } from "@/lib/bling-customers-cutover.functions";
+import {
+  listStorefrontAccounts,
+  sendStorefrontPasswordRecovery,
+  setStorefrontAccountAccess,
+} from "@/lib/storefront-accounts.functions";
 import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/_authenticated/admin/clientes")({
@@ -62,6 +71,9 @@ function CustomersPage() {
   const { isAdmin } = useSession();
   const getStatus = useServerFn(getBlingCustomerCutoverStatus);
   const importCustomers = useServerFn(importBlingCustomersCutover);
+  const listAccounts = useServerFn(listStorefrontAccounts);
+  const setAccountAccess = useServerFn(setStorefrontAccountAccess);
+  const sendRecovery = useServerFn(sendStorefrontPasswordRecovery);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [importing, setImporting] = useState(false);
@@ -97,6 +109,13 @@ function CustomersPage() {
     },
   });
 
+  const accountsQuery = useQuery({
+    queryKey: ["storefront-accounts", tenant?.id],
+    queryFn: () => listAccounts(),
+    enabled: Boolean(tenant?.id && isAdmin),
+    retry: false,
+  });
+
   const rows = customersQuery.data?.rows ?? [];
   const total = customersQuery.data?.count ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -121,6 +140,25 @@ function CustomersPage() {
       toast.error(error instanceof Error ? error.message : "Não foi possível importar os clientes do Bling.");
     } finally {
       setImporting(false);
+    }
+  }
+
+  async function changeSiteAccess(customerId: string, active: boolean) {
+    try {
+      await setAccountAccess({ data: { customer_id: customerId, active } });
+      toast.success(active ? "Acesso ao site liberado." : "Acesso ao site bloqueado.");
+      await qc.invalidateQueries({ queryKey: ["storefront-accounts"] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível alterar o acesso.");
+    }
+  }
+
+  async function recoverSitePassword(customerId: string) {
+    try {
+      const result = await sendRecovery({ data: { customer_id: customerId } });
+      toast.success(`Link de recuperação enviado para ${result.email}.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível enviar o link de recuperação.");
     }
   }
 
@@ -263,6 +301,41 @@ function CustomersPage() {
           </div>
         )}
       </section>
+
+      {isAdmin && (
+        <section className="overflow-hidden rounded-2xl border bg-white shadow-sm">
+          <div className="flex flex-col gap-2 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2 font-display text-xl font-bold"><UserRound className="h-5 w-5 text-blue-700" /> Contas do site</div>
+              <p className="mt-1 text-sm text-muted-foreground">Cadastros feitos na loja virtual. Não inclui usuários do ERP.</p>
+            </div>
+            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">{accountsQuery.data?.length ?? 0} conta(s)</span>
+          </div>
+          {accountsQuery.isLoading ? (
+            <div className="p-6 text-sm text-muted-foreground">Carregando contas do site…</div>
+          ) : accountsQuery.error ? (
+            <div className="m-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{accountsQuery.error instanceof Error ? accountsQuery.error.message : "Falha ao carregar as contas do site."}</div>
+          ) : (accountsQuery.data?.length ?? 0) === 0 ? (
+            <div className="p-6 text-sm text-muted-foreground">Os próximos cadastros do site aparecerão aqui automaticamente.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-left text-sm">
+                <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground"><tr><th className="px-4 py-3">Cliente</th><th className="px-4 py-3">Contato</th><th className="px-4 py-3">Cadastro</th><th className="px-4 py-3">Último acesso</th><th className="px-4 py-3">Situação</th><th className="px-4 py-3 text-right">Ações</th></tr></thead>
+                <tbody className="divide-y">
+                  {(accountsQuery.data ?? []).map((account: any) => <tr key={account.id} className="hover:bg-muted/30">
+                    <td className="px-4 py-3 font-bold">{account.name}</td>
+                    <td className="px-4 py-3"><div>{account.email}</div><div className="text-xs text-muted-foreground">{account.phone || "—"}</div></td>
+                    <td className="px-4 py-3 text-xs">{new Date(account.created_at).toLocaleString("pt-BR")}</td>
+                    <td className="px-4 py-3 text-xs">{account.last_sign_in_at ? new Date(account.last_sign_in_at).toLocaleString("pt-BR") : "Ainda não acessou"}</td>
+                    <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${account.active ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{account.active ? "Liberado" : "Bloqueado"}</span></td>
+                    <td className="px-4 py-3"><div className="flex justify-end gap-2"><button type="button" onClick={() => void recoverSitePassword(account.id)} className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-2 text-xs font-bold hover:bg-muted"><KeyRound className="h-3.5 w-3.5" /> Recuperar senha</button><button type="button" onClick={() => void changeSiteAccess(account.id, !account.active)} className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-bold ${account.active ? "bg-red-600 text-white" : "bg-emerald-600 text-white"}`}>{account.active ? <><UserX className="h-3.5 w-3.5" /> Bloquear</> : <><ShieldCheck className="h-3.5 w-3.5" /> Liberar</>}</button></div></td>
+                  </tr>)}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }
