@@ -32,7 +32,7 @@ export const Route = createFileRoute("/api/public/signup")({
         const password = typeof input.password === "string" ? input.password : "";
         if (!name) return json(400, { error: "Informe seu nome completo." });
         if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 320) return json(400, { error: "Informe um e-mail válido." });
-        if (password.length < 8 || password.length > 128) return json(400, { error: "Use uma senha de 8 a 128 caracteres." });
+        if (password.length < 6 || password.length > 128) return json(400, { error: "Use uma senha de 6 a 128 caracteres." });
 
         try {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -45,7 +45,7 @@ export const Route = createFileRoute("/api/public/signup")({
           if (createError || !created.user) {
             const message = createError?.message ?? "Não foi possível criar a conta.";
             if (/already been registered|already registered/i.test(message)) return json(409, { error: "Este e-mail já possui uma conta. Tente entrar." });
-            if (/weak and easy to guess|password.*weak/i.test(message)) return json(422, { error: "Esta senha é muito fácil de adivinhar. Use uma combinação diferente de letras, números e símbolo." });
+            if (/weak and easy to guess|password.*weak/i.test(message)) return json(422, { error: "Esta senha é muito comum ou já foi exposta. Escolha outra para proteger sua conta." });
             console.error("[Signup] create user failed", message);
             return json(400, { error: "Não foi possível criar a conta. Revise os dados e tente novamente." });
           }

@@ -76,8 +76,8 @@ function AuthPage() {
     setLoading(true);
     try {
       if (mode === "signup") {
-        if (password.length < 8) {
-          toast.error("A senha deve ter no mínimo 8 caracteres.");
+        if (password.length < 6) {
+          toast.error("Use uma senha com pelo menos 6 caracteres.");
           return;
         }
         const response = await fetch("/api/public/signup", {
@@ -174,8 +174,9 @@ function AuthPage() {
             <label className="block"><span className="mb-1 block text-xs font-semibold uppercase">Email</span><input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" /></label>
             <label className="block">
               <span className="mb-1 flex items-center justify-between text-xs font-semibold uppercase">Senha{mode === "login" && <Link to="/esqueci-senha" className="normal-case text-primary hover:underline">Esqueci minha senha</Link>}</span>
-              <input type="password" required minLength={mode === "signup" ? 8 : 6} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
+              <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
             </label>
+            {mode === "signup" && <p className="text-xs text-muted-foreground">Escolha a senha que preferir; só não use senhas já expostas ou muito fáceis de adivinhar.</p>}
             <button disabled={loading} className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-bold uppercase text-primary-foreground shadow-[var(--shadow-brand)] hover:brightness-110 disabled:opacity-60">{loading ? "Aguarde…" : mode === "login" ? "Entrar" : "Criar conta"}</button>
           </form>
 
