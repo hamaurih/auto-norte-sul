@@ -59,6 +59,44 @@ export const createStorefrontOrder = createServerFn({ method: "POST" })
   .inputValidator((input) => storefrontOrderSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const customerDocument = data.customer.document.replace(/\D/g, "");
+
+    // A ficha comercial pode já existir por importação do Bling antes de o
+    // cliente criar a conta da loja. Vinculamos essa ficha ao login antes do
+    // RPC criar o pedido, evitando duplicidade em (tenant_id, document).
+    const { data: documentCustomer, error: documentCustomerError } = await (supabaseAdmin as any)
+      .from("customers")
+      .select("id, user_id")
+      .eq("tenant_id", context.tenantId)
+      .eq("document", customerDocument)
+      .maybeSingle();
+    if (documentCustomerError) throw new Error(documentCustomerError.message);
+    if (documentCustomer && documentCustomer.user_id !== context.userId) {
+      if (documentCustomer.user_id) {
+        throw new Error("Este CPF/CNPJ já está vinculado a outra conta. Entre em contato com a Norte Sul para regularizar o cadastro.");
+      }
+      const { data: accountStub, error: accountStubError } = await (supabaseAdmin as any)
+        .from("customers")
+        .select("id")
+        .eq("tenant_id", context.tenantId)
+        .eq("user_id", context.userId)
+        .maybeSingle();
+      if (accountStubError) throw new Error(accountStubError.message);
+      if (accountStub && accountStub.id !== documentCustomer.id) {
+        const { error: detachError } = await (supabaseAdmin as any)
+          .from("customers")
+          .update({ user_id: null })
+          .eq("id", accountStub.id)
+          .eq("tenant_id", context.tenantId);
+        if (detachError) throw new Error(detachError.message);
+      }
+      const { error: linkError } = await (supabaseAdmin as any)
+        .from("customers")
+        .update({ user_id: context.userId, email: data.customer.email.trim().toLowerCase(), active: true })
+        .eq("id", documentCustomer.id)
+        .eq("tenant_id", context.tenantId);
+      if (linkError) throw new Error(linkError.message);
+    }
     const { data: validatedItems, error: validationError } = await (supabaseAdmin as any).rpc(
       "validate_cart_items",
       { p_tenant_id: context.tenantId, p_items: data.items },
