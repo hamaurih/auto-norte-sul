@@ -1,19 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { BarChart3, Bot, MonitorSmartphone, ScanLine, ShoppingBag, Trophy, WalletCards } from "lucide-react";
-import { toast } from "sonner";
-import { getSalesSummary, getSiteSaleAlerts } from "@/lib/sales-summary.functions";
+import { getSalesSummary } from "@/lib/sales-summary.functions";
 
 export const Route=createFileRoute("/_authenticated/admin/resumo-vendas")({head:()=>({meta:[{title:"Resumo de vendas · Norte Sul"}]}),component:SalesSummary});
 const brl=(n:number)=>n.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const origin={site:{label:"Site",icon:MonitorSmartphone,tone:"bg-blue-50 text-blue-700"},ia:{label:"IA",icon:Bot,tone:"bg-violet-50 text-violet-700"},balcao:{label:"Balcão",icon:ScanLine,tone:"bg-emerald-50 text-emerald-700"}} as const;
 
 function SalesSummary(){
- const salesFn=useServerFn(getSalesSummary),alertsFn=useServerFn(getSiteSaleAlerts),seen=useRef<Set<string>|null>(null);
+ const salesFn=useServerFn(getSalesSummary);
  const q=useQuery({queryKey:["sales-summary",30],queryFn:()=>salesFn({data:{days:30}}),refetchInterval:60_000}),data:any=q.data;
- useEffect(()=>{let live=true;const check=async()=>{try{const rows:any[]=await alertsFn();if(!live)return;const ids=new Set(rows.map(x=>x.id));if(!seen.current){seen.current=ids;return}for(const sale of rows.filter(x=>!seen.current?.has(x.id)).reverse()){try{const Ctx=window.AudioContext||(window as any).webkitAudioContext,ctx=new Ctx(),o=ctx.createOscillator(),g=ctx.createGain();o.frequency.value=880;g.gain.setValueAtTime(.12,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+.22);o.connect(g);g.connect(ctx.destination);o.start();o.stop(ctx.currentTime+.22);window.setTimeout(()=>void ctx.close(),300)}catch{}toast.success(`Nova venda no site · ${brl(Number(sale.total??0))}`,{description:sale.customer_name||"Pagamento confirmado",duration:10000})}seen.current=new Set([...(seen.current??[]),...ids])}catch{}};void check();const timer=window.setInterval(()=>void check(),15000);return()=>{live=false;window.clearInterval(timer)}},[alertsFn]);
  if(q.isLoading)return <div className="p-6 text-sm text-muted-foreground">Carregando vendas consolidadas…</div>;
  if(q.isError||!data)return <div className="m-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">Não foi possível carregar o resumo.</div>;
  const cards=[["Faturamento consolidado",brl(data.total.gross),WalletCards,"bg-slate-950 text-white"],["Vendas realizadas",String(data.total.orders),ShoppingBag,"bg-blue-600 text-white"],["Ticket médio",brl(data.total.averageTicket),BarChart3,"bg-violet-600 text-white"],["Site aguardando pagamento",String(data.pendingSiteOrders),MonitorSmartphone,"bg-amber-500 text-slate-950"]] as const;
