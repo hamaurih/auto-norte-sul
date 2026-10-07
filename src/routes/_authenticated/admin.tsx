@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createFileRoute, Link, Outlet, redirect, useRouterState } from "@tanstack/react-router";
 import { ChevronDown, LayoutDashboard, Search, ShieldAlert, Store } from "lucide-react";
 import { AdminCommandPalette } from "@/components/admin/AdminCommandPalette";
+import { SiteSaleAlerts } from "@/components/admin/SiteSaleAlerts";
 import {
   Sidebar,
   SidebarContent,
@@ -224,6 +225,7 @@ function AdminLayout() {
             </kbd>
           </button>
 
+          <SiteSaleAlerts />
           {tenant && (
             <span className="hidden shrink-0 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground lg:inline-flex">
               {environmentLabel[tenant.environment] ?? tenant.environment}
