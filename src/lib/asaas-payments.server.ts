@@ -112,7 +112,7 @@ type CardData = { holderName: string; number: string; expiryMonth: string; expir
 export async function createAsaasPayment(admin: AdminClient, tenantId: string, intentId: string, boletoDueDays = 15, card?: CardData, remoteIp?: string, installments = 1, readyContext?: AsaasContext) {
   // A validação da conta já foi feita antes da criação da intenção. Reutilizar o contexto evita uma segunda chamada ao Asaas e reduz a espera no checkout.
   const c = readyContext ?? await ensureAsaasProviderReady(admin, tenantId);
-  const { data: intent, error: intentError } = await admin.from("payment_intents").select("id,order_id,provider_id,method,amount,status,external_id,checkout_url,pix_copy_paste,pix_qr_code_url,expires_at,provider_metadata").eq("tenant_id", tenantId).eq("id", intentId).maybeSingle();
+  const { data: intent, error: intentError } = await admin.from("payment_intents").select("id,order_id,provider_id,method,amount,status,external_id,checkout_url,pix_copy_paste,pix_qr_code_url,boleto_url,boleto_barcode,expires_at,provider_metadata").eq("tenant_id", tenantId).eq("id", intentId).maybeSingle();
   if (intentError) throw new Error(intentError.message); if (!intent) throw new Error("Intenção de pagamento não encontrada.");
   if (intent.provider_id !== c.providerId) throw new Error("Provider da intenção não corresponde ao Asaas ativo.");
   // Uma tentativa já registrada não pode criar outra cobrança, inclusive no
