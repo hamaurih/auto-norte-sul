@@ -135,6 +135,19 @@ export async function createAsaasPayment(admin: AdminClient, tenantId: string, i
       if (recovered.error) throw new Error(recovered.error.message);
       return recovered.data;
     }
+    if (intent.method === "boleto" && (!intent.boleto_url || !intent.boleto_barcode)) {
+      // O Asaas pode disponibilizar a linha digitável alguns instantes após a
+      // criação. Reconsultamos a cobrança já existente, sem criar uma segunda.
+      const boleto = await request(c, `/payments/${encodeURIComponent(String(intent.external_id))}`, { method: "GET", headers: { "Content-Type": "" } });
+      const recovered = await admin.from("payment_intents").update({
+        boleto_url: boleto?.bankSlipUrl ?? intent.boleto_url ?? null,
+        boleto_barcode: boleto?.identificationField ?? intent.boleto_barcode ?? null,
+        expires_at: boleto?.dueDate ?? intent.expires_at ?? null,
+        updated_at: new Date().toISOString(),
+      }).eq("tenant_id", tenantId).eq("id", intent.id).select("*").single();
+      if (recovered.error) throw new Error(recovered.error.message);
+      return recovered.data;
+    }
     return intent;
   }
   const { data: order, error: orderError } = await admin.from("orders").select("id,status,customer_name,customer_email,customer_phone,customer_document,shipping_zip,shipping_street,shipping_number,shipping_complement,shipping_neighborhood,is_b2b").eq("tenant_id", tenantId).eq("id", intent.order_id).maybeSingle();
