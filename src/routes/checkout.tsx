@@ -223,10 +223,6 @@ function Checkout() {
       toast.error("Documento inválido");
       return;
     }
-    if (parsed.data.payment_method === "boleto" && !isB2BApproved) {
-      toast.error("Boleto é exclusivo para cliente B2B aprovado com CPF ou CNPJ válido.");
-      return;
-    }
     if (total < 5 && parsed.data.payment_method !== "faturado_b2b") {
       toast.error("O valor mínimo para pagamento é R$ 5,00.");
       return;
