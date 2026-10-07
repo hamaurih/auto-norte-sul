@@ -6,7 +6,7 @@ type CreatePaymentIntentInput = {
   orderId: string;
   idempotencyKey: string;
   providerCode?: string;
-  boletoDueDays?: 15 | 30 | 45 | 60 | 90 | 120;
+  boletoDueDays?: 3 | 15 | 30 | 45 | 60 | 90 | 120;
   installments?: 1 | 2 | 3 | 4 | 5 | 6;
   card?: {
     holderName: string;
@@ -66,11 +66,11 @@ export const createPaymentIntent = createServerFn({ method: "POST" })
       throw new Error("Escolha de 1 a 6 parcelas para o cartão.");
     }
     if (order.payment_method === "boleto") {
-    if (!order.is_b2b || !/^(?:\d{11}|\d{14})$/.test(String(order.customer_document ?? "").replace(/\D/g, ""))) {
-        throw new Error("Boleto Asaas é exclusivo para cliente B2B aprovado com CPF ou CNPJ válido.");
+      if (!/^(?:\d{11}|\d{14})$/.test(String(order.customer_document ?? "").replace(/\D/g, ""))) {
+        throw new Error("Informe CPF ou CNPJ válido para gerar o boleto.");
       }
-      if (![15, 30, 45, 60, 90, 120].includes(boletoDueDays)) {
-        throw new Error("Prazo de boleto inválido. Escolha 15, 30, 45, 60, 90 ou 120 dias.");
+      if (order.is_b2b ? ![15, 30, 45, 60, 90, 120].includes(boletoDueDays) : boletoDueDays !== 3) {
+        throw new Error(order.is_b2b ? "Prazo de boleto B2B inválido." : "Para cliente B2C, o boleto vence em até 3 dias.");
       }
     }
 
