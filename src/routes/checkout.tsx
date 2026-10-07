@@ -35,7 +35,7 @@ const schema = z.object({
   shipping_city:          z.string().trim().min(2).max(120),
   shipping_state:         z.string().trim().length(2, "UF (2 letras)"),
   payment_method:         z.enum(["pix", "cartao", "boleto", "faturado_b2b"]),
-  boleto_due_days:        z.union([z.literal(15), z.literal(30), z.literal(45), z.literal(60), z.literal(90), z.literal(120)]),
+  boleto_due_days:        z.union([z.literal(3), z.literal(15), z.literal(30), z.literal(45), z.literal(60), z.literal(90), z.literal(120)]),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -410,22 +410,22 @@ function Checkout() {
               {[
                 { v: "pix",          label: `PIX — 5% de desconto (${brl(pixDiscount > 0 ? pixDiscount : subtotal * PIX_DISCOUNT)})` },
                 { v: "cartao",       label: "Cartão — até 6× sem juros" },
-                ...(isB2BApproved ? [{ v: "boleto", label: "Boleto para CPF ou CNPJ" }] : []),
+                { v: "boleto", label: isB2BApproved ? "Boleto para CPF ou CNPJ" : "Boleto — vencimento em até 3 dias" },
                 ...(isB2BApproved ? [{ v: "faturado_b2b", label: "Faturado 28 dias (B2B)" }] : []),
               ].map((o) => (
                 <label key={o.v} className={`cursor-pointer rounded-md border p-3 text-sm ${form.payment_method === o.v ? "border-primary bg-primary/5" : "border-border"}`}>
-                  <input type="radio" name="pm" className="mr-2" checked={form.payment_method === o.v} onChange={() => set("payment_method", o.v as FormData["payment_method"])} />
+                  <input type="radio" name="pm" className="mr-2" checked={form.payment_method === o.v} onChange={() => { set("payment_method", o.v as FormData["payment_method"]); if (o.v === "boleto" && !isB2BApproved) set("boleto_due_days", 3); }} />
                   {o.label}
                 </label>
               ))}
             </div>
             {form.payment_method === "boleto" && (
               <div className="mt-3 rounded-md border border-primary/20 bg-primary/5 p-3">
-                <label className="block text-xs font-bold uppercase text-muted-foreground">Prazo de vencimento negociado</label>
+                <label className="block text-xs font-bold uppercase text-muted-foreground">{isB2BApproved ? "Prazo de vencimento negociado" : "Prazo de vencimento"}</label>
                 <select value={form.boleto_due_days} onChange={(e) => set("boleto_due_days", Number(e.target.value) as FormData["boleto_due_days"])} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-                  {[15, 30, 45, 60, 90, 120].map((days) => <option key={days} value={days}>{days} dias{days === 120 ? " — grande negociação" : ""}</option>)}
+                  {(isB2BApproved ? [15, 30, 45, 60, 90, 120] : [3]).map((days) => <option key={days} value={days}>{days} dias{days === 120 ? " — grande negociação" : ""}</option>)}
                 </select>
-                <p className="mt-2 text-xs text-muted-foreground">Boleto disponível para cliente B2B aprovado, com CPF ou CNPJ.</p>
+                <p className="mt-2 text-xs text-muted-foreground">{isB2BApproved ? "Cliente B2B aprovado: escolha o prazo negociado com CPF ou CNPJ." : "Cliente B2C: boleto com vencimento em até 3 dias, mediante CPF ou CNPJ válido."}</p>
               </div>
             )}
             {form.payment_method === "cartao" && (
