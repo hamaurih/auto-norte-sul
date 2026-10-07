@@ -49,7 +49,7 @@ const storefrontOrderSchema = z.object({
   items: z.array(z.object({ product_id: z.string().uuid(), quantity: z.number().int().min(1).max(1000) }))
     .min(1).max(100),
   paymentMethod: z.enum(["pix", "cartao", "boleto", "faturado_b2b"]),
-  boletoDueDays: z.union([z.literal(15), z.literal(30), z.literal(45), z.literal(60), z.literal(90), z.literal(120)]).optional(),
+  boletoDueDays: z.union([z.literal(3), z.literal(15), z.literal(30), z.literal(45), z.literal(60), z.literal(90), z.literal(120)]).optional(),
   idempotencyKey: z.string().uuid(),
 });
 const orderIdInputSchema = z.object({ orderId: z.string().uuid() });
