@@ -294,8 +294,12 @@ function Checkout() {
           if (parsed.data.payment_method === "pix" && (!payment.pixQrCodeUrl || !payment.pixCopyPaste)) {
             throw new Error("A cobrança PIX foi criada, mas o QR Code ainda não está disponível. Tente novamente nesta tela.");
           }
-          if (parsed.data.payment_method === "boleto" && (!payment.boletoUrl || !payment.boletoBarcode)) {
-            throw new Error("O boleto ainda está sendo preparado. Tente novamente nesta tela.");
+          if (parsed.data.payment_method === "boleto") {
+            // O boleto possui uma tela própria: ela aguarda a disponibilidade,
+            // sem expor o formulário ou exigir nova tentativa do cliente.
+            cartStore.clear();
+            window.location.assign(`/pagamento?pedido=${encodeURIComponent(orderId)}`);
+            return;
           }
           // Só limpamos o carrinho depois de ter algo útil para mostrar ao cliente.
           cartStore.clear();
