@@ -1,5 +1,6 @@
 import { tdb } from "@/integrations/supabase/tenant-db";
 import { runShippingEnrichmentAutopilot, type ShippingEnrichmentAutopilotResult } from "./shipping-enrichment-autopilot.server";
+import { tryOfficialMultiKeyMeasurement } from "./shipping-official-multikey-fallback.server";
 import { tryOfficialNameCodeMeasurement } from "./shipping-official-measurement-fallback.server";
 import { tryGs1ShippingMeasurement } from "./shipping-gs1-fallback.server";
 
@@ -13,8 +14,10 @@ export async function runShippingEnrichmentAutopilotV2(): Promise<ShippingEnrich
       const current = tenant.details[index];
       if (!["requeued", "failed", "skipped"].includes(current.status)) continue;
 
-      const official = await tryOfficialNameCodeMeasurement(admin, tenant.tenantId, current);
-      const improved = official ?? await tryGs1ShippingMeasurement(admin, tenant.tenantId, current);
+      const multiKey = await tryOfficialMultiKeyMeasurement(admin, tenant.tenantId, current);
+      const nameCode = multiKey ? null : await tryOfficialNameCodeMeasurement(admin, tenant.tenantId, current);
+      const gs1 = multiKey || nameCode ? null : await tryGs1ShippingMeasurement(admin, tenant.tenantId, current);
+      const improved = multiKey ?? nameCode ?? gs1;
       if (!improved) continue;
 
       if (current.status === "requeued") tenant.requeued = Math.max(0, tenant.requeued - 1);
