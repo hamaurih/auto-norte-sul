@@ -19,6 +19,7 @@ import {
   ScanLine,
   Send,
   ShoppingBag,
+  Store,
   Truck,
   UserRound,
   XCircle,
@@ -42,7 +43,7 @@ export const Route = createFileRoute("/_authenticated/admin/pedidos/$id")({
   component: OrderDetailPage,
 });
 
-const orderFlow = [
+const deliveryFlow = [
   "aguardando_pagamento",
   "pago",
   "faturado",
@@ -90,7 +91,14 @@ const statusTone: Record<string, string> = {
   refunded: "bg-violet-100 text-violet-800",
 };
 
-const actionByStatus: Record<string, { operation: OrderOperation; label: string; icon: typeof CheckCircle2; tone: string } | undefined> = {
+type NextAction = {
+  operation: OrderOperation;
+  label: string;
+  icon: typeof CheckCircle2;
+  tone: string;
+};
+
+const deliveryActionByStatus: Record<string, NextAction | undefined> = {
   aguardando_pagamento: {
     operation: "confirm_payment",
     label: "Confirmar pagamento",
@@ -124,6 +132,36 @@ function labelStatus(status: string | null | undefined) {
 function formatDate(value: string | null | undefined) {
   if (!value) return "—";
   return new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+}
+
+function pickupStatusLabel(status: string | null | undefined) {
+  if (status === "ready") return "Pronto para retirada";
+  if (status === "picked_up") return "Retirado pelo cliente";
+  if (status === "cancelled") return "Retirada cancelada";
+  return "Aguardando preparação";
+}
+
+function nextActionForOrder(order: any): NextAction | undefined {
+  if (order.status === "aguardando_pagamento") return deliveryActionByStatus.aguardando_pagamento;
+  if (order.status === "pago") return deliveryActionByStatus.pago;
+  if (order.fulfillment_type !== "pickup") return deliveryActionByStatus[order.status];
+  if (order.status === "faturado" && order.pickup_status === "ready") {
+    return {
+      operation: "complete_pickup",
+      label: "Confirmar retirada pelo cliente",
+      icon: PackageCheck,
+      tone: "bg-cyan-600 text-white hover:bg-cyan-700",
+    };
+  }
+  if (order.status === "faturado" && order.pickup_status !== "picked_up") {
+    return {
+      operation: "ready_pickup",
+      label: "Liberar para retirada",
+      icon: Store,
+      tone: "bg-emerald-600 text-white hover:bg-emerald-700",
+    };
+  }
+  return undefined;
 }
 
 function OrderDetailPage() {
@@ -187,7 +225,11 @@ function OrderDetailPage() {
   });
 
   if (detail.isLoading) {
-    return <div className="mx-auto max-w-7xl rounded-3xl border border-dashed p-12 text-center text-muted-foreground">Carregando pedido…</div>;
+    return (
+      <div className="mx-auto max-w-7xl rounded-3xl border border-dashed p-12 text-center text-muted-foreground">
+        Carregando pedido…
+      </div>
+    );
   }
 
   if (detail.isError || !detail.data) {
@@ -195,21 +237,42 @@ function OrderDetailPage() {
       <div className="mx-auto max-w-3xl rounded-3xl border border-rose-200 bg-rose-50 p-8 text-center">
         <CircleAlert className="mx-auto h-8 w-8 text-rose-600" aria-hidden="true" />
         <h1 className="mt-3 font-display text-xl font-extrabold">Pedido indisponível</h1>
-        <p className="mt-2 text-sm text-rose-800">{(detail.error as Error)?.message ?? "Não foi possível carregar este pedido."}</p>
-        <Link to="/admin/pedidos" className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-2xl bg-rose-600 px-4 text-sm font-bold text-white">
+        <p className="mt-2 text-sm text-rose-800">
+          {(detail.error as Error)?.message ?? "Não foi possível carregar este pedido."}
+        </p>
+        <Link
+          to="/admin/pedidos"
+          className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-2xl bg-rose-600 px-4 text-sm font-bold text-white"
+        >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Voltar aos pedidos
         </Link>
       </div>
     );
   }
 
-  const { order, items, payments, history } = detail.data as any;
-  const action = actionByStatus[order.status];
+  const { order, items, payments, history, pickupBranch } = detail.data as any;
+  const isPickup = order.fulfillment_type === "pickup";
+  const action = nextActionForOrder(order);
   const ActionIcon = action?.icon;
-  const currentFlowIndex = orderFlow.indexOf(order.status);
   const itemCount = items.reduce((sum: number, item: any) => sum + Number(item.quantity), 0);
   const dispatchRecord = (dispatchDetail.data as any)?.dispatch ?? null;
   const dispatchReady = dispatchRecord?.status === "conferred";
+
+  const progressSteps = isPickup
+    ? ["Aguardando pagamento", "Pago", "Faturado", "Pronto para retirada", "Retirado"]
+    : deliveryFlow.map((status) => labelStatus(status));
+
+  const progressIndex = isPickup
+    ? order.status === "entregue" || order.pickup_status === "picked_up"
+      ? 4
+      : order.pickup_status === "ready"
+        ? 3
+        : order.status === "faturado"
+          ? 2
+          : order.status === "pago"
+            ? 1
+            : 0
+    : deliveryFlow.indexOf(order.status);
 
   function runOperation(nextOperation: OrderOperation) {
     const warning =
@@ -217,7 +280,11 @@ function OrderDetailPage() {
         ? "Confirmar o pagamento consumirá a reserva e dará baixa no estoque. Deseja continuar?"
         : nextOperation === "cancel"
           ? "Cancelar liberará a reserva deste pedido. Deseja continuar?"
-          : "Confirma esta atualização operacional?";
+          : nextOperation === "ready_pickup"
+            ? "Confirma que o pedido está separado, conferido, faturado e pode ser retirado pelo cliente?"
+            : nextOperation === "complete_pickup"
+              ? "Confirma que o cliente retirou e recebeu este pedido na loja?"
+              : "Confirma esta atualização operacional?";
 
     if (!window.confirm(warning)) return;
     operation.mutate({ operation: nextOperation, note });
@@ -227,7 +294,10 @@ function OrderDetailPage() {
     <div className="mx-auto max-w-7xl space-y-6">
       <header className="admin-page-hero">
         <div className="relative z-10">
-          <Link to="/admin/pedidos" className="inline-flex items-center gap-1 text-sm font-bold text-violet-700 hover:underline">
+          <Link
+            to="/admin/pedidos"
+            className="inline-flex items-center gap-1 text-sm font-bold text-violet-700 hover:underline"
+          >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Pedidos
           </Link>
           <div className="mt-4 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -236,8 +306,22 @@ function OrderDetailPage() {
                 <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-extrabold text-violet-700">
                   {order.is_b2b ? "PEDIDO B2B" : "PEDIDO B2C"}
                 </span>
-                <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${statusTone[order.status] ?? "bg-slate-100 text-slate-700"}`}>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-extrabold ${
+                    statusTone[order.status] ?? "bg-slate-100 text-slate-700"
+                  }`}
+                >
                   {labelStatus(order.status)}
+                </span>
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-extrabold ${
+                    isPickup
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-sky-100 text-sky-800"
+                  }`}
+                >
+                  {isPickup ? <Store className="h-3.5 w-3.5" /> : <Truck className="h-3.5 w-3.5" />}
+                  {isPickup ? "RETIRADA NA LOJA" : "ENTREGA"}
                 </span>
               </div>
               <h1 className="mt-3 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
@@ -250,26 +334,41 @@ function OrderDetailPage() {
             </div>
             <div className="rounded-3xl border border-emerald-200 bg-white/80 px-5 py-4 shadow-sm">
               <p className="text-xs font-bold text-muted-foreground">TOTAL DO PEDIDO</p>
-              <p className="mt-1 font-display text-3xl font-extrabold text-emerald-700">{brl(Number(order.total))}</p>
+              <p className="mt-1 font-display text-3xl font-extrabold text-emerald-700">
+                {brl(Number(order.total))}
+              </p>
             </div>
           </div>
         </div>
       </header>
 
       {order.status !== "cancelado" && (
-        <section aria-label="Progresso do pedido" className="rounded-3xl border border-blue-200/70 bg-gradient-to-r from-blue-50 via-white to-violet-50 p-5 shadow-sm">
+        <section
+          aria-label="Progresso do pedido"
+          className="rounded-3xl border border-blue-200/70 bg-gradient-to-r from-blue-50 via-white to-violet-50 p-5 shadow-sm"
+        >
           <div className="grid gap-2 sm:grid-cols-5">
-            {orderFlow.map((status, index) => {
-              const complete = currentFlowIndex >= index;
-              const current = order.status === status;
+            {progressSteps.map((label, index) => {
+              const complete = progressIndex >= index;
+              const current = progressIndex === index;
               return (
-                <div key={status} className="relative flex items-center gap-2 sm:flex-col sm:text-center">
-                  <span className={`grid size-9 shrink-0 place-items-center rounded-full border-2 text-xs font-extrabold ${
-                    complete ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-400"
-                  } ${current ? "ring-4 ring-blue-100" : ""}`}>
-                    {complete && !current ? <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> : index + 1}
+                <div key={label} className="relative flex items-center gap-2 sm:flex-col sm:text-center">
+                  <span
+                    className={`grid size-9 shrink-0 place-items-center rounded-full border-2 text-xs font-extrabold ${
+                      complete
+                        ? "border-blue-600 bg-blue-600 text-white"
+                        : "border-slate-200 bg-white text-slate-400"
+                    } ${current ? "ring-4 ring-blue-100" : ""}`}
+                  >
+                    {complete && !current ? (
+                      <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                    ) : (
+                      index + 1
+                    )}
                   </span>
-                  <span className={`text-xs font-bold ${complete ? "text-foreground" : "text-muted-foreground"}`}>{labelStatus(status)}</span>
+                  <span className={`text-xs font-bold ${complete ? "text-foreground" : "text-muted-foreground"}`}>
+                    {label}
+                  </span>
                 </div>
               );
             })}
@@ -295,16 +394,30 @@ function OrderDetailPage() {
             <div className="divide-y divide-border/70">
               {items.map((item: any) => {
                 const images = item.product?.images ?? [];
-                const image = [...images].sort((a: any, b: any) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order)[0];
+                const image = [...images].sort(
+                  (a: any, b: any) =>
+                    Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order,
+                )[0];
                 return (
                   <article key={item.id} className="flex gap-4 py-4 first:pt-0 last:pb-0">
                     <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-muted">
-                      {image?.url ? <img src={image.url} alt={image.alt || item.name} className="h-full w-full object-contain p-1" loading="lazy" /> : <Box className="h-6 w-6 text-muted-foreground" aria-hidden="true" />}
+                      {image?.url ? (
+                        <img
+                          src={image.url}
+                          alt={image.alt || item.name}
+                          className="h-full w-full object-contain p-1"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <Box className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <h3 className="font-extrabold">{item.name}</h3>
                       <p className="mt-1 font-mono text-xs text-muted-foreground">SKU {item.sku}</p>
-                      <p className="mt-2 text-xs text-muted-foreground">{item.quantity} × {brl(Number(item.unit_price))}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {item.quantity} × {brl(Number(item.unit_price))}
+                      </p>
                     </div>
                     <p className="shrink-0 font-display font-extrabold">{brl(Number(item.total))}</p>
                   </article>
@@ -313,7 +426,10 @@ function OrderDetailPage() {
             </div>
             <div className="mt-5 space-y-2 border-t border-border/70 pt-4 text-sm">
               <ValueRow label="Subtotal" value={brl(Number(order.subtotal))} />
-              <ValueRow label="Frete" value={brl(Number(order.shipping))} />
+              <ValueRow
+                label={isPickup ? "Retirada na loja" : "Frete"}
+                value={isPickup ? "Grátis" : brl(Number(order.shipping))}
+              />
               <ValueRow label="Desconto" value={`− ${brl(Number(order.discount))}`} />
               <ValueRow label="Total" value={brl(Number(order.total))} strong />
             </div>
@@ -322,7 +438,8 @@ function OrderDetailPage() {
           <SectionCard icon={CreditCard} eyebrow="FINANCEIRO" title="Pagamento">
             {payments.length === 0 ? (
               <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">
-                Nenhuma tentativa de pagamento registrada. Método informado: <strong>{order.payment_method || "não definido"}</strong>.
+                Nenhuma tentativa de pagamento registrada. Método informado:{" "}
+                <strong>{order.payment_method || "não definido"}</strong>.
               </div>
             ) : (
               <div className="space-y-3">
@@ -330,22 +447,41 @@ function OrderDetailPage() {
                   <article key={payment.id} className="rounded-2xl border border-border/70 bg-muted/30 p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <span className="grid size-10 place-items-center rounded-2xl bg-emerald-100 text-emerald-700"><Banknote className="h-5 w-5" aria-hidden="true" /></span>
+                        <span className="grid size-10 place-items-center rounded-2xl bg-emerald-100 text-emerald-700">
+                          <Banknote className="h-5 w-5" aria-hidden="true" />
+                        </span>
                         <div>
                           <p className="font-extrabold capitalize">{payment.method.replaceAll("_", " ")}</p>
-                          <p className="text-xs text-muted-foreground">{payment.provider?.display_name || "Provedor não informado"}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {payment.provider?.display_name || "Provedor não informado"}
+                          </p>
                         </div>
                       </div>
-                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${statusTone[payment.status] ?? "bg-slate-100 text-slate-700"}`}>{labelStatus(payment.status)}</span>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${
+                          statusTone[payment.status] ?? "bg-slate-100 text-slate-700"
+                        }`}
+                      >
+                        {labelStatus(payment.status)}
+                      </span>
                     </div>
                     <div className="mt-4 grid gap-2 text-xs sm:grid-cols-3">
                       <span><strong>Valor:</strong> {brl(Number(payment.amount))}</span>
                       <span><strong>Criado:</strong> {formatDate(payment.created_at)}</span>
                       <span><strong>Pago:</strong> {formatDate(payment.paid_at)}</span>
                     </div>
-                    {payment.failure_message && <p className="mt-3 rounded-xl bg-rose-50 p-3 text-xs text-rose-800">{payment.failure_message}</p>}
+                    {payment.failure_message && (
+                      <p className="mt-3 rounded-xl bg-rose-50 p-3 text-xs text-rose-800">
+                        {payment.failure_message}
+                      </p>
+                    )}
                     {(payment.checkout_url || payment.boleto_url) && (
-                      <a href={payment.checkout_url || payment.boleto_url} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-11 items-center gap-1 text-xs font-bold text-primary hover:underline">
+                      <a
+                        href={payment.checkout_url || payment.boleto_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-3 inline-flex min-h-11 items-center gap-1 text-xs font-bold text-primary hover:underline"
+                      >
                         Abrir cobrança <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                       </a>
                     )}
@@ -364,10 +500,20 @@ function OrderDetailPage() {
                   <li key={event.id} className="relative pb-6 last:pb-0">
                     <span className="absolute -left-[31px] top-0 grid size-4 place-items-center rounded-full border-4 border-white bg-violet-600" />
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${statusTone[event.to_status] ?? "bg-slate-100 text-slate-700"}`}>{labelStatus(event.to_status)}</span>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${
+                          statusTone[event.to_status] ?? "bg-slate-100 text-slate-700"
+                        }`}
+                      >
+                        {labelStatus(event.to_status)}
+                      </span>
                       <time className="text-xs text-muted-foreground">{formatDate(event.created_at)}</time>
                     </div>
-                    {event.from_status && <p className="mt-1 text-xs text-muted-foreground">De {labelStatus(event.from_status)} para {labelStatus(event.to_status)}</p>}
+                    {event.from_status && event.from_status !== event.to_status && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        De {labelStatus(event.from_status)} para {labelStatus(event.to_status)}
+                      </p>
+                    )}
                     {event.note && <p className="mt-2 text-sm">{event.note}</p>}
                   </li>
                 ))}
@@ -385,27 +531,92 @@ function OrderDetailPage() {
             </div>
           </SectionCard>
 
-          <SectionCard icon={MapPin} eyebrow="ENTREGA" title="Endereço">
-            <address className="text-sm not-italic leading-6 text-muted-foreground">
-              {order.shipping_street || "Endereço não informado"}{order.shipping_number ? `, ${order.shipping_number}` : ""}
-              {order.shipping_complement ? <><br />{order.shipping_complement}</> : null}
-              <br />{order.shipping_neighborhood || "—"}
-              <br />{order.shipping_city || "—"}{order.shipping_state ? `/${order.shipping_state}` : ""}
-              <br />CEP {order.shipping_zip || "—"}
-            </address>
-          </SectionCard>
+          {isPickup ? (
+            <SectionCard icon={Store} eyebrow="RETIRADA NA LOJA" title={pickupBranch?.name || "Loja selecionada"}>
+              <div className="space-y-3 text-sm">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-900">
+                  <div className="font-extrabold">{pickupStatusLabel(order.pickup_status)}</div>
+                  {order.pickup_ready_at && (
+                    <div className="mt-1 text-xs">Liberado em {formatDate(order.pickup_ready_at)}</div>
+                  )}
+                  {order.picked_up_at && (
+                    <div className="mt-1 text-xs">Retirado em {formatDate(order.picked_up_at)}</div>
+                  )}
+                </div>
+                <address className="not-italic leading-6 text-muted-foreground">
+                  {pickupBranch?.address || "Endereço da loja não informado"}
+                  <br />
+                  {pickupBranch?.city || "—"}{pickupBranch?.state ? `/${pickupBranch.state}` : ""}
+                </address>
+                {pickupBranch?.phone && <InfoLine icon={Phone} value={pickupBranch.phone} />}
+                {pickupBranch?.pickup_instructions && (
+                  <p className="rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground">
+                    {pickupBranch.pickup_instructions}
+                  </p>
+                )}
+                <div className="border-t border-border/70 pt-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                    Endereço do cliente / cobrança
+                  </p>
+                  <address className="mt-2 text-xs not-italic leading-5 text-muted-foreground">
+                    {order.shipping_street || "Endereço não informado"}
+                    {order.shipping_number ? `, ${order.shipping_number}` : ""}
+                    {order.shipping_complement ? ` · ${order.shipping_complement}` : ""}
+                    <br />
+                    {order.shipping_neighborhood || "—"} · {order.shipping_city || "—"}
+                    {order.shipping_state ? `/${order.shipping_state}` : ""}
+                    <br />CEP {order.shipping_zip || "—"}
+                  </address>
+                </div>
+              </div>
+            </SectionCard>
+          ) : (
+            <SectionCard icon={MapPin} eyebrow="ENTREGA" title="Endereço">
+              <address className="text-sm not-italic leading-6 text-muted-foreground">
+                {order.shipping_street || "Endereço não informado"}
+                {order.shipping_number ? `, ${order.shipping_number}` : ""}
+                {order.shipping_complement ? <><br />{order.shipping_complement}</> : null}
+                <br />{order.shipping_neighborhood || "—"}
+                <br />{order.shipping_city || "—"}{order.shipping_state ? `/${order.shipping_state}` : ""}
+                <br />CEP {order.shipping_zip || "—"}
+              </address>
+            </SectionCard>
+          )}
 
           <section className="rounded-3xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-5 shadow-sm">
             <p className="text-xs font-extrabold text-violet-700">ATUALIZAÇÃO OPERACIONAL</p>
             <h2 className="mt-1 font-display text-xl font-extrabold">Próxima ação</h2>
-            {operation.isError && <p role="alert" className="mt-3 rounded-xl bg-rose-50 p-3 text-xs text-rose-800">{(operation.error as Error).message}</p>}
-            {operation.isSuccess && <p role="status" className="mt-3 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800">Pedido atualizado com sucesso.</p>}
+            {operation.isError && (
+              <p role="alert" className="mt-3 rounded-xl bg-rose-50 p-3 text-xs text-rose-800">
+                {(operation.error as Error).message}
+              </p>
+            )}
+            {operation.isSuccess && (
+              <p role="status" className="mt-3 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800">
+                Pedido atualizado com sucesso.
+              </p>
+            )}
 
             {action && ActionIcon ? (
               <>
                 <label className="mt-4 block">
-                  <span className="mb-1.5 block text-xs font-bold text-muted-foreground">Observação para o histórico</span>
-                  <textarea value={note} onChange={(event) => setNote(event.target.value)} maxLength={500} rows={3} placeholder="Ex.: NF-e 123 emitida ou coleta realizada" className="w-full resize-none" />
+                  <span className="mb-1.5 block text-xs font-bold text-muted-foreground">
+                    Observação para o histórico
+                  </span>
+                  <textarea
+                    value={note}
+                    onChange={(event) => setNote(event.target.value)}
+                    maxLength={500}
+                    rows={3}
+                    placeholder={
+                      action.operation === "ready_pickup"
+                        ? "Ex.: Separado e disponível no balcão"
+                        : action.operation === "complete_pickup"
+                          ? "Ex.: Retirado pelo cliente mediante conferência"
+                          : "Ex.: NF-e 123 emitida ou coleta realizada"
+                    }
+                    className="w-full resize-none"
+                  />
                 </label>
                 <button
                   type="button"
@@ -413,23 +624,39 @@ function OrderDetailPage() {
                   disabled={operation.isPending || (action.operation === "invoice" && !dispatchReady)}
                   className={`mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl px-4 text-sm font-extrabold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${action.tone}`}
                 >
-                  <ActionIcon className="h-4 w-4" aria-hidden="true" /> {operation.isPending ? "Atualizando…" : action.operation === "invoice" && !dispatchReady ? "Aguardando conferência" : action.label}
+                  <ActionIcon className="h-4 w-4" aria-hidden="true" />
+                  {operation.isPending
+                    ? "Atualizando…"
+                    : action.operation === "invoice" && !dispatchReady
+                      ? "Aguardando conferência"
+                      : action.label}
                 </button>
                 {order.status === "aguardando_pagamento" && (
-                  <button type="button" onClick={() => runOperation("cancel")} disabled={operation.isPending} className="mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-white px-4 text-sm font-extrabold text-rose-700 hover:bg-rose-50 disabled:opacity-60">
+                  <button
+                    type="button"
+                    onClick={() => runOperation("cancel")}
+                    disabled={operation.isPending}
+                    className="mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-white px-4 text-sm font-extrabold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+                  >
                     <XCircle className="h-4 w-4" aria-hidden="true" /> Cancelar pedido
                   </button>
                 )}
               </>
             ) : (
               <div className="mt-4 rounded-2xl bg-white/70 p-4 text-sm text-muted-foreground">
-                {order.status === "entregue" ? "Fluxo concluído. O pedido foi entregue." : order.status === "cancelado" ? "Este pedido foi cancelado." : "Não há ação operacional disponível para este status."}
+                {order.status === "entregue"
+                  ? isPickup
+                    ? "Fluxo concluído. A retirada do pedido foi confirmada."
+                    : "Fluxo concluído. O pedido foi entregue."
+                  : order.status === "cancelado"
+                    ? "Este pedido foi cancelado."
+                    : "Não há ação operacional disponível para este status."}
               </div>
             )}
           </section>
 
           {order.notes && (
-            <SectionCard icon={Truck} eyebrow="OBSERVAÇÕES" title="Notas do pedido">
+            <SectionCard icon={isPickup ? Store : Truck} eyebrow="OBSERVAÇÕES" title="Notas do pedido">
               <p className="whitespace-pre-wrap text-sm text-muted-foreground">{order.notes}</p>
             </SectionCard>
           )}
@@ -438,7 +665,6 @@ function OrderDetailPage() {
     </div>
   );
 }
-
 
 function DispatchConferenceCard({
   detail,
@@ -473,15 +699,23 @@ function DispatchConferenceCard({
     <section className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-cyan-50 p-5 shadow-sm">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
-          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-cyan-100 text-cyan-700"><ScanLine className="h-5 w-5" aria-hidden="true" /></span>
+          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-cyan-100 text-cyan-700">
+            <ScanLine className="h-5 w-5" aria-hidden="true" />
+          </span>
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-cyan-700">Controle de saída</p>
             <h2 className="mt-1 font-display text-xl font-extrabold">Conferência por bipagem</h2>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Bipe cada produto separado. A NF e o faturamento ficam bloqueados até todos os itens serem conferidos.</p>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              Bipe cada produto separado. A NF e o faturamento ficam bloqueados até todos os itens serem conferidos.
+            </p>
           </div>
         </div>
         {dispatch && (
-          <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${complete ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-extrabold ${
+              complete ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+            }`}
+          >
             {complete ? "Conferência concluída" : "Conferência em andamento"}
           </span>
         )}
@@ -490,14 +724,23 @@ function DispatchConferenceCard({
       {detail.isLoading ? (
         <p className="mt-5 rounded-2xl bg-white/70 p-4 text-sm text-muted-foreground">Carregando conferência…</p>
       ) : detail.isError ? (
-        <p role="alert" className="mt-5 rounded-2xl bg-rose-50 p-4 text-sm text-rose-800">{(detail.error as Error).message}</p>
+        <p role="alert" className="mt-5 rounded-2xl bg-rose-50 p-4 text-sm text-rose-800">
+          {(detail.error as Error).message}
+        </p>
       ) : !dispatch ? (
         <div className="mt-5 flex flex-col gap-3 rounded-2xl bg-white/70 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="font-extrabold">Nenhuma conferência iniciada</p>
-            <p className="mt-1 text-sm text-muted-foreground">Ao iniciar, o sistema cria a lista esperada e registra o usuário responsável.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Ao iniciar, o sistema cria a lista esperada e registra o usuário responsável.
+            </p>
           </div>
-          <button type="button" onClick={onStart} disabled={startMutation.isPending} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-cyan-600 px-4 text-sm font-extrabold text-white hover:bg-cyan-700 disabled:opacity-60">
+          <button
+            type="button"
+            onClick={onStart}
+            disabled={startMutation.isPending}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-cyan-600 px-4 text-sm font-extrabold text-white hover:bg-cyan-700 disabled:opacity-60"
+          >
             <ScanLine className="h-4 w-4" /> {startMutation.isPending ? "Iniciando…" : "Iniciar conferência"}
           </button>
         </div>
@@ -510,12 +753,21 @@ function DispatchConferenceCard({
                 <span>{scanned} / {expected} unidades</span>
               </div>
               <div className="mt-2 h-3 overflow-hidden rounded-full bg-white/80">
-                <div className="h-full rounded-full bg-cyan-600 transition-all" style={{ width: `${expected ? Math.min(100, (scanned / expected) * 100) : 0}%` }} />
+                <div
+                  className="h-full rounded-full bg-cyan-600 transition-all"
+                  style={{ width: `${expected ? Math.min(100, (scanned / expected) * 100) : 0}%` }}
+                />
               </div>
             </div>
             <div className="text-right text-xs text-muted-foreground">
-              <p>Iniciado por <strong className="text-foreground">{dispatch.started_by_name || "Usuário da operação"}</strong></p>
-              {complete && <p className="mt-1">Concluído por <strong className="text-foreground">{dispatch.completed_by_name || "Usuário da operação"}</strong></p>}
+              <p>
+                Iniciado por <strong className="text-foreground">{dispatch.started_by_name || "Usuário da operação"}</strong>
+              </p>
+              {complete && (
+                <p className="mt-1">
+                  Concluído por <strong className="text-foreground">{dispatch.completed_by_name || "Usuário da operação"}</strong>
+                </p>
+              )}
             </div>
           </div>
 
@@ -525,7 +777,12 @@ function DispatchConferenceCard({
               const itemScanned = Number(item.scanned_qty);
               const done = itemExpected === itemScanned;
               return (
-                <div key={item.id} className={`flex flex-col gap-2 rounded-2xl border p-3 sm:flex-row sm:items-center sm:justify-between ${done ? "border-emerald-200 bg-emerald-50/80" : "border-white/80 bg-white/75"}`}>
+                <div
+                  key={item.id}
+                  className={`flex flex-col gap-2 rounded-2xl border p-3 sm:flex-row sm:items-center sm:justify-between ${
+                    done ? "border-emerald-200 bg-emerald-50/80" : "border-white/80 bg-white/75"
+                  }`}
+                >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-extrabold">{item.name}</p>
                     <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
@@ -533,8 +790,16 @@ function DispatchConferenceCard({
                     </p>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${done ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>{itemScanned} / {itemExpected}</span>
-                    <span className="text-xs text-muted-foreground">{done ? "Conferido" : `Faltam ${itemExpected - itemScanned}`}</span>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${
+                        done ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                      }`}
+                    >
+                      {itemScanned} / {itemExpected}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {done ? "Conferido" : `Faltam ${itemExpected - itemScanned}`}
+                    </span>
                   </div>
                 </div>
               );
@@ -559,34 +824,61 @@ function DispatchConferenceCard({
                   className="min-h-12 rounded-2xl border-cyan-300 bg-white text-base"
                   disabled={scanMutation.isPending}
                 />
-                <button type="submit" disabled={!scanCode.trim() || scanMutation.isPending} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-cyan-600 px-5 text-sm font-extrabold text-white hover:bg-cyan-700 disabled:opacity-50">
+                <button
+                  type="submit"
+                  disabled={!scanCode.trim() || scanMutation.isPending}
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-cyan-600 px-5 text-sm font-extrabold text-white hover:bg-cyan-700 disabled:opacity-50"
+                >
                   <ScanLine className="h-4 w-4" /> {scanMutation.isPending ? "Conferindo…" : "Conferir"}
                 </button>
               </form>
-              <button type="button" onClick={onComplete} disabled={!allScanned || completeMutation.isPending} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-emerald-300 bg-emerald-50 px-4 text-sm font-extrabold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50">
-                <CheckCircle2 className="h-4 w-4" /> {completeMutation.isPending ? "Concluindo…" : "Concluir conferência e liberar NF"}
+              <button
+                type="button"
+                onClick={onComplete}
+                disabled={!allScanned || completeMutation.isPending}
+                className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-emerald-300 bg-emerald-50 px-4 text-sm font-extrabold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {completeMutation.isPending ? "Concluindo…" : "Concluir conferência e liberar NF"}
               </button>
             </>
           )}
 
           {complete && (
             <p className="mt-5 rounded-2xl bg-emerald-100 p-4 text-sm font-bold text-emerald-900">
-              Conferência concluída por {dispatch.completed_by_name || "Usuário da operação"} em {formatDate(dispatch.completed_at)}. A emissão da NF está liberada.
+              Conferência concluída por {dispatch.completed_by_name || "Usuário da operação"} em{" "}
+              {formatDate(dispatch.completed_at)}. A emissão da NF está liberada.
             </p>
           )}
         </>
       )}
 
-      {error && !detail.isError && <p role="alert" className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm text-rose-800">{(error as Error).message}</p>}
+      {error && !detail.isError && (
+        <p role="alert" className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm text-rose-800">
+          {(error as Error).message}
+        </p>
+      )}
     </section>
   );
 }
 
-function SectionCard({ icon: Icon, eyebrow, title, children }: { icon: typeof ShoppingBag; eyebrow: string; title: string; children: React.ReactNode }) {
+function SectionCard({
+  icon: Icon,
+  eyebrow,
+  title,
+  children,
+}: {
+  icon: typeof ShoppingBag;
+  eyebrow: string;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className="overflow-hidden rounded-3xl border border-border/70 bg-card shadow-sm">
       <div className="flex items-center gap-3 border-b border-border/60 bg-gradient-to-r from-violet-500/8 via-blue-500/5 to-transparent px-5 py-4">
-        <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-violet-100 text-violet-700"><Icon className="h-5 w-5" aria-hidden="true" /></span>
+        <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-violet-100 text-violet-700">
+          <Icon className="h-5 w-5" aria-hidden="true" />
+        </span>
         <div className="min-w-0">
           <p className="text-[10px] font-extrabold tracking-wider text-violet-700">{eyebrow}</p>
           <h2 className="truncate font-display text-lg font-extrabold">{title}</h2>
@@ -598,9 +890,23 @@ function SectionCard({ icon: Icon, eyebrow, title, children }: { icon: typeof Sh
 }
 
 function ValueRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return <div className={`flex items-center justify-between gap-4 ${strong ? "pt-2 text-base font-extrabold" : "text-muted-foreground"}`}><span>{label}</span><span>{value}</span></div>;
+  return (
+    <div
+      className={`flex items-center justify-between gap-4 ${
+        strong ? "pt-2 text-base font-extrabold" : "text-muted-foreground"
+      }`}
+    >
+      <span>{label}</span>
+      <span>{value}</span>
+    </div>
+  );
 }
 
 function InfoLine({ icon: Icon, value }: { icon: typeof Mail; value: string }) {
-  return <div className="flex items-start gap-2"><Icon className="mt-0.5 h-4 w-4 shrink-0 text-violet-600" aria-hidden="true" /><span className="break-all text-muted-foreground">{value}</span></div>;
+  return (
+    <div className="flex items-start gap-2">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-violet-600" aria-hidden="true" />
+      <span className="break-all text-muted-foreground">{value}</span>
+    </div>
+  );
 }
