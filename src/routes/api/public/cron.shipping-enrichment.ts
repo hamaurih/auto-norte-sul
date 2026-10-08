@@ -29,8 +29,8 @@ async function handle(request: Request) {
   const provided = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
   if (!await isAuthorizedCronToken(provided)) return Response.json({ ok: false, error: "Não autorizado" }, { status: 401 });
   try {
-    const { runShippingEnrichmentAutopilot } = await import("@/lib/shipping-enrichment-autopilot.server");
-    const result = await runShippingEnrichmentAutopilot();
+    const { runShippingEnrichmentAutopilotV2 } = await import("@/lib/shipping-enrichment-autopilot-v2.server");
+    const result = await runShippingEnrichmentAutopilotV2();
     return Response.json(result, { status: result.ok ? 200 : 207 });
   } catch (error) {
     return Response.json({ ok: false, error: error instanceof Error ? error.message : "Erro inesperado no worker" }, { status: 500 });
