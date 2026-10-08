@@ -175,6 +175,13 @@ export const adminModules: AdminModule[] = [
         adminOnly: true,
       },
       {
+        to: "/admin/enriquecimento-frete",
+        label: "Peso e medidas",
+        description: "Completar dados para cálculo de frete",
+        icon: PackageSearch,
+        adminOnly: true,
+      },
+      {
         to: "/admin/catalogo-fabricantes",
         label: "Catálogo de fabricantes",
         description: "Fontes oficiais e regras de códigos",
