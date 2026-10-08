@@ -134,7 +134,7 @@ export const approveShippingMeasurementCandidate = createServerFn({ method: "POS
   .handler(async ({ data, context }) => {
     const sb = tdb(context.supabase);
     await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_APPROVE_ROLES);
-    const { data: result, error } = await (sb as any).rpc("approve_product_enrichment_candidate", {
+    const { data: result, error } = await (sb as any).rpc("approve_shipping_enrichment_candidate", {
       p_candidate_id: data.candidateId,
     });
     if (error) throw new Error(error.message);
