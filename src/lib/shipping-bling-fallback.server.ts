@@ -109,6 +109,17 @@ function extractMeasurements(payload: unknown): Measurements | null {
   };
 }
 
+async function safeDiagnostic(admin: any, tenantId: string, jobId: string, previous: string | undefined, diagnostic: string) {
+  const prefix = String(previous ?? "").trim();
+  const lastError = (prefix ? `${prefix} | ${diagnostic}` : diagnostic).slice(0, 900);
+  await admin
+    .from("product_enrichment_jobs")
+    .update({ last_error: lastError })
+    .eq("tenant_id", tenantId)
+    .eq("id", jobId)
+    .in("status", ["queued", "processing", "failed"]);
+}
+
 async function refreshToken(admin: any, tenantId: string) {
   const { data: cfg, error } = await admin
     .from("bling_config")
@@ -181,23 +192,38 @@ export async function tryBlingShippingMeasurement(admin: any, tenantId: string, 
     height_cm?: number | null;
   } | null;
   const blingId = String(product?.bling_id ?? "").trim();
-  if (!blingId) return null;
+  if (!blingId) {
+    await safeDiagnostic(admin, tenantId, job.id, result.reason, "Bling: produto sem ID de origem");
+    return null;
+  }
 
   let token: string | null = null;
-  try { token = await refreshToken(admin, tenantId); } catch { return null; }
-  if (!token) return null;
+  try { token = await refreshToken(admin, tenantId); } catch { token = null; }
+  if (!token) {
+    await safeDiagnostic(admin, tenantId, job.id, result.reason, "Bling: integração indisponível para consulta");
+    return null;
+  }
 
   let original: unknown;
-  try { original = await getProduct(token, blingId); } catch { return null; }
-  if (!original) return null;
+  try { original = await getProduct(token, blingId); } catch { original = null; }
+  if (!original) {
+    await safeDiagnostic(admin, tenantId, job.id, result.reason, "Bling: cadastro original não pôde ser consultado");
+    return null;
+  }
   const measurement = extractMeasurements(original);
-  if (!measurement) return null;
+  if (!measurement) {
+    await safeDiagnostic(admin, tenantId, job.id, result.reason, "Bling: cadastro original consultado, sem peso/medidas detectáveis");
+    return null;
+  }
 
   const suggestedWeight = product?.weight_kg && Number(product.weight_kg) > 0 ? null : measurement.weightKg;
   const suggestedLength = product?.length_cm && Number(product.length_cm) > 0 ? null : measurement.lengthCm;
   const suggestedWidth = product?.width_cm && Number(product.width_cm) > 0 ? null : measurement.widthCm;
   const suggestedHeight = product?.height_cm && Number(product.height_cm) > 0 ? null : measurement.heightCm;
-  if (![suggestedWeight, suggestedLength, suggestedWidth, suggestedHeight].some((value) => value != null)) return null;
+  if (![suggestedWeight, suggestedLength, suggestedWidth, suggestedHeight].some((value) => value != null)) {
+    await safeDiagnostic(admin, tenantId, job.id, result.reason, "Bling: medidas já preenchidas no cadastro atual");
+    return null;
+  }
 
   const { data: candidate, error: candidateError } = await admin
     .from("product_enrichment_candidates")
@@ -236,7 +262,10 @@ export async function tryBlingShippingMeasurement(admin: any, tenantId: string, 
     })
     .select("id")
     .single();
-  if (candidateError || !candidate?.id) return null;
+  if (candidateError || !candidate?.id) {
+    await safeDiagnostic(admin, tenantId, job.id, result.reason, "Bling: medidas encontradas, mas a sugestão não pôde ser criada");
+    return null;
+  }
 
   const { error: updateError } = await admin
     .from("product_enrichment_jobs")
