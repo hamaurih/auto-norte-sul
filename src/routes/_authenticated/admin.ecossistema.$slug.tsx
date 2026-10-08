@@ -109,11 +109,18 @@ const specs: Record<string, IntegrationSpec> = {
     ],
   },
   "melhor-envio": {
+    intro: "Cotação de frete, emissão de etiquetas e rastreio pelo Melhor Envio. O token é usado somente pelo servidor e nunca é exibido novamente.",
     fields: [
-      { key: "client_id", label: "Client ID" },
-      { key: "client_secret", label: "Client Secret", type: "password", is_secret: true },
-      { key: "cep_origem", label: "CEP de origem" },
+      { key: "access_token", label: "Access Token", type: "password", is_secret: true, help: "Token gerado no Melhor Envio. Cole aqui para autorizar a conexão; ele não ficará visível após salvar." },
+      { key: "refresh_token", label: "Refresh Token (opcional)", type: "password", is_secret: true, help: "Necessário quando a autenticação OAuth emitir refresh token; permite renovar o acesso sem interromper as cotações." },
+      { key: "environment", label: "Ambiente", placeholder: "production ou sandbox", help: "Use sandbox apenas para testes com a conta sandbox do Melhor Envio." },
+      { key: "cep_origem", label: "CEP de origem", placeholder: "58400-000", help: "CEP do local de postagem da Norte Sul." },
     ],
+    syncActions: [
+      { scope: "testar-conexao", label: "Testar conexão" },
+      { scope: "sincronizar-rastreios", label: "Sincronizar rastreios" },
+    ],
+    warning: "Salve o token e o CEP de origem. Só ative após o teste de conexão retornar sucesso.",
   },
   "mercado-pago": {
     fields: [
