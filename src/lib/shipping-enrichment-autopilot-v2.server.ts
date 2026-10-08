@@ -1,6 +1,7 @@
 import { tdb } from "@/integrations/supabase/tenant-db";
 import { runShippingEnrichmentAutopilot, type ShippingEnrichmentAutopilotResult } from "./shipping-enrichment-autopilot.server";
 import { tryOfficialNameCodeMeasurement } from "./shipping-official-measurement-fallback.server";
+import { tryGs1ShippingMeasurement } from "./shipping-gs1-fallback.server";
 
 export async function runShippingEnrichmentAutopilotV2(): Promise<ShippingEnrichmentAutopilotResult> {
   const result = await runShippingEnrichmentAutopilot();
@@ -13,12 +14,13 @@ export async function runShippingEnrichmentAutopilotV2(): Promise<ShippingEnrich
       if (!["requeued", "failed", "skipped"].includes(current.status)) continue;
 
       const official = await tryOfficialNameCodeMeasurement(admin, tenant.tenantId, current);
-      if (!official) continue;
+      const improved = official ?? await tryGs1ShippingMeasurement(admin, tenant.tenantId, current);
+      if (!improved) continue;
 
       if (current.status === "requeued") tenant.requeued = Math.max(0, tenant.requeued - 1);
       if (current.status === "failed" || current.status === "skipped") tenant.failed = Math.max(0, tenant.failed - 1);
       tenant.review += 1;
-      tenant.details[index] = official;
+      tenant.details[index] = improved;
     }
   }
 
