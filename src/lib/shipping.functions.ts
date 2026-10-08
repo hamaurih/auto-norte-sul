@@ -38,8 +38,9 @@ export const listShippingQueue = createServerFn({ method: "GET" })
     const sb = context.supabase as any;
     const { data: orders, error: ordersError } = await sb
       .from("orders")
-      .select("id, status, customer_name, customer_email, shipping_city, shipping_state, total, created_at")
+      .select("id, status, fulfillment_type, customer_name, customer_email, shipping_city, shipping_state, total, created_at")
       .eq("tenant_id", context.tenantId)
+      .eq("fulfillment_type", "delivery")
       .in("status", ["pago", "faturado", "enviado", "entregue"])
       .order("created_at", { ascending: true });
 
@@ -71,13 +72,16 @@ export const saveShipment = createServerFn({ method: "POST" })
     const sb = context.supabase as any;
     const { data: order, error: orderError } = await sb
       .from("orders")
-      .select("id")
+      .select("id, fulfillment_type")
       .eq("id", data.orderId)
       .eq("tenant_id", context.tenantId)
       .maybeSingle();
 
     if (orderError) throw new Error(orderError.message);
     if (!order) throw new Error("Pedido não encontrado.");
+    if (order.fulfillment_type === "pickup") {
+      throw new Error("Pedido para retirada em loja não deve gerar expedição por transportadora.");
+    }
 
     const payload = {
       tenant_id: context.tenantId,
@@ -169,7 +173,9 @@ export const addShipmentOccurrence = createServerFn({ method: "POST" })
   }) => input)
   .handler(async ({ data, context }) => {
     const description = data.description.trim();
-    if (!description || description.length > 1000) throw new Error("Informe uma descrição com até 1.000 caracteres.");
+    if (!description || description.length > 1000) {
+      throw new Error("Informe uma descrição com até 1.000 caracteres.");
+    }
 
     const sb = context.supabase as any;
     const { data: shipment, error } = await sb
@@ -181,7 +187,12 @@ export const addShipmentOccurrence = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     if (!shipment) throw new Error("Expedição não encontrada.");
 
-    const nextStatus = data.type === "devolucao" ? "devolvido" : data.type === "observacao" ? shipment.status : "ocorrencia";
+    const nextStatus =
+      data.type === "devolucao"
+        ? "devolvido"
+        : data.type === "observacao"
+          ? shipment.status
+          : "ocorrencia";
     if (nextStatus !== shipment.status) {
       const { error: updateError } = await sb
         .from("shipments")
