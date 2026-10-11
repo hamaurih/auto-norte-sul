@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { activeTenant, fetchAccessContext } from "@/lib/access";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -39,11 +40,7 @@ import {
   reprocessBlingLog,
   revokeBlingConnection,
   sendPendingOrders,
-  syncBlingCustomers,
   syncBlingImages,
-  syncBlingPrices,
-  syncBlingProducts,
-  syncBlingStock,
   testBlingConnection,
   updateBlingConfig,
 } from "@/lib/bling.functions";
@@ -107,11 +104,7 @@ function BlingModule() {
   const updateFn = useServerFn(updateBlingConfig);
   const reprocessFn = useServerFn(reprocessBlingLog);
 
-  const syncProducts = useServerFn(syncBlingProducts);
   const syncImages = useServerFn(syncBlingImages);
-  const syncStock = useServerFn(syncBlingStock);
-  const syncPrices = useServerFn(syncBlingPrices);
-  const syncCustomers = useServerFn(syncBlingCustomers);
   const sendOrders = useServerFn(sendPendingOrders);
 
   const status = useQuery({ queryKey: ["bling-status"], queryFn: () => statusFn() });
@@ -422,24 +415,23 @@ function BlingModule() {
 
         {/* ============ PRODUTOS ============ */}
         <TabsContent value="produtos" className="mt-4">
-          <SyncCard
-            title="Produtos"
-            description="Importa o catálogo do Bling e mantém sincronizado."
-            lastSync={cfg?.updated_at}
-            stats={[
-              { label: "Total de logs", value: stats.data?.total ?? 0 },
-              { label: "Com erro", value: stats.data?.errors ?? 0 },
-              { label: "Pendentes", value: stats.data?.pending ?? 0 },
-            ]}
-            actionLabel="Sincronizar produtos"
-            onSync={runSync(syncProducts, "Produtos")}
-            pending={busy === "Produtos"}
-          >
+          <Card>
+            <CardHeader>
+              <p className="text-sm font-semibold">Produtos</p>
+              <p className="text-xs text-muted-foreground">O catálogo é mantido pelo ERP Norte Sul.</p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Alert>
+                <AlertDescription className="text-xs">
+                  A importação de produtos pelo Bling está bloqueada para evitar sobrescrita de cadastros do ERP.
+                </AlertDescription>
+              </Alert>
             <ErrorList
               logs={(logs.data ?? []).filter((l) => l.entity === "produto" && l.status === "erro")}
               onReprocess={(id) => reprocessMut.mutate(id)}
             />
-          </SyncCard>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ============ IMAGENS ============ */}
@@ -504,14 +496,17 @@ function BlingModule() {
 
         {/* ============ ESTOQUE ============ */}
         <TabsContent value="estoque" className="mt-4">
-          <SyncCard
-            title="Estoque"
-            description="Atualiza saldos e status de disponibilidade."
-            lastSync={null}
-            actionLabel="Sincronizar estoque"
-            onSync={runSync(syncStock, "Estoque")}
-            pending={busy === "Estoque"}
-          >
+          <Card>
+            <CardHeader>
+              <p className="text-sm font-semibold">Estoque</p>
+              <p className="text-xs text-muted-foreground">Os saldos e a disponibilidade são mantidos pelo ERP Norte Sul.</p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Alert>
+                <AlertDescription className="text-xs">
+                  A atualização de estoque pelo Bling está bloqueada para preservar a posição operacional do ERP.
+                </AlertDescription>
+              </Alert>
             <div className="flex items-center justify-between rounded border border-border p-3">
               <div>
                 <p className="text-sm font-medium">Produto sem estoque fica oculto</p>
@@ -526,25 +521,23 @@ function BlingModule() {
               logs={(logs.data ?? []).filter((l) => l.entity === "estoque" && l.status === "erro")}
               onReprocess={(id) => reprocessMut.mutate(id)}
             />
-          </SyncCard>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ============ PREÇOS ============ */}
         <TabsContent value="precos" className="mt-4">
-          <SyncCard
-            title="Preços"
-            description="Bling controla preços B2C. Preço B2B e promoções continuam no site."
-            lastSync={null}
-            actionLabel="Sincronizar preços"
-            onSync={runSync(syncPrices, "Preços")}
-            pending={busy === "Preços"}
-          >
-            <Toggle
-              label="Bling controla preço B2C"
-              help="Preços vindos do Bling atualizam a vitrine B2C."
-              checked={!!cfg?.source_price_b2c}
-              onChange={(v) => configMut.mutate({ source_price_b2c: v })}
-            />
+          <Card>
+            <CardHeader>
+              <p className="text-sm font-semibold">Preços</p>
+              <p className="text-xs text-muted-foreground">A formação de preços é mantida pelo ERP Norte Sul.</p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Alert>
+                <AlertDescription className="text-xs">
+                  A atualização de preços pelo Bling está bloqueada para proteger regras comerciais, promoções e tabelas B2B.
+                </AlertDescription>
+              </Alert>
             <Toggle
               label="Preço manual do site pode sobrescrever preço do Bling"
               help="Quando ligado, alterações manuais no admin prevalecem até a próxima edição no Bling."
@@ -560,7 +553,8 @@ function BlingModule() {
               logs={(logs.data ?? []).filter((l) => l.entity === "preco" && l.status === "erro")}
               onReprocess={(id) => reprocessMut.mutate(id)}
             />
-          </SyncCard>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ============ PEDIDOS ============ */}
@@ -582,19 +576,23 @@ function BlingModule() {
 
         {/* ============ CLIENTES ============ */}
         <TabsContent value="clientes" className="mt-4">
-          <SyncCard
-            title="Clientes"
-            description="Novos cadastros do site são enviados ao Bling; atualizações são propagadas."
-            lastSync={null}
-            actionLabel="Sincronizar clientes"
-            onSync={runSync(syncCustomers, "Clientes")}
-            pending={busy === "Clientes"}
-          >
+          <Card>
+            <CardHeader>
+              <p className="text-sm font-semibold">Clientes</p>
+              <p className="text-xs text-muted-foreground">Os cadastros são mantidos pelo ERP Norte Sul e enviados ao Bling quando necessário.</p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Alert>
+                <AlertDescription className="text-xs">
+                  A importação de clientes pelo Bling está bloqueada para evitar conflito de cadastros e dados comerciais.
+                </AlertDescription>
+              </Alert>
             <ErrorList
               logs={(logs.data ?? []).filter((l) => l.entity === "cliente" && l.status === "erro")}
               onReprocess={(id) => reprocessMut.mutate(id)}
             />
-          </SyncCard>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ============ LOGS ============ */}
@@ -700,14 +698,11 @@ function BlingModule() {
             <CardHeader>
               <p className="text-sm font-semibold">Regras estratégicas</p>
               <p className="text-xs text-muted-foreground">
-                Define quais dados o Bling controla. B2B, promoções e cupons são sempre do site.
+                Define o comportamento da integração. B2B, promoções e cupons são sempre do ERP.
               </p>
             </CardHeader>
             <CardContent className="space-y-3">
               <Toggle label="Integração ativa" checked={!!cfg?.active} onChange={(v) => configMut.mutate({ active: v })} />
-              <Toggle label="Bling é fonte principal de produtos" checked={!!cfg?.source_products} onChange={(v) => configMut.mutate({ source_products: v })} />
-              <Toggle label="Bling é fonte principal de estoque" checked={!!cfg?.source_stock} onChange={(v) => configMut.mutate({ source_stock: v })} />
-              <Toggle label="Bling é fonte principal de preço B2C" checked={!!cfg?.source_price_b2c} onChange={(v) => configMut.mutate({ source_price_b2c: v })} />
               <Toggle label="Sincronização automática" help="Se desligado, apenas sincronização manual." checked={!!cfg?.auto_sync} onChange={(v) => configMut.mutate({ auto_sync: v })} />
               <div className="flex items-center gap-3">
                 <Label className="min-w-[220px] text-sm">Intervalo (minutos)</Label>

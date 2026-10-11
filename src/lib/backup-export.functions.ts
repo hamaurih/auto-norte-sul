@@ -120,7 +120,7 @@ async function exportRows(sb: ReturnType<typeof tdb>, input: ExportInput) {
       );
     const { data, error } = await query;
     if (error) throw new Error(error.message);
-    rows.push(...((data ?? []) as Record<string, unknown>[]));
+    rows.push(...((data ?? []) as unknown as Record<string, unknown>[]));
     if (!data || data.length < pageSize) return rows;
   }
   throw new Error("A exportação ultrapassou 50.000 registros. Reduza o período.");

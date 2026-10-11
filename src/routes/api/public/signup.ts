@@ -1,6 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseUrl, supabasePublishableKey } from "@/integrations/supabase/env";
 import { DEFAULT_TENANT_SLUG } from "@/integrations/supabase/tenant";
+import {
+  clearPublicAuthFailures,
+  getPublicAuthRateLimit,
+  recordPublicAuthFailure,
+} from "@/lib/public-auth-rate-limit.server";
 
 function json(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
@@ -37,6 +42,29 @@ export const Route = createFileRoute("/api/public/signup")({
 
         try {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const serverCredential = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.AUTH_RATE_LIMIT_PEPPER;
+          if (!serverCredential || serverCredential.length < 32) {
+            console.error("[Signup] server credential ausente.");
+            return json(503, { error: "Cadastro temporariamente indisponível." });
+          }
+          const rateLimit = await getPublicAuthRateLimit(supabaseAdmin as any, request, email, serverCredential);
+          if (rateLimit.blocked) {
+            return new Response(
+              JSON.stringify({
+                error: "Muitas tentativas de cadastro. Aguarde alguns minutos antes de tentar novamente.",
+                retry_after_seconds: rateLimit.retryAfterSeconds,
+              }),
+              {
+                status: 429,
+                headers: {
+                  "Content-Type": "application/json; charset=utf-8",
+                  "Cache-Control": "no-store, max-age=0",
+                  "Retry-After": String(rateLimit.retryAfterSeconds),
+                  "X-Content-Type-Options": "nosniff",
+                },
+              },
+            );
+          }
           const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
             email,
             password,
@@ -45,11 +73,16 @@ export const Route = createFileRoute("/api/public/signup")({
           });
           if (createError || !created.user) {
             const message = createError?.message ?? "Não foi possível criar a conta.";
+            if (/already been registered|already registered|weak and easy to guess|password.*weak/i.test(message)) {
+              await recordPublicAuthFailure(supabaseAdmin as any, rateLimit);
+            }
             if (/already been registered|already registered/i.test(message)) return json(409, { error: "Este e-mail já possui uma conta. Tente entrar." });
             if (/weak and easy to guess|password.*weak/i.test(message)) return json(422, { error: "Esta senha é muito comum ou já foi exposta. Escolha outra para proteger sua conta." });
             console.error("[Signup] create user failed", message);
             return json(400, { error: "Não foi possível criar a conta. Revise os dados e tente novamente." });
           }
+
+          await clearPublicAuthFailures(supabaseAdmin as any, rateLimit.identifierHash);
 
           // A conta criada na vitrine é vinculada à carteira do tenant atual.
           // Falhas de cadastro comercial não impedem a criação da conta de compra.

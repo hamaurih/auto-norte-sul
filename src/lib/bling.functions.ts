@@ -412,9 +412,6 @@ export const updateBlingConfig = createServerFn({ method: "POST" })
     sync_interval_minutes?: number;
     sync_prices?: boolean;
     sync_stock?: boolean;
-    source_products?: boolean;
-    source_stock?: boolean;
-    source_price_b2c?: boolean;
     hide_out_of_stock?: boolean;
     image_overwrites_manual?: boolean;
     manual_price_overrides?: boolean;
@@ -431,9 +428,6 @@ export const updateBlingConfig = createServerFn({ method: "POST" })
       "auto_sync",
       "sync_prices",
       "sync_stock",
-      "source_products",
-      "source_stock",
-      "source_price_b2c",
       "hide_out_of_stock",
       "image_overwrites_manual",
       "manual_price_overrides",

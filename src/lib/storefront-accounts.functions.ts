@@ -6,6 +6,18 @@ import { requireTenantRole } from "@/lib/auth-guards";
 
 const accountIdSchema = z.object({ customer_id: z.string().uuid() });
 const accessSchema = accountIdSchema.extend({ active: z.boolean() });
+type StorefrontAccount = {
+  id: string;
+  user_id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+  last_sign_in_at: string | null;
+  banned_until: string | null;
+};
 
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -49,15 +61,19 @@ export const listStorefrontAccounts = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
 
-    const accounts = [] as Array<Record<string, unknown>>;
+    const accounts: StorefrontAccount[] = [];
     for (const customer of data ?? []) {
       const { data: userResult, error: userError } = await sb.auth.admin.getUserById(customer.user_id as string);
       if (userError || !userResult.user) continue;
       const user = userResult.user;
       accounts.push({
-        ...customer,
+        id: customer.id,
+        user_id: customer.user_id as string,
+        name: customer.name,
         email: user.email ?? customer.email,
+        phone: customer.phone ?? null,
         created_at: user.created_at ?? customer.created_at,
+        updated_at: customer.updated_at,
         last_sign_in_at: user.last_sign_in_at ?? null,
         banned_until: user.banned_until ?? null,
         active: Boolean(customer.active) && !user.banned_until,
