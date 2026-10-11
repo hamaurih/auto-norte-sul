@@ -1,0 +1,124 @@
+name: Production Deployment Gate
+
+on:
+  repository_dispatch:
+    types: [vercel.deployment.ready]
+
+permissions:
+  actions: read
+  contents: read
+  statuses: write
+
+concurrency:
+  group: production-deployment-gate-${{ github.event.client_payload.git.sha }}
+  cancel-in-progress: false
+
+jobs:
+  production-ci:
+    name: "Vercel - auto-norte-sul: production-ci"
+    if: >-
+      github.event.client_payload.environment == 'production' &&
+      github.event.client_payload.project.id == 'prj_NcWMC94zIWArFzz6gBDUiUa1ZFR4'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      # This action registers a commit status for the SHA Vercel deployed and
+      # updates it with this job's final result. Vercel uses it as a blocking
+      # Deployment Check before assigning production aliases.
+      - name: Notify Vercel
+        uses: vercel/repository-dispatch/actions/status@v1
+        with:
+          name: "Vercel - auto-norte-sul: production-ci"
+
+      # repository_dispatch runs from the default branch, so this must check
+      # out the SHA carried by Vercel's deployment event.
+      - name: Checkout deployed commit
+        uses: vercel/repository-dispatch/actions/checkout@v1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: API security gate
+        run: |
+          node scripts/check-api-security.mjs
+          test -f supabase/migrations/20260829160000_auth_api_pii_hardening.sql
+          grep -F 'auth_login_attempts_deny_clients' supabase/migrations/20260829160000_auth_api_pii_hardening.sql
+          grep -F 'norte_sul_user_pii_master_key_v1' supabase/migrations/20260829160000_auth_api_pii_hardening.sql
+          grep -F 'get_my_private_profile' supabase/migrations/20260829160000_auth_api_pii_hardening.sql
+          test -f supabase/migrations/20260829163000_secure_oauth_state_store.sql
+          grep -F 'oauth_authorization_states_deny_clients' supabase/migrations/20260829163000_secure_oauth_state_store.sql
+          grep -F 'consumed_at' supabase/migrations/20260829163000_secure_oauth_state_store.sql
+
+      - name: Quality gate
+        env:
+          NITRO_PRESET: vercel
+        run: |
+          bun run build
+          bunx tsc --noEmit
+          git diff --exit-code bun.lock
+          test -f supabase/manual/20260814020000_supplies_module.sql
+          test -f supabase/manual/20260815000000_product_code_normalization.sql
+          test -f supabase/manual/20260815010000_product_code_audit_compatibility.sql
+          test -f supabase/manual/20260817000000_intelligent_replenishment.sql
+          test -f supabase/manual/20260818000000_purchasing_commercial_intelligence.sql
+          test -f supabase/migrations/20260825090000_fiscal_foundation.sql
+          test -f supabase/migrations/20260825091000_fiscal_management_policies.sql
+          test -f supabase/migrations/20260825140000_fiscal_homologation_gateway.sql
+          test -f supabase/migrations/20260829143000_phase0_security_containment.sql
+          test -f supabase/tests/phase0_tenant_isolation.sql
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' supabase
+          ! test -f .env
+          ! git ls-files --error-unmatch .env >/dev/null 2>&1
+          ! grep -R -n -F 'inviteUserByEmail' src
+          grep -F 'has_any_active_tenant_membership' supabase/migrations/20260829143000_phase0_security_containment.sql
+          grep -F 'changed_count <> 80' supabase/migrations/20260829143000_phase0_security_containment.sql
+          grep -F 'commission_pct' supabase/migrations/20260829143000_phase0_security_containment.sql
+          grep -F 'PHASE0 FAIL: vendedor leu dados do tenant demo' supabase/tests/phase0_tenant_isolation.sql
+          grep -F 'PHASE0 FAIL: consulta leu dados do tenant demo' supabase/tests/phase0_tenant_isolation.sql
+          grep -F 'PHASE0 FAIL: gerente demo leu o tenant real' supabase/tests/phase0_tenant_isolation.sql
+          grep -F 'PHASE0 FAIL: externo leu outro tenant' supabase/tests/phase0_tenant_isolation.sql
+
+      - name: Phase 1 ERP core gate
+        run: |
+          node scripts/check-phase1-core.mjs
+          test -f supabase/migrations/20260829173000_phase1_single_erp_core.sql
+          grep -F "products_source text NOT NULL DEFAULT 'erp'" supabase/migrations/20260829173000_phase1_single_erp_core.sql
+          grep -F "stock_source text NOT NULL DEFAULT 'product_stock'" supabase/migrations/20260829173000_phase1_single_erp_core.sql
+          grep -F "CREATE TABLE IF NOT EXISTS public.external_entity_mappings" supabase/migrations/20260829173000_phase1_single_erp_core.sql
+          grep -F "CREATE TABLE IF NOT EXISTS public.integration_events" supabase/migrations/20260829173000_phase1_single_erp_core.sql
+
+      - name: Stage deterministic Phase 0 migrations
+        run: |
+          mv supabase/migrations /tmp/norte-sul-all-migrations
+          mkdir -p supabase/migrations
+          cp supabase/tests/fixtures/phase0_baseline.sql supabase/migrations/20260829140000_phase0_baseline.sql
+          cp /tmp/norte-sul-all-migrations/20260829143000_phase0_security_containment.sql supabase/migrations/20260829143000_phase0_security_containment.sql
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start isolated local Supabase
+        run: supabase start
+
+      - name: Phase 0 database gate
+        run: supabase test db supabase/tests/phase0_tenant_isolation.sql
+
+      - name: Stop local Supabase
+        if: always()
+        run: |
+          if command -v supabase >/dev/null 2>&1; then
+            supabase stop --no-backup || true
+          fi

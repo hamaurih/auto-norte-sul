@@ -7,6 +7,9 @@ const allowedPublic = new Set([
   join("public", "login.ts"),
   join("public", "bling.callback.ts"),
   join("public", "cron.enrichment.ts"),
+  join("public", "cron.shipping-enrichment.ts"),
+  join("public", "asaas.webhook.ts"),
+  join("public", "signup.ts"),
   join("public", "stone.conciliation.webhook.ts"),
 ]);
 
@@ -71,6 +74,42 @@ if (
   !enrichmentCron.includes("status: 401")
 ) {
   failures.push("cron enrichment: autenticação server-side obrigatória ausente ou enfraquecida");
+}
+
+const shippingCron = readFileSync(join(root, "public", "cron.shipping-enrichment.ts"), "utf8");
+if (
+  !shippingCron.includes("isAuthorizedCronToken") ||
+  !shippingCron.includes("timingSafeEqual") ||
+  !shippingCron.includes("CRON_SECRET") ||
+  !shippingCron.includes("verify_enrichment_cron_token") ||
+  !shippingCron.includes('headers.get("authorization")') ||
+  !shippingCron.includes("status: 401")
+) {
+  failures.push("cron shipping enrichment: autenticação server-side obrigatória ausente ou enfraquecida");
+}
+
+const asaasWebhook = readFileSync(join(root, "public", "asaas.webhook.ts"), "utf8");
+const asaasPayments = readFileSync(join(process.cwd(), "src", "lib", "asaas-payments.server.ts"), "utf8");
+if (
+  !asaasWebhook.includes("processAsaasWebhook") ||
+  !asaasWebhook.includes("rawBody") ||
+  !asaasPayments.includes("asaas-access-token") ||
+  !asaasPayments.includes("timingSafeEqual") ||
+  !asaasPayments.includes("internal_apply_payment_webhook") ||
+  !asaasPayments.includes("Valor Asaas diverge do pedido")
+) {
+  failures.push("Asaas webhook: autenticação, reconciliação remota ou validação de valor ausente");
+}
+
+const signup = readFileSync(join(root, "public", "signup.ts"), "utf8");
+if (
+  !signup.includes("getPublicAuthRateLimit") ||
+  !signup.includes("recordPublicAuthFailure") ||
+  !signup.includes("clearPublicAuthFailures") ||
+  !signup.includes("SUPABASE_SERVICE_ROLE_KEY") ||
+  !signup.includes("Retry-After")
+) {
+  failures.push("signup: rate limit server-side obrigatório ausente ou enfraquecido");
 }
 
 // Public by design: provider webhooks cannot use a user session. Conciliation

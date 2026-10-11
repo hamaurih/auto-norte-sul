@@ -4,16 +4,16 @@ import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 import { tdb } from "@/integrations/supabase/tenant-db";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-async function financeRoles(sb: any, userId: string, tenantId: string) {
+async function financeRoles(sb: any, userId: string, tenantId: string): Promise<string[]> {
   const { data, error } = await sb.from("tenant_memberships").select("role").eq("tenant_id", tenantId).eq("user_id", userId).eq("active", true);
   if (error) throw new Error(error.message);
   return (data ?? []).map((r: any) => r.role as string);
 }
 async function requireFinanceAdmin(sb: any, userId: string, tenantId: string) {
-  if (!(await financeRoles(sb,userId,tenantId)).some((role) => ["owner","admin","manager","finance"].includes(role))) throw new Error("Usuário sem permissão financeira");
+  if (!(await financeRoles(sb,userId,tenantId)).some((role: string) => ["owner","admin","manager","finance"].includes(role))) throw new Error("Usuário sem permissão financeira");
 }
 async function requirePaymentApprover(sb: any, userId: string, tenantId: string) {
-  if (!(await financeRoles(sb,userId,tenantId)).some((role) => ["owner","admin"].includes(role))) throw new Error("Somente administrador pode aprovar pagamentos");
+  if (!(await financeRoles(sb,userId,tenantId)).some((role: string) => ["owner","admin"].includes(role))) throw new Error("Somente administrador pode aprovar pagamentos");
 }
 export const getFinancialSetup = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const sb = tdb(context.supabase); await requireFinanceAdmin(sb, context.userId, context.tenantId);
@@ -46,7 +46,7 @@ export const getPayables = createServerFn({ method: "GET" }).middleware([require
   (sb as any).from("financial_accounts").select("id,name,account_type,institution_name,account_identifier").eq("tenant_id",context.tenantId).eq("active",true).order("name"),
  ]);
  for(const result of [expenses,categories,centers,attachments,accounts]) if(result.error) throw new Error(result.error.message);
- return { expenses:expenses.data??[], categories:categories.data??[], centers:centers.data??[], attachments:attachments.data??[], accounts:accounts.data??[], canApprove:roles.some((role)=>["owner","admin"].includes(role)) };
+ return { expenses:expenses.data??[], categories:categories.data??[], centers:centers.data??[], attachments:attachments.data??[], accounts:accounts.data??[], canApprove:roles.some((role: string)=>["owner","admin"].includes(role)) };
 });
 const payableSchema=z.object({id:z.string().uuid().optional(),category_id:z.string().uuid(),cost_center_id:z.string().uuid(),description:z.string().trim().min(2).max(300),amount:z.number().positive().max(999999999),competence_date:z.string().date(),due_date:z.string().date(),supplier_name:z.string().trim().max(180).optional(),document_number:z.string().trim().max(100).optional(),notes:z.string().trim().max(2000).optional(),recurring:z.boolean().default(false),recurrence:z.enum(["monthly","weekly","yearly"]).optional(),installments:z.number().int().min(1).max(120).default(1)});
 const addMonths=(date:string,n:number)=>{const d=new Date(date+"T12:00:00");const day=d.getDate();d.setMonth(d.getMonth()+n);if(d.getDate()<day)d.setDate(0);return d.toISOString().slice(0,10);};

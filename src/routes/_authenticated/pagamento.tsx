@@ -68,16 +68,16 @@ function Pagamento() {
           <section className="mt-6 rounded-lg border border-primary/20 bg-primary/5 p-5">
             <h2 className="font-display text-xl font-bold uppercase">Boleto disponível</h2>
             <p className="mt-1 text-sm text-muted-foreground">{expires ? `Vencimento: ${expires}.` : "Utilize o boleto dentro do prazo informado."}</p>
-            {data.payment?.boleto_barcode && (
+            {data?.payment?.boleto_barcode && (
               <div className="mt-5">
                 <label className="text-xs font-bold uppercase text-muted-foreground">Linha digitável</label>
-                <div className="mt-1 rounded-md border border-border bg-background p-3 font-mono text-xs break-all">{data.payment.boleto_barcode}</div>
+                <div className="mt-1 rounded-md border border-border bg-background p-3 font-mono text-xs break-all">{data?.payment?.boleto_barcode}</div>
                 <button type="button" onClick={copyBarcode} className="mt-2 w-full rounded-md border border-primary px-4 py-3 text-sm font-bold text-primary hover:bg-primary/5">Copiar linha digitável</button>
               </div>
             )}
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              <a href={data.payment?.boleto_url ?? "#"} target="_blank" rel="noreferrer" className="rounded-md bg-primary px-4 py-3 text-center text-sm font-bold uppercase text-primary-foreground hover:brightness-110">Abrir ou baixar boleto</a>
-              <a href={data.payment?.boleto_url ?? "#"} target="_blank" rel="noreferrer" className="rounded-md border border-border px-4 py-3 text-center text-sm font-bold uppercase hover:bg-muted">Imprimir boleto</a>
+              <a href={data?.payment?.boleto_url ?? "#"} target="_blank" rel="noreferrer" className="rounded-md bg-primary px-4 py-3 text-center text-sm font-bold uppercase text-primary-foreground hover:brightness-110">Abrir ou baixar boleto</a>
+              <a href={data?.payment?.boleto_url ?? "#"} target="_blank" rel="noreferrer" className="rounded-md border border-border px-4 py-3 text-center text-sm font-bold uppercase hover:bg-muted">Imprimir boleto</a>
             </div>
             <p className="mt-3 text-xs text-muted-foreground">Para imprimir, abra o boleto e use a opção de impressão do navegador.</p>
           </section>

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { z } from "zod";
 import { CheckCircle2, Clock, XCircle, Zap, Store, Wrench, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { activeTenantSlug } from "@/integrations/supabase/tenant";
 import { useSession } from "@/lib/session";
 import { toast } from "sonner";
 
@@ -28,6 +29,18 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
+async function activeStorefrontTenantId(): Promise<string> {
+  const { data, error } = await supabase
+    .from("tenant_storefronts")
+    .select("tenant_id")
+    .eq("slug", activeTenantSlug())
+    .eq("active", true)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data?.tenant_id) throw new Error("A loja selecionada não está disponível para cadastro B2B.");
+  return data.tenant_id;
+}
+
 function B2BPage() {
   const { user, isB2BApproved } = useSession();
   const navigate = useNavigate();
@@ -45,8 +58,29 @@ function B2BPage() {
   });
 
   useEffect(() => {
-    if (!user) return;
-    supabase.from("b2b_registrations").select("status, created_at").eq("user_id", user.id).maybeSingle().then(({ data }) => setExisting(data));
+    if (!user) {
+      setExisting(null);
+      return;
+    }
+    let mounted = true;
+    void (async () => {
+      try {
+        const tenantId = await activeStorefrontTenantId();
+        const { data, error } = await supabase
+          .from("b2b_registrations")
+          .select("status, created_at")
+          .eq("tenant_id", tenantId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (error) throw error;
+        if (mounted) setExisting(data);
+      } catch (error) {
+        console.error("Falha ao carregar o cadastro B2B.", error);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
   }, [user?.id]);
 
   async function submit(e: React.FormEvent) {
@@ -61,20 +95,24 @@ function B2BPage() {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.from("b2b_registrations").insert({
-      user_id: user.id,
-      ...parsed.data,
-      nome_fantasia: parsed.data.nome_fantasia || null,
-      estado: parsed.data.estado || null,
-      volume_medio_compra: parsed.data.volume_medio_compra || null,
-    });
-    setLoading(false);
-    if (error) {
-      toast.error(error.message);
-      return;
+    try {
+      const tenantId = await activeStorefrontTenantId();
+      const { error } = await supabase.from("b2b_registrations").insert({
+        tenant_id: tenantId,
+        user_id: user.id,
+        ...parsed.data,
+        nome_fantasia: parsed.data.nome_fantasia || null,
+        estado: parsed.data.estado || null,
+        volume_medio_compra: parsed.data.volume_medio_compra || null,
+      });
+      if (error) throw error;
+      toast.success("Cadastro enviado! Nossa equipe analisa em até 1 dia útil.");
+      setExisting({ status: "pendente", created_at: new Date().toISOString() });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível enviar o cadastro B2B.");
+    } finally {
+      setLoading(false);
     }
-    toast.success("Cadastro enviado! Nossa equipe analisa em até 1 dia útil.");
-    setExisting({ status: "pendente", created_at: new Date().toISOString() });
   }
 
   return (

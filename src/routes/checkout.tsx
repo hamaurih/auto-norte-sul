@@ -356,7 +356,8 @@ function Checkout() {
         idempotencyKey.current = crypto.randomUUID();
       }
 
-      if (["pix", "cartao", "boleto"].includes(parsed.data.payment_method)) {
+      const paymentMethod = parsed.data.payment_method;
+      if (paymentMethod === "pix" || paymentMethod === "cartao" || paymentMethod === "boleto") {
         try {
           const payment = await createPaymentIntent({
             data: {
@@ -364,10 +365,10 @@ function Checkout() {
               idempotencyKey: crypto.randomUUID(),
               providerCode: "asaas",
               boletoDueDays:
-                parsed.data.payment_method === "boleto" ? parsed.data.boleto_due_days : undefined,
-              installments: parsed.data.payment_method === "cartao" ? card.installments : 1,
+                paymentMethod === "boleto" ? parsed.data.boleto_due_days : undefined,
+              installments: paymentMethod === "cartao" ? card.installments : 1,
               card:
-                parsed.data.payment_method === "cartao"
+                paymentMethod === "cartao"
                   ? {
                       holderName: card.holderName,
                       number: card.number,
@@ -378,7 +379,7 @@ function Checkout() {
                   : undefined,
             },
           });
-          if (parsed.data.payment_method === "cartao") {
+          if (paymentMethod === "cartao") {
             if (payment.status === "paid") {
               cartStore.clear();
               toast.success(
@@ -396,21 +397,21 @@ function Checkout() {
             return;
           }
           if (
-            parsed.data.payment_method === "pix" &&
+            paymentMethod === "pix" &&
             (!payment.pixQrCodeUrl || !payment.pixCopyPaste)
           ) {
             throw new Error(
               "A cobrança PIX foi criada, mas o QR Code ainda não está disponível. Tente novamente nesta tela.",
             );
           }
-          if (parsed.data.payment_method === "boleto") {
+          if (paymentMethod === "boleto") {
             cartStore.clear();
             window.location.assign(`/pagamento?pedido=${encodeURIComponent(orderId)}`);
             return;
           }
           cartStore.clear();
           setPaymentView({
-            method: parsed.data.payment_method,
+            method: paymentMethod,
             pixCopyPaste: payment.pixCopyPaste,
             pixQrCodeUrl: payment.pixQrCodeUrl,
             boletoUrl: payment.boletoUrl,

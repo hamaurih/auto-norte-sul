@@ -61,6 +61,7 @@ async function context(admin: AdminClient, tenantId: string): Promise<AsaasConte
       .eq("id", providerId).eq("tenant_id", tenantId);
     if (activateError) throw new Error(activateError.message);
   }
+  if (!providerId) throw new Error("O provedor Asaas não retornou um identificador válido.");
   return { integrationId: integration.id, providerId, apiKey, environment, baseUrl: environment === "sandbox" ? SANDBOX_API : PROD_API, webhookToken: webhookTokenValue.trim() };
 }
 
