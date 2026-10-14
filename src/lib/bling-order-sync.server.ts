@@ -49,6 +49,7 @@ type OrderRow = {
   bling_invoice_id: string | null;
   bling_invoice_status: string | null;
   bling_invoice_generated_at: string | null;
+  bling_invoice_submitted_at: string | null;
   bling_invoice_authorized_at: string | null;
 };
 
@@ -105,6 +106,12 @@ function addDays(dateValue: string, days: number) {
 
 function orderReference(orderId: string) {
   return `NS-${orderId}`;
+}
+
+function nfeSituation(nfe: any) {
+  const raw = nfe?.situacao?.valor ?? nfe?.situacao ?? 0;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function safeApiMessage(body: any, fallback: string) {
@@ -215,7 +222,7 @@ async function blingRequest(
 async function loadOrder(admin: any, tenantId: string, orderId: string) {
   const { data: order, error: orderError } = await admin
     .from("orders")
-    .select("id,tenant_id,customer_id,status,created_at,subtotal,shipping,discount,total,payment_method,payment_due_days,customer_name,customer_email,customer_phone,customer_document,shipping_zip,shipping_street,shipping_number,shipping_complement,shipping_neighborhood,shipping_city,shipping_state,notes,fulfillment_type,bling_id,bling_number,bling_sync_status,bling_stock_launched_at,bling_accounts_launched_at,bling_invoice_id,bling_invoice_status,bling_invoice_generated_at,bling_invoice_authorized_at")
+    .select("id,tenant_id,customer_id,status,created_at,subtotal,shipping,discount,total,payment_method,payment_due_days,customer_name,customer_email,customer_phone,customer_document,shipping_zip,shipping_street,shipping_number,shipping_complement,shipping_neighborhood,shipping_city,shipping_state,notes,fulfillment_type,bling_id,bling_number,bling_sync_status,bling_stock_launched_at,bling_accounts_launched_at,bling_invoice_id,bling_invoice_status,bling_invoice_generated_at,bling_invoice_submitted_at,bling_invoice_authorized_at")
     .eq("tenant_id", tenantId)
     .eq("id", orderId)
     .maybeSingle();
@@ -230,6 +237,24 @@ async function loadOrder(admin: any, tenantId: string, orderId: string) {
     .order("id");
   if (itemError) throw new Error(itemError.message);
   if (!items?.length) throw new Error("Pedido local sem itens");
+
+  if ((order.payment_method === "boleto" || order.payment_method === "faturado_b2b") && order.payment_due_days == null) {
+    const { data: intent } = await admin
+      .from("payment_intents")
+      .select("provider_metadata")
+      .eq("tenant_id", tenantId)
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const metadata = intent?.provider_metadata as Record<string, unknown> | null | undefined;
+    const due = Number(metadata?.boleto_due_days ?? 0);
+    if ([3, 15, 30, 45, 60, 90, 120].includes(due)) {
+      order.payment_due_days = due;
+      await admin.from("orders").update({ payment_due_days: due }).eq("tenant_id", tenantId).eq("id", orderId);
+    }
+  }
+
   return { order: order as OrderRow, items: items as unknown as OrderItem[] };
 }
 
@@ -243,6 +268,18 @@ async function logSync(admin: any, tenantId: string, orderId: string, action: st
     message: message.slice(0, 1000),
     response: response == null ? null : response,
   }).then(() => undefined, () => undefined);
+}
+
+function customerAddress(order: OrderRow) {
+  return {
+    endereco: order.shipping_street || "",
+    cep: digits(order.shipping_zip),
+    bairro: order.shipping_neighborhood || "",
+    municipio: order.shipping_city || "",
+    uf: String(order.shipping_state || "").toUpperCase(),
+    numero: order.shipping_number || "",
+    complemento: order.shipping_complement || "",
+  };
 }
 
 async function ensureContact(admin: any, token: string, order: OrderRow) {
@@ -260,6 +297,11 @@ async function ensureContact(admin: any, token: string, order: OrderRow) {
     return Number(found.id);
   }
 
+  const address = customerAddress(order);
+  if (!address.endereco || !address.bairro || !address.municipio || !address.uf || !address.cep) {
+    throw new Error("Cliente sem endereço completo para cadastro fiscal no Bling");
+  }
+
   const created = await blingRequest(token, "/contatos", "POST", {
     nome: order.customer_name || `Cliente ${document}`,
     situacao: "A",
@@ -269,6 +311,10 @@ async function ensureContact(admin: any, token: string, order: OrderRow) {
     emailNotaFiscal: order.customer_email || undefined,
     tipo: document.length === 14 ? "J" : "F",
     indicadorIe: 9,
+    endereco: {
+      geral: address,
+      cobranca: address,
+    },
   });
   const id = Number(created?.id);
   if (!Number.isFinite(id) || id <= 0) throw new Error("Bling criou/retornou contato sem ID válido");
@@ -432,24 +478,35 @@ async function launchPaidSale(admin: any, token: string, order: OrderRow, items:
   }
 
   let nfe = await blingRequest(token, `/nfe/${encodeURIComponent(invoiceId)}`, "GET", undefined, { allow404: true });
-  let situation = Number(nfe?.situacao ?? nfe?.situacao?.valor ?? 0);
-  const authorized = [5, 6].includes(situation);
-  if (!authorized && order.bling_sync_status !== "fiscal_submitted") {
+  let situation = nfeSituation(nfe);
+  let authorized = [5, 6].includes(situation);
+
+  if (!authorized && !order.bling_invoice_submitted_at) {
     await blingRequest(token, `/nfe/${encodeURIComponent(invoiceId)}/enviar?enviarEmail=true`, "POST", undefined, { acceptAlreadyProcessed: true });
-    await admin.from("orders").update({ bling_sync_status: "fiscal_submitted", bling_invoice_status: "submitted", bling_last_sync_at: now }).eq("tenant_id", order.tenant_id).eq("id", order.id);
+    const submittedAt = new Date().toISOString();
+    const { error } = await admin.from("orders").update({
+      bling_sync_status: "fiscal_submitted",
+      bling_invoice_status: "submitted",
+      bling_invoice_submitted_at: submittedAt,
+      bling_last_sync_at: submittedAt,
+    }).eq("tenant_id", order.tenant_id).eq("id", order.id);
+    if (error) throw new Error(error.message);
     order.bling_sync_status = "fiscal_submitted";
+    order.bling_invoice_submitted_at = submittedAt;
     await sleep(900);
     nfe = await blingRequest(token, `/nfe/${encodeURIComponent(invoiceId)}`, "GET", undefined, { allow404: true });
-    situation = Number(nfe?.situacao ?? nfe?.situacao?.valor ?? 0);
+    situation = nfeSituation(nfe);
+    authorized = [5, 6].includes(situation);
   }
 
-  if ([5, 6].includes(situation)) {
+  if (authorized) {
+    const authorizedAt = new Date().toISOString();
     const { error } = await admin.from("orders").update({
       bling_sync_status: "synced",
       bling_sync_error: null,
       bling_invoice_status: String(situation),
-      bling_invoice_authorized_at: now,
-      bling_last_sync_at: now,
+      bling_invoice_authorized_at: authorizedAt,
+      bling_last_sync_at: authorizedAt,
     }).eq("tenant_id", order.tenant_id).eq("id", order.id);
     if (error) throw new Error(error.message);
     await logSync(admin, order.tenant_id, order.id, "storefront_sale_invoiced", "sucesso", `Venda lançada e NF-e autorizada no Bling (${invoiceId})`, { bling_id: saleId, invoice_id: invoiceId, situacao: situation });
@@ -460,9 +517,9 @@ async function launchPaidSale(admin: any, token: string, order: OrderRow, items:
   await admin.from("orders").update({
     bling_sync_status: "fiscal_submitted",
     bling_invoice_status: statusLabel,
-    bling_last_sync_at: now,
+    bling_last_sync_at: new Date().toISOString(),
   }).eq("tenant_id", order.tenant_id).eq("id", order.id);
-  throw new Error(`NF-e ${invoiceId} enviada ao Bling/SEFAZ, mas ainda não está autorizada (situação ${statusLabel})`);
+  throw new Error(`NF-e ${invoiceId} já foi enviada ao Bling/SEFAZ, mas ainda não está autorizada (situação ${statusLabel})`);
 }
 
 async function cancelUnpaidSale(admin: any, token: string, order: OrderRow) {
