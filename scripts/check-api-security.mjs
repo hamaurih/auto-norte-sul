@@ -6,6 +6,9 @@ const allowedPublic = new Set([
   "health.ts",
   join("public", "login.ts"),
   join("public", "bling.callback.ts"),
+  join("public", "bling.webhook.ts"),
+  join("public", "cron.bling-order-sync.ts"),
+  join("public", "cron.bling-stock-pull.ts"),
   join("public", "cron.enrichment.ts"),
   join("public", "cron.shipping-enrichment.ts"),
   join("public", "asaas.webhook.ts"),
@@ -61,31 +64,43 @@ if (
   failures.push("Bling OAuth start: state persistido/autenticação obrigatória ausente");
 }
 
+function verifyServerCron(path, label) {
+  const source = readFileSync(join(root, "public", path), "utf8");
+  if (
+    !source.includes("isAuthorizedCronToken") ||
+    !source.includes("timingSafeEqual") ||
+    !source.includes("CRON_SECRET") ||
+    !source.includes("verify_enrichment_cron_token") ||
+    !source.includes('headers.get("authorization")') ||
+    !source.includes("status: 401")
+  ) {
+    failures.push(`${label}: autenticação server-side obrigatória ausente ou enfraquecida`);
+  }
+}
+
 // Public by design: Vercel/scheduler cron must authenticate with a server-side
 // bearer secret. Keep this invariant explicit instead of exempting the route
 // without verifying its compensating controls.
-const enrichmentCron = readFileSync(join(root, "public", "cron.enrichment.ts"), "utf8");
-if (
-  !enrichmentCron.includes("isAuthorizedCronToken") ||
-  !enrichmentCron.includes("timingSafeEqual") ||
-  !enrichmentCron.includes("CRON_SECRET") ||
-  !enrichmentCron.includes("verify_enrichment_cron_token") ||
-  !enrichmentCron.includes('headers.get("authorization")') ||
-  !enrichmentCron.includes("status: 401")
-) {
-  failures.push("cron enrichment: autenticação server-side obrigatória ausente ou enfraquecida");
-}
+verifyServerCron("cron.enrichment.ts", "cron enrichment");
+verifyServerCron("cron.shipping-enrichment.ts", "cron shipping enrichment");
+verifyServerCron("cron.bling-order-sync.ts", "cron Bling order sync");
+verifyServerCron("cron.bling-stock-pull.ts", "cron Bling stock pull");
 
-const shippingCron = readFileSync(join(root, "public", "cron.shipping-enrichment.ts"), "utf8");
+// Public by design: Bling calls this endpoint itself. Authentication must be
+// HMAC-SHA256 over the exact raw request body using the app client secret.
+const blingWebhook = readFileSync(join(root, "public", "bling.webhook.ts"), "utf8");
+const blingTransitionStock = readFileSync(join(process.cwd(), "src", "lib", "bling-transition-stock.server.ts"), "utf8");
 if (
-  !shippingCron.includes("isAuthorizedCronToken") ||
-  !shippingCron.includes("timingSafeEqual") ||
-  !shippingCron.includes("CRON_SECRET") ||
-  !shippingCron.includes("verify_enrichment_cron_token") ||
-  !shippingCron.includes('headers.get("authorization")') ||
-  !shippingCron.includes("status: 401")
+  !blingWebhook.includes('headers.get("x-bling-signature-256")') ||
+  !blingWebhook.includes("request.text()") ||
+  !blingWebhook.includes("receiveBlingWebhook") ||
+  !blingTransitionStock.includes("createHmac") ||
+  !blingTransitionStock.includes("timingSafeEqual") ||
+  !blingTransitionStock.includes('update(raw, "utf8")') ||
+  !blingTransitionStock.includes("bling_webhook_events") ||
+  !blingTransitionStock.includes("eventId")
 ) {
-  failures.push("cron shipping enrichment: autenticação server-side obrigatória ausente ou enfraquecida");
+  failures.push("Bling webhook: HMAC do corpo bruto ou idempotência obrigatória ausente/enfraquecida");
 }
 
 const asaasWebhook = readFileSync(join(root, "public", "asaas.webhook.ts"), "utf8");
