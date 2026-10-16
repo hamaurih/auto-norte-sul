@@ -1,0 +1,20 @@
+{
+  "name": "aes-repo-plugins",
+  "interface": {
+    "displayName": "A&S Repo Plugins"
+  },
+  "plugins": [
+    {
+      "name": "product-engineering-standard",
+      "source": {
+        "source": "local",
+        "path": "./plugins/product-engineering-standard"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
