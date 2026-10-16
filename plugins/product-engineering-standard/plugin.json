@@ -1,0 +1,11 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "product-engineering-standard",
+  "version": "1.0.0",
+  "description": "Padroniza discovery, requisitos, arquitetura, dados, UX, segurança, integrações, testes, release e operação antes de implementar mudanças relevantes em produtos de software.",
+  "author": {
+    "name": "A&S Business"
+  },
+  "repository": "https://github.com/hamaurih/auto-norte-sul",
+  "keywords": ["product", "engineering", "prd", "trd", "architecture", "security", "release"]
+}
