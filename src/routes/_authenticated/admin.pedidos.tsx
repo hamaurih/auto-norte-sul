@@ -50,13 +50,15 @@ function OrdersList() {
   const [statusFilter, setStatusFilter] = useState("");
   const [channelFilter, setChannelFilter] = useState<"" | "b2b" | "b2c">("");
   const [financialFilter, setFinancialFilter] = useState<"" | "paid" | "pending" | "cancelled">("");
+  const [fiscalFilter,setFiscalFilter]=useState("");
+  const [fulfillmentFilter,setFulfillmentFilter]=useState("");
 
   const { data = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["admin-orders"],
     queryFn: async () => {
       const { data: orders, error: ordersError } = await supabase
         .from("orders")
-        .select("id, customer_name, customer_email, status, total, created_at, is_b2b, bling_number")
+        .select("id, customer_name, customer_email, status, total, created_at, is_b2b, bling_number, bling_invoice_status, bling_sync_status, fulfillment_type, pickup_status, payment_method")
         .order("created_at", { ascending: false })
         .limit(100);
       if (ordersError) throw ordersError;
@@ -99,9 +101,11 @@ function OrdersList() {
         !channelFilter ||
         (channelFilter === "b2b" ? order.is_b2b : !order.is_b2b);
       const matchesFinancial = !financialFilter || order.financialStatus === financialFilter;
-      return matchesSearch && matchesStatus && matchesChannel && matchesFinancial;
+      const matchesFiscal=!fiscalFilter || (fiscalFilter==="pending" ? !order.bling_invoice_status || !["authorized","autorizada","autorizado"].includes(String(order.bling_invoice_status).toLowerCase()) : ["authorized","autorizada","autorizado"].includes(String(order.bling_invoice_status).toLowerCase()));
+      const matchesFulfillment=!fulfillmentFilter || order.fulfillment_type===fulfillmentFilter;
+      return matchesSearch && matchesStatus && matchesChannel && matchesFinancial && matchesFiscal && matchesFulfillment;
     });
-  }, [channelFilter, data, financialFilter, query, statusFilter]);
+  }, [channelFilter, data, financialFilter, fiscalFilter, fulfillmentFilter, query, statusFilter]);
 
   // Orders originate from the storefront order table; POS and WhatsApp are stored separately.
   // Site-only mode adds a dedicated operational label without altering shared ERP data.
@@ -147,13 +151,13 @@ function OrdersList() {
         <SummaryCard icon={CircleDollarSign} label="Receita recebida" value={brl(paidValue)} detail={`${paidOrders.length} pedido(s) pago(s)`} tone="emerald" />
         <SummaryCard icon={Clock3} label="A receber" value={brl(pendingValue)} detail={`${pendingOrders.length} pedido(s) pendente(s)`} tone="amber" />
         <SummaryCard icon={XCircle} label="Cancelados" value={brl(cancelledValue)} detail={`${cancelledOrders.length} pedido(s) cancelado(s)`} tone="rose" />
-        <SummaryCard icon={ShoppingBag} label="Pedidos carregados" value={String(data.length)} detail="Últimos 100 pedidos" tone="blue" />
+        <SummaryCard icon={ShoppingBag} label="Pedidos carregados" value={String(data.length)} detail="Amostra recente de até 100 pedidos; filtros sobre os registros carregados" tone="blue" />
       </section>
       <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
         <b>Saldo de vendas:</b> {brl(paidValue)}. Este valor considera apenas pedidos com pagamento confirmado.
       </p>
 
-      <section className="admin-filter-bar grid gap-3 lg:grid-cols-[minmax(240px,1fr)_190px_160px_170px]">
+      <section className="admin-filter-bar grid gap-3 lg:grid-cols-[minmax(240px,1fr)_170px_130px_150px_145px_135px]">
         <label className="relative">
           <span className="sr-only">Buscar pedido</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
@@ -188,6 +192,8 @@ function OrdersList() {
             <option value="cancelled">Cancelados</option>
           </select>
         </label>
+        <label><span className="sr-only">Situação fiscal</span><select className="w-full" value={fiscalFilter} onChange={(e)=>setFiscalFilter(e.target.value)}><option value="">Todas NF-e</option><option value="pending">NF-e pendente</option><option value="authorized">NF-e autorizada</option></select></label>
+        <label><span className="sr-only">Entrega ou retirada</span><select className="w-full" value={fulfillmentFilter} onChange={(e)=>setFulfillmentFilter(e.target.value)}><option value="">Todas entregas</option><option value="delivery">Entrega</option><option value="pickup">Retirada</option></select></label>
       </section>
 
       {isError ? (
@@ -206,7 +212,7 @@ function OrdersList() {
                 <th className="p-3 text-left">Financeiro</th>
                 <th className="p-3 text-left">Canal</th>
                 <th className="p-3 text-right">Total</th>
-                <th className="p-3 text-left">Bling</th>
+                <th className="p-3 text-left">Bling / NF-e</th>
               </tr>
             </thead>
             <tbody>
