@@ -51,3 +51,31 @@ indevidos; testes por papel e multi-tenant aprovados; status de branch
 compreendido/corrigido; backup restaurável; aprovação registrada.
 
 **Decisão atual: P0 EM EXECUÇÃO / NÃO HOMOLOGADO.**
+
+
+## Atualização da investigação — 19/10/2026
+
+- Os quatro gates do PR #62 concluíram com `success` no commit `75dffaab549f98c7d0cee49668defa99d1af09ff`.
+- A tabela `supabase_migrations.schema_migrations` contém uma coluna `statements` com SQL não vazio em **todas as 202 entradas**. É possível recuperar conteúdo e checksums do banco original, mas é necessário conferir sigilo e fidelidade antes de publicar qualquer SQL. Nenhuma migration foi reparada ou reaplicada.
+- As duas tabelas de fila Bling com RLS sem policies têm `SELECT` e `INSERT` negados tanto a `anon` quanto a `authenticated`. `service_role` possui `SELECT`; testar o worker real separadamente.
+- Os 61 `SECURITY DEFINER` em `public` continuam com 0 permissões de `EXECUTE` a `anon` e `authenticated`, segundo `has_function_privilege`.
+- `MIGRATIONS_FAILED` persiste na metadata de branch, apesar de `ACTIVE_HEALTHY` para o banco.
+- **Fase 1 NÃO aprovada** até equivalência de DDL, backup/restore isolado e autenticação de perfis/tenants efetivamente testados. CI verde não substitui esses testes.
+
+### Consulta reprodutível: disponibilidade do SQL remoto
+
+```sql
+SELECT count(*) AS total,
+       count(*) FILTER (WHERE coalesce(array_length(statements,1),0)>0) AS com_sql,
+       count(*) FILTER (WHERE coalesce(array_length(statements,1),0)=0) AS sem_sql
+FROM supabase_migrations.schema_migrations;
+```
+
+Resultado observado: `total=202, com_sql=202, sem_sql=0`.
+
+### Dependências do aceite pendente
+
+1. Exportação **privada** das 202 entradas SQL e hashes; classificação de instruções perigosas/sensíveis; comparação dos scripts por conteúdo e ordem de execução.
+2. Snapshot/backup completo, seguido de restauração em ambiente realmente isolado; o tenant demo no mesmo banco não conta.
+3. Execução real de regressão de RLS com identidades autenticadas sintéticas em instância isolada, incluindo todos os perfis relevantes.
+4. Diagnóstico na infraestrutura do status `MIGRATIONS_FAILED`, sem adulterar `schema_migrations`.
