@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { BarChart3, Bot, MonitorSmartphone, ScanLine, ShoppingBag, Trophy, WalletCards } from "lucide-react";
@@ -9,10 +9,27 @@ const brl=(n:number)=>n.toLocaleString("pt-BR",{style:"currency",currency:"BRL"}
 const origin={site:{label:"Site",icon:MonitorSmartphone,tone:"bg-blue-50 text-blue-700"},ia:{label:"IA",icon:Bot,tone:"bg-violet-50 text-violet-700"},balcao:{label:"Balcão",icon:ScanLine,tone:"bg-emerald-50 text-emerald-700"}} as const;
 
 function SalesSummary(){
+ const siteOnly=useRouterState({select:(s)=>s.location.searchStr.includes("canal=site")});
  const salesFn=useServerFn(getSalesSummary);
  const q=useQuery({queryKey:["sales-summary",30],queryFn:()=>salesFn({data:{days:30}}),refetchInterval:60_000}),data:any=q.data;
  if(q.isLoading)return <div className="p-6 text-sm text-muted-foreground">Carregando vendas consolidadas…</div>;
  if(q.isError||!data)return <div className="m-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">Não foi possível carregar o resumo.</div>;
+ if(siteOnly){
+ const site=data.origins.site;
+ const onlineSales=data.latestSales.filter((sale:any)=>sale.origin==="site");
+ const actions=[["Pedidos online","/admin/pedidos","Acompanhar as vendas e confirmar os pagamentos"],["Pagamentos","/admin/ecossistema?categoria=payment","Pix, boleto e cartão pelo Asaas"],["Banners e layout","/admin/banners","Administrar os banners exibidos no site"],["Catálogo","/admin/produtos","Produtos, imagens, disponibilidade e preços"],["Categorias e menu","/admin/categorias","Organização da navegação da loja"],["Frete e retirada","/admin/enriquecimento-frete","Pesos e dimensões para o cálculo"],["Promoções","/admin/promocoes","Campanhas e ofertas"],["Cupons","/admin/cupons","Descontos no checkout"],["Faturamento Bling","/admin/ecossistema/bling","Envio fiscal dos pedidos da loja"]];
+ return <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
+  <header className="flex flex-wrap justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-widest text-blue-700">Canal de vendas · SITE</p><h1 className="mt-2 text-3xl font-black">Central de Gestão do Site</h1><p className="text-sm text-slate-500">Operação da loja virtual; o financeiro, estoque e fiscal continuam centralizados no ERP.</p></div><Link to="/admin/resumo-vendas" className="self-start rounded-lg border px-4 py-2 text-sm font-bold">Ver todos os canais</Link></header>
+  <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <article className="rounded-2xl bg-blue-950 p-5 text-white"><p className="text-sm opacity-75">Pedidos do site (período)</p><p className="mt-2 text-3xl font-black">{site.orders}</p></article>
+    <article className="rounded-2xl border bg-white p-5"><p className="text-sm text-slate-500">Volume de pedidos do site*</p><p className="mt-2 text-3xl font-black">{brl(site.gross)}</p></article>
+    <article className="rounded-2xl border bg-white p-5"><p className="text-sm text-slate-500">Pedidos com pagamento pendente</p><p className="mt-2 text-3xl font-black">{data.pendingSiteOrders}</p></article>
+    <article className="rounded-2xl border bg-white p-5"><p className="text-sm text-slate-500">Pedidos com estado pago/faturado</p><p className="mt-2 text-3xl font-black">{data.paidSiteOrders}</p></article>
+  </section><p className="text-xs text-slate-500">* Volume de pedidos é diferente de receita recebida; confirme os recebimentos no financeiro do ERP. Fonte: pedidos do checkout, sem vendas do PDV ou WhatsApp.</p>
+  <section><h2 className="mb-3 text-xl font-black">Operação da loja virtual</h2><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{actions.map(([title,url,description])=><a key={title} href={url} className="rounded-2xl border bg-white p-5 shadow-sm hover:border-blue-400"><p className="font-bold">{title}</p><p className="mt-1 text-sm text-slate-500">{description}</p></a>)}</div></section>
+  <section className="rounded-2xl border bg-white"><div className="border-b p-5"><h2 className="font-black">Últimos pedidos do site</h2><p className="text-sm text-slate-500">Amostra dos últimos pedidos; não inclui vendas do balcão ou da IA.</p></div><div className="divide-y">{onlineSales.length?onlineSales.map((sale:any)=><div key={sale.id} className="flex justify-between gap-4 p-4"><div><p className="font-semibold">{sale.customer}</p><p className="text-xs text-slate-500">{sale.status} · {new Date(sale.createdAt).toLocaleString("pt-BR")}</p></div><b>{brl(Number(sale.total))}</b></div>):<p className="p-5 text-sm text-slate-500">Não há pedidos recentes do site nesta amostra.</p>}</div></section>
+ </div>;
+ }
  const cards=[["Faturamento consolidado",brl(data.total.gross),WalletCards,"bg-slate-950 text-white"],["Vendas realizadas",String(data.total.orders),ShoppingBag,"bg-blue-600 text-white"],["Ticket médio",brl(data.total.averageTicket),BarChart3,"bg-violet-600 text-white"],["Site aguardando pagamento",String(data.pendingSiteOrders),MonitorSmartphone,"bg-amber-500 text-slate-950"]] as const;
  return <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
   <header className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[.18em] text-blue-700">Central comercial</p><h1 className="mt-1 text-3xl font-black text-slate-950">Resumo de vendas</h1><p className="mt-1 text-sm text-slate-500">Site, IA e balcão nos últimos {data.periodDays} dias.</p></div><Link to="/admin/pedidos" className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold">Ver pedidos</Link></header>
