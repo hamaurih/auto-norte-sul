@@ -26,7 +26,7 @@ BEGIN
    FROM public.financial_transactions
    WHERE tenant_id=p_tenant_id AND
      (CASE WHEN p_scope='legacy'
-       THEN transaction_date < DATE '2026-10-21' AND source_type='bling_cash_banks'
+       THEN source_type='bling_cash_banks'
        ELSE transaction_date >= DATE '2026-10-21' AND source_type IS DISTINCT FROM 'bling_cash_banks'
      END)
    GROUP BY account_id
@@ -44,7 +44,7 @@ BEGIN
  FROM public.financial_transactions
  WHERE tenant_id=p_tenant_id AND
  (CASE WHEN p_scope='legacy'
-   THEN transaction_date < DATE '2026-10-21' AND source_type='bling_cash_banks'
+   THEN source_type='bling_cash_banks'
    ELSE transaction_date >= DATE '2026-10-21' AND source_type IS DISTINCT FROM 'bling_cash_banks'
  END);
  RETURN jsonb_build_object('accounts',v_accounts,'summary',v_summary);
