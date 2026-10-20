@@ -36,7 +36,7 @@ jobs:
         run: bun run build
 
       - name: Migration history detector unit tests
-        run: node --test tests/migration-history.test.mjs
+        run: node --test tests/migration-history.test.mjs tests/migration-seed-replay.test.mjs
 
       - name: Typecheck
         run: bunx tsc --noEmit
