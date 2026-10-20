@@ -33,3 +33,16 @@ Somatórios brutos de `financial_transactions.amount`:
 - `pending`: R$ 10.258.306,40.
 
 **Esses totais não são saldo ou fluxo líquido**, pois combinam entradas e saídas. É necessário particionar por `direction`, contas e período, e considerar eventual duplicidade de origens.
+
+## Auditoria complementar — 20/10/2026
+As 49.525 movimentações concentram-se em uma conta contábil de importação, não em cinco contas bancárias efetivamente reconciliadas; os resultados abaixo são valores nominais e não provam saldos:
+- `matched / in`: 28.260, R$ 6.883.226,57.
+- `matched / out`: 2.547, R$ 1.328.828,80.
+- `pending / in`: 15.285, R$ 2.778.463,85.
+- `pending / out`: 3.433, R$ 7.479.842,55.
+
+Casos inteligentes já marcados `auto_applied`: 2.095 `one_to_one` (diferença 0), 1.518 `fee` (diferenças absolutas somadas R$ 3.066,39), 1.213 `interest` (R$ 270.670,98), 918 `other_adjustment` (R$ 37.195,21), 2 `one_to_many` (diferença 0). Total: 5.746.
+
+**Bloqueio de controle:** não reaplicar essas sugestões sem auditoria independente do vínculo original, dos critérios de `confidence`, das evidências em `evidence`, dos lançamentos de ajuste e da idempotência. O valor agregado de diferenças absolutas de juros/ajustes não comprova receita, despesa ou impacto correto na DRE.
+
+**Decisão:** fase financeira ainda não homologada. Fechamento de contas, conciliação de 18.718 pendentes e DRE dependem de extratos oficiais e validação de correspondências; nenhuma mutação financeira autorizada para tratar registros ambíguos automaticamente.
