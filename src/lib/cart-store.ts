@@ -46,6 +46,11 @@ export function setCartAnalyticsConsent(allowed:boolean){
   if(allowed) trackCart(read(),"cart_updated");
   window.dispatchEvent(new Event("nsa:analytics-consent"));
 }
+export function resetCartAnalyticsConsent(){
+  if(typeof window==="undefined")return;
+  localStorage.removeItem(ANALYTICS_CONSENT_KEY);
+  window.dispatchEvent(new Event("nsa:analytics-consent"));
+}
 export function cartAnalyticsConsent(){
   if(typeof window==="undefined")return null;
   return localStorage.getItem(ANALYTICS_CONSENT_KEY);
