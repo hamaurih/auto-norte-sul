@@ -17,3 +17,5 @@ CREATE INDEX IF NOT EXISTS storefront_cart_sessions_tenant_updated_idx
 ALTER TABLE public.storefront_cart_sessions ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.storefront_cart_sessions FROM anon,authenticated;
 COMMENT ON TABLE public.storefront_cart_sessions IS 'Anonymous opt-in cart funnel, no personal identifiers, card data or product line identifiers; retention 90 days.';
+
+GRANT SELECT,INSERT,UPDATE,DELETE ON public.storefront_cart_sessions TO service_role;
