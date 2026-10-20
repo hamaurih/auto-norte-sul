@@ -56,13 +56,14 @@ function OrdersList() {
   const { data = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["admin-orders"],
     queryFn: async () => {
-      const { data: orders, error: ordersError } = await supabase
+      const { data: orders, error: ordersError } = await (supabase as any)
         .from("orders")
         .select("id, customer_name, customer_email, status, total, created_at, is_b2b, bling_number, bling_invoice_status, bling_sync_status, fulfillment_type, pickup_status, payment_method")
         .order("created_at", { ascending: false })
         .limit(100);
       if (ordersError) throw ordersError;
-      const orderIds = (orders ?? []).map((order) => order.id);
+      const typedOrders=(orders??[]) as Array<{id:string;status:string;customer_name:string|null;customer_email:string|null;total:number;created_at:string;is_b2b:boolean;bling_number:string|null;bling_invoice_status:string|null;bling_sync_status:string|null;fulfillment_type:string|null;pickup_status:string|null;payment_method:string|null}>;
+      const orderIds = typedOrders.map((order) => order.id);
       if (!orderIds.length) return [];
       const { data: intents, error: intentsError } = await supabase
         .from("payment_intents")
@@ -75,7 +76,7 @@ function OrdersList() {
         statuses.push(String(intent.status ?? "").toLowerCase());
         statusesByOrder.set(intent.order_id, statuses);
       }
-      return (orders ?? []).map((order) => ({
+      return typedOrders.map((order) => ({
         ...order,
         financialStatus: financialStatus(order.status, statusesByOrder.get(order.id) ?? []),
       }));
