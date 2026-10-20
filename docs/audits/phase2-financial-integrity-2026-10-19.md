@@ -24,3 +24,12 @@
 - **0** transações com total dos `matched_amount` superior a `financial_transactions.amount + 0,01`.
 
 As 3.649 transações sem vínculo podem derivar de conciliação legada, integração ou inconsistência real. Não classificar como fraude/duplicidade nem alterar `reconciliation_status` sem examinar `source_type`, `source_id`, eventuais relações em outras tabelas, e os fluxos que escrevem esse status. Bloqueia aprovação de saldo e DRE até comprovação.
+
+### Origem das transações sem vínculo
+As **3.649** transações `matched` sem registro na tabela de matches são todas do lote/importação `source_type='bling_cash_banks'`; valor nominal somado: **R$ 310.932,58**. O conjunto financeiro inteiro (49.525 movimentos) também tem `source_type='bling_cash_banks'`.
+
+Somatórios brutos de `financial_transactions.amount`:
+- `matched`: R$ 8.212.055,37;
+- `pending`: R$ 10.258.306,40.
+
+**Esses totais não são saldo ou fluxo líquido**, pois combinam entradas e saídas. É necessário particionar por `direction`, contas e período, e considerar eventual duplicidade de origens.
