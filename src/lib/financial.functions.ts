@@ -99,7 +99,7 @@ export const getCashFlow=createServerFn({method:"GET"}).middleware([requireSupab
  const [summary,transactions,receivables,expenses]=await Promise.all([
   (supabaseAdmin as any).rpc("financial_cash_summary_cutover",{p_tenant_id:context.tenantId,p_scope:data.scope}),
   data.scope==="legacy"
-   ? (sb as any).from("financial_transactions").select("id,account_id,transaction_date,direction,amount,description,category,reconciliation_status,source_type,external_reference").eq("tenant_id",context.tenantId).eq("source_type","bling_cash_banks").lt("transaction_date","2026-10-21").order("transaction_date",{ascending:false}).limit(1000)
+   ? (sb as any).from("financial_transactions").select("id,account_id,transaction_date,direction,amount,description,category,reconciliation_status,source_type,external_reference").eq("tenant_id",context.tenantId).eq("source_type","bling_cash_banks").order("transaction_date",{ascending:false}).limit(1000)
    : (sb as any).from("financial_transactions").select("id,account_id,transaction_date,direction,amount,description,category,reconciliation_status,source_type,external_reference").eq("tenant_id",context.tenantId).gte("transaction_date","2026-10-21").neq("source_type","bling_cash_banks").order("transaction_date",{ascending:false}).limit(1000),
   (sb as any).from("financial_receivables").select("id,customer_name,description,amount,received_amount,due_date,status").eq("tenant_id",context.tenantId).eq("status","open").order("due_date",{ascending:true}).limit(1000),
   sb.from("expenses").select("id,description,amount,paid_amount,due_date,status").eq("tenant_id",context.tenantId).eq("status","open").order("due_date",{ascending:true}).limit(1000),
