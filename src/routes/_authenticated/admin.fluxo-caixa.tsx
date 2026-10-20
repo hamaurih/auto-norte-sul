@@ -24,8 +24,13 @@ function CashFlow(){
   const transactions=q.data?.transactions??[];
   const accounts=q.data?.summary?.accounts??[];
   const summary=q.data?.summary?.summary??{};
-  const incomingOpen=receivables.reduce((s:number,x:any)=>s+Math.max(Number(x.amount)-Number(x.received_amount??0),0),0);
-  const outOpen=expenses.reduce((s:number,x:any)=>s+Math.max(Number(x.amount)-Number(x.paid_amount??0),0),0);
+  const currentReceivables=receivables.filter((x:any)=>x.source_type!=="bling_backup");
+  const legacyReceivables=receivables.filter((x:any)=>x.source_type==="bling_backup");
+  const currentExpenses=expenses.filter((x:any)=>x.source_type!=="bling_backup");
+  const legacyExpenses=expenses.filter((x:any)=>x.source_type==="bling_backup");
+  const outstanding=(rows:any[],key:string)=>rows.reduce((s:number,x:any)=>s+Math.max(Number(x.amount)-Number(x[key]??0),0),0);
+  const incomingOpen=outstanding(currentReceivables,"received_amount");
+  const outOpen=outstanding(currentExpenses,"paid_amount");
   const accountBalance=accounts.reduce((s:number,x:any)=>s+Number(x.balance??0),0);
 
   return <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
@@ -82,9 +87,10 @@ function CashFlow(){
       </div>
     </section>
 
+    {!legacy&&(legacyReceivables.length>0||legacyExpenses.length>0)&&<section className="rounded-2xl border border-amber-200 bg-amber-50 p-5"><h2 className="font-bold">Títulos do Bling ainda em aberto</h2><p className="text-sm">Preservados separadamente e excluídos das previsões da operação nova. Quantias abaixo são parciais (consulta limitada); conferir relatório completo antes da abertura.</p><p className="mt-2 text-sm">A receber: {brl(outstanding(legacyReceivables,"received_amount"))} · A pagar: {brl(outstanding(legacyExpenses,"paid_amount"))}</p></section>}
     {!legacy&&<section className="grid gap-4 lg:grid-cols-2">
-      <Forecast title="Próximos recebimentos" rows={receivables} type="in"/>
-      <Forecast title="Próximos pagamentos" rows={expenses} type="out"/>
+      <Forecast title="Próximos recebimentos" rows={currentReceivables} type="in"/>
+      <Forecast title="Próximos pagamentos" rows={currentExpenses} type="out"/>
     </section>}
   </div>;
 }
