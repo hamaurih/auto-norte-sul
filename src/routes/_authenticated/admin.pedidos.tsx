@@ -203,7 +203,7 @@ function OrdersList() {
         </div>
       ) : (
         <div className="overflow-x-auto rounded-3xl border border-border/70 bg-card shadow-sm">
-          <table className="w-full min-w-[820px] text-sm">
+          <table className="w-full min-w-[1080px] text-sm">
             <thead>
               <tr>
                 <th className="p-3 text-left">Pedido</th>
@@ -211,7 +211,8 @@ function OrdersList() {
                 <th className="p-3 text-left">Data</th>
                 <th className="p-3 text-left">Status do pedido</th>
                 <th className="p-3 text-left">Financeiro</th>
-                <th className="p-3 text-left">Canal</th>
+                <th className="p-3 text-left">Origem / perfil</th>
+                <th className="p-3 text-left">Pagamento / entrega</th>
                 <th className="p-3 text-right">Total</th>
                 <th className="p-3 text-left">Bling / NF-e</th>
               </tr>
@@ -235,11 +236,12 @@ function OrdersList() {
                   <td className="p-3"><FinancialBadge status={order.financialStatus} /></td>
                   <td className="p-3">
                     <span className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${order.is_b2b ? "bg-violet-100 text-violet-700" : "bg-blue-100 text-blue-700"}`}>
-                      {order.is_b2b ? "B2B" : "B2C"}
+                      SITE · {order.is_b2b ? "B2B" : "B2C"}
                     </span>
                   </td>
+                  <td className="p-3 text-xs"><div className="font-bold uppercase">{order.payment_method??"—"}</div><div className="mt-1 text-muted-foreground">{order.fulfillment_type==="pickup"?"Retirada em loja":order.fulfillment_type==="delivery"?"Entrega":"Não definido"}</div></td>
                   <td className="p-3 text-right price-tag">{brl(Number(order.total ?? 0))}</td>
-                  <td className="p-3 text-xs font-semibold"><div>{order.bling_number ?? "—"}</div><Link to="/admin/pedidos/$id" params={{ id: order.id }} className="mt-1 inline-flex min-h-8 items-center font-bold text-primary hover:underline">Abrir pedido</Link></td>
+                  <td className="p-3 text-xs font-semibold"><div>Bling: {order.bling_number ?? "—"}</div><div className="mt-1 text-muted-foreground">Envio: {order.bling_sync_status??"não iniciado"}</div><div className="mt-1 text-muted-foreground">NF-e: {order.bling_invoice_status??"pendente"}</div><Link to="/admin/pedidos/$id" params={{ id: order.id }} className="mt-1 inline-flex min-h-8 items-center font-bold text-primary hover:underline">Abrir pedido</Link></td>
                 </tr>
               ))}
             </tbody>
