@@ -80,6 +80,7 @@ import { Route as AuthenticatedAdminOrcamentosIndexRouteImport } from './routes/
 import { Route as AuthenticatedAdminNfeImportacaoIndexRouteImport } from './routes/_authenticated/admin.nfe-importacao.index'
 import { Route as AuthenticatedAdminEcossistemaIndexRouteImport } from './routes/_authenticated/admin.ecossistema.index'
 import { Route as ApiPublicCronEnrichmentRouteImport } from './routes/api/public/cron.enrichment'
+import { Route as ApiPublicCronBlingHealthRouteImport } from './routes/api/public/cron.bling-health'
 import { Route as ApiPublicBlingCallbackRouteImport } from './routes/api/public/bling.callback'
 import { Route as AuthenticatedAdminVendedoresNovoRouteImport } from './routes/_authenticated/admin.vendedores.novo'
 import { Route as AuthenticatedAdminSaneamentoAliasesRouteImport } from './routes/_authenticated/admin.saneamento.aliases'
@@ -497,6 +498,11 @@ const ApiPublicCronEnrichmentRoute = ApiPublicCronEnrichmentRouteImport.update({
   path: '/api/public/cron/enrichment',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCronBlingHealthRoute = ApiPublicCronBlingHealthRouteImport.update({
+  id: '/api/public/cron/bling-health',
+  path: '/api/public/cron/bling-health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicBlingCallbackRoute = ApiPublicBlingCallbackRouteImport.update({
   id: '/api/public/bling/callback',
   path: '/api/public/bling/callback',
@@ -672,6 +678,7 @@ export interface FileRoutesByFullPath {
   '/admin/vendedores/novo': typeof AuthenticatedAdminVendedoresNovoRoute
   '/api/public/bling/callback': typeof ApiPublicBlingCallbackRoute
   '/api/public/cron/enrichment': typeof ApiPublicCronEnrichmentRoute
+  '/api/public/cron/bling-health': typeof ApiPublicCronBlingHealthRoute
   '/admin/ecossistema/': typeof AuthenticatedAdminEcossistemaIndexRoute
   '/admin/nfe-importacao/': typeof AuthenticatedAdminNfeImportacaoIndexRoute
   '/admin/orcamentos/': typeof AuthenticatedAdminOrcamentosIndexRoute
@@ -757,6 +764,7 @@ export interface FileRoutesByTo {
   '/admin/vendedores/novo': typeof AuthenticatedAdminVendedoresNovoRoute
   '/api/public/bling/callback': typeof ApiPublicBlingCallbackRoute
   '/api/public/cron/enrichment': typeof ApiPublicCronEnrichmentRoute
+  '/api/public/cron/bling-health': typeof ApiPublicCronBlingHealthRoute
   '/admin/ecossistema': typeof AuthenticatedAdminEcossistemaIndexRoute
   '/admin/nfe-importacao': typeof AuthenticatedAdminNfeImportacaoIndexRoute
   '/admin/orcamentos': typeof AuthenticatedAdminOrcamentosIndexRoute
@@ -847,6 +855,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/vendedores/novo': typeof AuthenticatedAdminVendedoresNovoRoute
   '/api/public/bling/callback': typeof ApiPublicBlingCallbackRoute
   '/api/public/cron/enrichment': typeof ApiPublicCronEnrichmentRoute
+  '/api/public/cron/bling-health': typeof ApiPublicCronBlingHealthRoute
   '/_authenticated/admin/ecossistema/': typeof AuthenticatedAdminEcossistemaIndexRoute
   '/_authenticated/admin/nfe-importacao/': typeof AuthenticatedAdminNfeImportacaoIndexRoute
   '/_authenticated/admin/orcamentos/': typeof AuthenticatedAdminOrcamentosIndexRoute
@@ -937,6 +946,7 @@ export interface FileRouteTypes {
     | '/admin/vendedores/novo'
     | '/api/public/bling/callback'
     | '/api/public/cron/enrichment'
+    | '/api/public/cron/bling-health'
     | '/admin/ecossistema/'
     | '/admin/nfe-importacao/'
     | '/admin/orcamentos/'
@@ -1022,6 +1032,7 @@ export interface FileRouteTypes {
     | '/admin/vendedores/novo'
     | '/api/public/bling/callback'
     | '/api/public/cron/enrichment'
+    | '/api/public/cron/bling-health'
     | '/admin/ecossistema'
     | '/admin/nfe-importacao'
     | '/admin/orcamentos'
@@ -1111,6 +1122,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/vendedores/novo'
     | '/api/public/bling/callback'
     | '/api/public/cron/enrichment'
+    | '/api/public/cron/bling-health'
     | '/_authenticated/admin/ecossistema/'
     | '/_authenticated/admin/nfe-importacao/'
     | '/_authenticated/admin/orcamentos/'
@@ -1144,6 +1156,7 @@ export interface RootRouteChildren {
   ApiPublicLoginRoute: typeof ApiPublicLoginRoute
   ApiPublicBlingCallbackRoute: typeof ApiPublicBlingCallbackRoute
   ApiPublicCronEnrichmentRoute: typeof ApiPublicCronEnrichmentRoute
+  ApiPublicCronBlingHealthRoute: typeof ApiPublicCronBlingHealthRoute
   ApiPublicStoneConciliationWebhookRoute: typeof ApiPublicStoneConciliationWebhookRoute
 }
 
@@ -1646,6 +1659,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronEnrichmentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/bling-health': {
+      id: '/api/public/cron/bling-health'
+      path: '/api/public/cron/bling-health'
+      fullPath: '/api/public/cron/bling-health'
+      preLoaderRoute: typeof ApiPublicCronBlingHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/bling/callback': {
       id: '/api/public/bling/callback'
       path: '/api/public/bling/callback'
@@ -2013,6 +2033,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicLoginRoute: ApiPublicLoginRoute,
   ApiPublicBlingCallbackRoute: ApiPublicBlingCallbackRoute,
   ApiPublicCronEnrichmentRoute: ApiPublicCronEnrichmentRoute,
+  ApiPublicCronBlingHealthRoute: ApiPublicCronBlingHealthRoute,
   ApiPublicStoneConciliationWebhookRoute:
     ApiPublicStoneConciliationWebhookRoute,
 }
