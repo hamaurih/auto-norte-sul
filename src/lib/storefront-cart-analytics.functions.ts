@@ -22,7 +22,7 @@ export const recordStorefrontCart=createServerFn({method:"POST"})
       .select("tenant_id").eq("slug",data.storefrontSlug).eq("active",true).maybeSingle();
     if(storeError||!store?.tenant_id) return {ok:false};
     const {data:existing,error:existingError}=await sb.from("storefront_cart_sessions")
-      .select("last_event,checkout_started_at,order_submitted_at,updated_at")
+      .select("last_event,checkout_started_at,order_submitted_at,recovered_at,items_count,updated_at")
       .eq("tenant_id",store.tenant_id).eq("session_id",data.sessionId).maybeSingle();
     if(existingError) throw new Error("Erro ao verificar carrinho");
     // One write per 3 seconds; cap abuse from anonymous callers.
@@ -36,6 +36,7 @@ export const recordStorefrontCart=createServerFn({method:"POST"})
       last_event:event,updated_at:new Date().toISOString(),
       checkout_started_at:event==="checkout_started"?new Date().toISOString():existing?.checkout_started_at??null,
       order_submitted_at:event==="order_submitted"?new Date().toISOString():existing?.order_submitted_at??null,
+      recovered_at:existing?.recovered_at??(existing?.items_count>0 && event==="cart_updated" && Date.now()-new Date(existing.updated_at).getTime()>30*60000 ? new Date().toISOString() : null),
     };
     const {error}=await sb.from("storefront_cart_sessions").upsert(payload,{onConflict:"tenant_id,session_id"});
     if(error) throw new Error("Erro ao registrar atividade do carrinho");
@@ -50,7 +51,7 @@ export const getStorefrontCartAnalytics=createServerFn({method:"GET"})
     const {supabaseAdmin}=await import("@/integrations/supabase/client.server");
     const since=new Date(Date.now()-data.days*86400000).toISOString();
     const {data:rows,error}=await (supabaseAdmin as any).from("storefront_cart_sessions")
-      .select("items_count,estimated_total,last_event,checkout_started_at,order_submitted_at,updated_at")
+      .select("items_count,estimated_total,last_event,checkout_started_at,order_submitted_at,recovered_at,updated_at")
       .eq("tenant_id",context.tenantId).gte("created_at",since)
       .order("created_at",{ascending:false}).limit(10000);
     if(error) throw new Error("Não foi possível carregar métricas do carrinho");
@@ -59,7 +60,7 @@ export const getStorefrontCartAnalytics=createServerFn({method:"GET"})
     const abandoned=carts.filter((x:any)=>x.last_event!=="order_submitted"&&x.last_event!=="cleared"&&x.items_count>0&&now-new Date(x.updated_at).getTime()>=30*60000);
     const submitted=carts.filter((x:any)=>x.last_event==="order_submitted");
     const started=carts.filter((x:any)=>x.checkout_started_at);
-    return {days:data.days,sessions:carts.length,checkoutStarted:started.length,ordersSubmitted:submitted.length,
+    return {days:data.days,sessions:carts.length,checkoutStarted:started.length,ordersSubmitted:submitted.length,reactivated:carts.filter((x:any)=>x.recovered_at).length,
       abandoned:abandoned.length,abandonedEstimatedTotal:abandoned.reduce((n:number,x:any)=>n+Number(x.estimated_total??0),0),
       sampled:carts.length===10000, definition:"Abandonado: carrinho consentido com itens, sem pedido enviado e inativo há pelo menos 30 minutos. Valor estimado, não receita."};
   });
