@@ -191,9 +191,21 @@ export const productToggle = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const membership = await requireCatalogTenant(tdb(context.supabase), context.userId, context.tenantId);
     const patch: Record<string, boolean> = { [data.field]: data.value };
-    const { error } = await tdb(context.supabase).from("products").update(patch as never).eq("id", data.id).eq("tenant_id", membership.tenant_id).is("deleted_at", null);
+    // Privileged mutation is constrained by an authenticated tenant membership,
+    // scoped to that tenant and verified by the returned row. Never report success
+    // for a zero-row update (which can occur silently under restrictive RLS).
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: updated, error } = await (supabaseAdmin as any).from("products")
+      .update(patch)
+      .eq("id", data.id)
+      .eq("tenant_id", membership.tenant_id)
+      .is("deleted_at", null)
+      .select("id,active,featured,is_new,is_bestseller,is_offer")
+      .maybeSingle();
     if (error) throw new Error(error.message);
-    return { ok: true };
+    if (!updated) throw new Error("Produto não encontrado neste estabelecimento ou excluído.");
+    if (updated[data.field] !== data.value) throw new Error("Alteração não confirmada pelo banco. Tente novamente.");
+    return { ok: true, active: Boolean(updated.active) };
   });
 
 export const productDuplicate = createServerFn({ method: "POST" })
