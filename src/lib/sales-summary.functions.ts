@@ -31,8 +31,22 @@ export const getSalesSummary = createServerFn({ method: "GET" })
     const origin=(key:Origin)=>{const rows=all.filter(r=>r.origin===key);return{orders:rows.length,gross:rows.reduce((n,r)=>n+r.total,0)}};
     const products=new Map<string,{name:string;sku?:string;quantity:number;revenue:number}>();
     for(const sale of all) for(const item of sale.items){const key=`${item.sku??""}:${item.name}`, current=products.get(key)??{name:item.name,sku:item.sku,quantity:0,revenue:0};current.quantity+=item.quantity;current.revenue+=item.total;products.set(key,current)}
+    const siteProducts=new Map<string,{name:string;sku?:string;quantity:number;revenue:number}>();
+    for(const sale of site.filter(r=>PAID_SITE.has(String(r.status).toLowerCase())))for(const item of sale.items){
+      const key=item.sku??item.name;
+      const p=siteProducts.get(key)??{name:item.name,sku:item.sku,quantity:0,revenue:0};
+      p.quantity+=item.quantity;p.revenue+=item.total;siteProducts.set(key,p);
+    }
+    const siteDailyMap=new Map<string,{date:string;orders:number;revenue:number}>();
+    for(const sale of site.filter(r=>PAID_SITE.has(String(r.status).toLowerCase()))){
+      const date=sale.createdAt.slice(0,10);
+      const day=siteDailyMap.get(date)??{date,orders:0,revenue:0};
+      day.orders++;day.revenue+=sale.total;siteDailyMap.set(date,day);
+    }
+    const siteDaily=[...siteDailyMap.values()].sort((a,b)=>a.date.localeCompare(b.date));
+    const siteTopProducts=[...siteProducts.values()].sort((a,b)=>b.quantity-a.quantity||b.revenue-a.revenue).slice(0,10);
     const gross=all.reduce((n,r)=>n+r.total,0);
-    return {periodDays:data.days,total:{orders:all.length,gross,averageTicket:all.length?gross/all.length:0},origins:{site:origin("site"),ia:origin("ia"),balcao:origin("balcao")},pendingSiteOrders:site.filter(r=>["aguardando_pagamento","pending"].includes(String(r.status).toLowerCase())).length,paidSiteOrders:site.filter(r=>PAID_SITE.has(String(r.status).toLowerCase())).length,siteConfirmedRevenue:site.filter(r=>PAID_SITE.has(String(r.status).toLowerCase())).reduce((n,r)=>n+r.total,0),sitePendingValue:site.filter(r=>["aguardando_pagamento","pending"].includes(String(r.status).toLowerCase())).reduce((n,r)=>n+r.total,0),topProducts:[...products.values()].sort((a,b)=>b.quantity-a.quantity||b.revenue-a.revenue).slice(0,10),latestSales:all.slice(0,12)};
+    return {periodDays:data.days,total:{orders:all.length,gross,averageTicket:all.length?gross/all.length:0},origins:{site:origin("site"),ia:origin("ia"),balcao:origin("balcao")},pendingSiteOrders:site.filter(r=>["aguardando_pagamento","pending"].includes(String(r.status).toLowerCase())).length,paidSiteOrders:site.filter(r=>PAID_SITE.has(String(r.status).toLowerCase())).length,siteConfirmedRevenue:site.filter(r=>PAID_SITE.has(String(r.status).toLowerCase())).reduce((n,r)=>n+r.total,0),sitePendingValue:site.filter(r=>["aguardando_pagamento","pending"].includes(String(r.status).toLowerCase())).reduce((n,r)=>n+r.total,0),siteDaily,siteTopProducts,topProducts:[...products.values()].sort((a,b)=>b.quantity-a.quantity||b.revenue-a.revenue).slice(0,10),latestSales:all.slice(0,12)};
   });
 
 export const getSiteSaleAlerts = createServerFn({ method: "GET" })
