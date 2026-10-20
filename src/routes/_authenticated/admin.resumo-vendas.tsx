@@ -7,7 +7,7 @@ import { getStorefrontCartAnalytics } from "@/lib/storefront-cart-analytics.func
 
 export const Route=createFileRoute("/_authenticated/admin/resumo-vendas")({head:()=>({meta:[{title:"Resumo de vendas · Norte Sul"}]}),component:SalesSummary});
 const brl=(n:number)=>n.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-const origin={site:{label:"Site",icon:MonitorSmartphone,tone:"bg-blue-50 text-blue-700"},ia:{label:"IA",icon:Bot,tone:"bg-violet-50 text-violet-700"},balcao:{label:"Balcão",icon:ScanLine,tone:"bg-emerald-50 text-emerald-700"}} as const;
+const origin={site:{label:"Site",icon:MonitorSmartphone,tone:"bg-blue-50 text-blue-700"},ia:{label:"WhatsApp / IA",icon:Bot,tone:"bg-violet-50 text-violet-700"},balcao:{label:"Balcão",icon:ScanLine,tone:"bg-emerald-50 text-emerald-700"}} as const;
 
 function SalesSummary(){
  const salesFn=useServerFn(getSalesSummary);
