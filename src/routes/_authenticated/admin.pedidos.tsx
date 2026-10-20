@@ -47,6 +47,7 @@ function displayStatus(status: string | null) {
 function OrdersList() {
   const siteOnly=useRouterState({ select: (state) => state.location.searchStr.includes("canal=site") });
   const [query, setQuery] = useState("");
+  const [page,setPage]=useState(0);
   const [statusFilter, setStatusFilter] = useState("");
   const [channelFilter, setChannelFilter] = useState<"" | "b2b" | "b2c">("");
   const [financialFilter, setFinancialFilter] = useState<"" | "paid" | "pending" | "cancelled">("");
@@ -54,13 +55,13 @@ function OrdersList() {
   const [fulfillmentFilter,setFulfillmentFilter]=useState("");
 
   const { data = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ["admin-orders"],
+    queryKey: ["admin-orders",page],
     queryFn: async () => {
       const { data: orders, error: ordersError } = await (supabase as any)
         .from("orders")
         .select("id, customer_name, customer_email, status, total, created_at, is_b2b, bling_number, bling_invoice_status, bling_sync_status, fulfillment_type, pickup_status, payment_method")
         .order("created_at", { ascending: false })
-        .limit(100);
+        .range(page*100,page*100+99);
       if (ordersError) throw ordersError;
       const typedOrders=(orders??[]) as Array<{id:string;status:string;customer_name:string|null;customer_email:string|null;total:number;created_at:string;is_b2b:boolean;bling_number:string|null;bling_invoice_status:string|null;bling_sync_status:string|null;fulfillment_type:string|null;pickup_status:string|null;payment_method:string|null}>;
       const orderIds = typedOrders.map((order) => order.id);
@@ -152,7 +153,7 @@ function OrdersList() {
         <SummaryCard icon={CircleDollarSign} label="Receita recebida" value={brl(paidValue)} detail={`${paidOrders.length} pedido(s) pago(s)`} tone="emerald" />
         <SummaryCard icon={Clock3} label="A receber" value={brl(pendingValue)} detail={`${pendingOrders.length} pedido(s) pendente(s)`} tone="amber" />
         <SummaryCard icon={XCircle} label="Cancelados" value={brl(cancelledValue)} detail={`${cancelledOrders.length} pedido(s) cancelado(s)`} tone="rose" />
-        <SummaryCard icon={ShoppingBag} label="Pedidos carregados" value={String(data.length)} detail="Amostra recente de até 100 pedidos; filtros sobre os registros carregados" tone="blue" />
+        <SummaryCard icon={ShoppingBag} label="Pedidos carregados" value={String(data.length)} detail="Últimos 100 pedidos desta página" tone="blue" />
       </section>
       <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
         <b>Saldo de vendas:</b> {brl(paidValue)}. Este valor considera apenas pedidos com pagamento confirmado.
@@ -261,8 +262,9 @@ function OrdersList() {
       )}
 
       <p className="text-xs text-muted-foreground">
-        Exibindo {filteredOrders.length} de {data.length} pedidos mais recentes.
+        Exibindo {filteredOrders.length} de {data.length} pedidos carregados na página {page+1}. Filtros aplicados à página atual.
       </p>
+      <div className="flex items-center justify-end gap-3"><button type="button" disabled={page===0||isLoading} onClick={()=>setPage(p=>Math.max(0,p-1))} className="rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-40">Página anterior</button><span className="text-sm text-slate-600">Página {page+1}</span><button type="button" disabled={data.length<100||isLoading} onClick={()=>setPage(p=>p+1)} className="rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-40">Próxima página</button></div>
     </div>
   );
 }
