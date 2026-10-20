@@ -21,6 +21,7 @@ import { useSession } from "@/lib/session";
 import { brl } from "@/lib/format";
 import { CompanyLogo } from "@/components/site/CompanyLogo";
 import { useCompanyProfile } from "@/lib/company";
+import { CartAnalyticsConsent } from "@/components/site/CartAnalyticsConsent";
 
 const STORE_NAVIGATION = [
   { slug: "som-automotivo", label: "Som e multimídia" },
@@ -506,6 +507,7 @@ export function Header() {
           </div>
         </div>
       )}
+      <CartAnalyticsConsent />
     </header>
   );
 }

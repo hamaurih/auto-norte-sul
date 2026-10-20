@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { CompanyLogo } from "@/components/site/CompanyLogo";
 import { useCompanyProfile } from "@/lib/company";
+import { resetCartAnalyticsConsent } from "@/lib/cart-store";
 
 export function Footer() {
   const { data: company } = useCompanyProfile();
@@ -118,6 +119,7 @@ export function Footer() {
       </div>
 
       <div className="border-t border-white/10 bg-black/40 py-3 text-center text-xs text-white/50">
+        <button type="button" className="mr-3 underline" onClick={resetCartAnalyticsConsent}>Preferências de privacidade</button>
         © {new Date().getFullYear()} {company?.trade_name || "Loja"}
         {company?.tax_id ? ` · CNPJ/CPF ${company.tax_id}` : ""} · {company?.footer_text || "Todos os direitos reservados"}
       </div>

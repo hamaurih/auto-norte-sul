@@ -339,6 +339,7 @@ export const adminModules: AdminModule[] = [
       { to: "/admin/banners", label: "Layout e banners", description: "Banners da home e campanhas visuais", icon: ImageIcon },
       { to: "/admin/promocoes", label: "Promoções", description: "Campanhas e preços promocionais", icon: Percent },
       { to: "/admin/cupons", label: "Cupons", description: "Descontos por código", icon: Ticket },
+      { to: "/admin/resumo-vendas?canal=site", label: "BI do e-commerce", description: "Métricas exclusivas do checkout", icon: BarChart3 },
       { to: "/admin/cadastros-b2b", label: "Lojistas e oficinas", description: "Aprovações de revendedores", icon: Briefcase },
       { to: "/", label: "Visualizar loja", description: "Abrir o site público", icon: Store, external: true },
     ],

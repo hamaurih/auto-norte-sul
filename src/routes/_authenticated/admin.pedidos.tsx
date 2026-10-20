@@ -47,20 +47,24 @@ function displayStatus(status: string | null) {
 function OrdersList() {
   const siteOnly=useRouterState({ select: (state) => state.location.searchStr.includes("canal=site") });
   const [query, setQuery] = useState("");
+  const [page,setPage]=useState(0);
   const [statusFilter, setStatusFilter] = useState("");
   const [channelFilter, setChannelFilter] = useState<"" | "b2b" | "b2c">("");
   const [financialFilter, setFinancialFilter] = useState<"" | "paid" | "pending" | "cancelled">("");
+  const [fiscalFilter,setFiscalFilter]=useState("");
+  const [fulfillmentFilter,setFulfillmentFilter]=useState("");
 
   const { data = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ["admin-orders"],
+    queryKey: ["admin-orders",page],
     queryFn: async () => {
-      const { data: orders, error: ordersError } = await supabase
+      const { data: orders, error: ordersError } = await (supabase as any)
         .from("orders")
-        .select("id, customer_name, customer_email, status, total, created_at, is_b2b, bling_number")
+        .select("id, customer_name, customer_email, status, total, created_at, is_b2b, bling_number, bling_invoice_status, bling_sync_status, fulfillment_type, pickup_status, payment_method")
         .order("created_at", { ascending: false })
-        .limit(100);
+        .range(page*100,page*100+99);
       if (ordersError) throw ordersError;
-      const orderIds = (orders ?? []).map((order) => order.id);
+      const typedOrders=(orders??[]) as Array<{id:string;status:string;customer_name:string|null;customer_email:string|null;total:number;created_at:string;is_b2b:boolean;bling_number:string|null;bling_invoice_status:string|null;bling_sync_status:string|null;fulfillment_type:string|null;pickup_status:string|null;payment_method:string|null}>;
+      const orderIds = typedOrders.map((order) => order.id);
       if (!orderIds.length) return [];
       const { data: intents, error: intentsError } = await supabase
         .from("payment_intents")
@@ -73,7 +77,7 @@ function OrdersList() {
         statuses.push(String(intent.status ?? "").toLowerCase());
         statusesByOrder.set(intent.order_id, statuses);
       }
-      return (orders ?? []).map((order) => ({
+      return typedOrders.map((order) => ({
         ...order,
         financialStatus: financialStatus(order.status, statusesByOrder.get(order.id) ?? []),
       }));
@@ -99,9 +103,11 @@ function OrdersList() {
         !channelFilter ||
         (channelFilter === "b2b" ? order.is_b2b : !order.is_b2b);
       const matchesFinancial = !financialFilter || order.financialStatus === financialFilter;
-      return matchesSearch && matchesStatus && matchesChannel && matchesFinancial;
+      const matchesFiscal=!fiscalFilter || (fiscalFilter==="pending" ? !order.bling_invoice_status || !["authorized","autorizada","autorizado"].includes(String(order.bling_invoice_status).toLowerCase()) : ["authorized","autorizada","autorizado"].includes(String(order.bling_invoice_status).toLowerCase()));
+      const matchesFulfillment=!fulfillmentFilter || order.fulfillment_type===fulfillmentFilter;
+      return matchesSearch && matchesStatus && matchesChannel && matchesFinancial && matchesFiscal && matchesFulfillment;
     });
-  }, [channelFilter, data, financialFilter, query, statusFilter]);
+  }, [channelFilter, data, financialFilter, fiscalFilter, fulfillmentFilter, query, statusFilter]);
 
   // Orders originate from the storefront order table; POS and WhatsApp are stored separately.
   // Site-only mode adds a dedicated operational label without altering shared ERP data.
@@ -147,13 +153,13 @@ function OrdersList() {
         <SummaryCard icon={CircleDollarSign} label="Receita recebida" value={brl(paidValue)} detail={`${paidOrders.length} pedido(s) pago(s)`} tone="emerald" />
         <SummaryCard icon={Clock3} label="A receber" value={brl(pendingValue)} detail={`${pendingOrders.length} pedido(s) pendente(s)`} tone="amber" />
         <SummaryCard icon={XCircle} label="Cancelados" value={brl(cancelledValue)} detail={`${cancelledOrders.length} pedido(s) cancelado(s)`} tone="rose" />
-        <SummaryCard icon={ShoppingBag} label="Pedidos carregados" value={String(data.length)} detail="Últimos 100 pedidos" tone="blue" />
+        <SummaryCard icon={ShoppingBag} label="Pedidos carregados" value={String(data.length)} detail="Últimos 100 pedidos desta página" tone="blue" />
       </section>
       <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
         <b>Saldo de vendas:</b> {brl(paidValue)}. Este valor considera apenas pedidos com pagamento confirmado.
       </p>
 
-      <section className="admin-filter-bar grid gap-3 lg:grid-cols-[minmax(240px,1fr)_190px_160px_170px]">
+      <section className="admin-filter-bar grid gap-3 lg:grid-cols-[minmax(240px,1fr)_170px_130px_150px_145px_135px]">
         <label className="relative">
           <span className="sr-only">Buscar pedido</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
@@ -188,6 +194,8 @@ function OrdersList() {
             <option value="cancelled">Cancelados</option>
           </select>
         </label>
+        <label><span className="sr-only">Situação fiscal</span><select className="w-full" value={fiscalFilter} onChange={(e)=>setFiscalFilter(e.target.value)}><option value="">Todas NF-e</option><option value="pending">NF-e pendente</option><option value="authorized">NF-e autorizada</option></select></label>
+        <label><span className="sr-only">Entrega ou retirada</span><select className="w-full" value={fulfillmentFilter} onChange={(e)=>setFulfillmentFilter(e.target.value)}><option value="">Todas entregas</option><option value="delivery">Entrega</option><option value="pickup">Retirada</option></select></label>
       </section>
 
       {isError ? (
@@ -196,7 +204,7 @@ function OrdersList() {
         </div>
       ) : (
         <div className="overflow-x-auto rounded-3xl border border-border/70 bg-card shadow-sm">
-          <table className="w-full min-w-[820px] text-sm">
+          <table className="w-full min-w-[1080px] text-sm">
             <thead>
               <tr>
                 <th className="p-3 text-left">Pedido</th>
@@ -204,9 +212,10 @@ function OrdersList() {
                 <th className="p-3 text-left">Data</th>
                 <th className="p-3 text-left">Status do pedido</th>
                 <th className="p-3 text-left">Financeiro</th>
-                <th className="p-3 text-left">Canal</th>
+                <th className="p-3 text-left">Origem / perfil</th>
+                <th className="p-3 text-left">Pagamento / entrega</th>
                 <th className="p-3 text-right">Total</th>
-                <th className="p-3 text-left">Bling</th>
+                <th className="p-3 text-left">Bling / NF-e</th>
               </tr>
             </thead>
             <tbody>
@@ -228,11 +237,12 @@ function OrdersList() {
                   <td className="p-3"><FinancialBadge status={order.financialStatus} /></td>
                   <td className="p-3">
                     <span className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${order.is_b2b ? "bg-violet-100 text-violet-700" : "bg-blue-100 text-blue-700"}`}>
-                      {order.is_b2b ? "B2B" : "B2C"}
+                      SITE · {order.is_b2b ? "B2B" : "B2C"}
                     </span>
                   </td>
+                  <td className="p-3 text-xs"><div className="font-bold uppercase">{order.payment_method??"—"}</div><div className="mt-1 text-muted-foreground">{order.fulfillment_type==="pickup"?"Retirada em loja":order.fulfillment_type==="delivery"?"Entrega":"Não definido"}</div></td>
                   <td className="p-3 text-right price-tag">{brl(Number(order.total ?? 0))}</td>
-                  <td className="p-3 text-xs font-semibold"><div>{order.bling_number ?? "—"}</div><Link to="/admin/pedidos/$id" params={{ id: order.id }} className="mt-1 inline-flex min-h-8 items-center font-bold text-primary hover:underline">Abrir pedido</Link></td>
+                  <td className="p-3 text-xs font-semibold"><div>Bling: {order.bling_number ?? "—"}</div><div className="mt-1 text-muted-foreground">Envio: {order.bling_sync_status??"não iniciado"}</div><div className="mt-1 text-muted-foreground">NF-e: {order.bling_invoice_status??"pendente"}</div><Link to="/admin/pedidos/$id" params={{ id: order.id }} className="mt-1 inline-flex min-h-8 items-center font-bold text-primary hover:underline">Abrir pedido</Link></td>
                 </tr>
               ))}
             </tbody>
@@ -252,8 +262,9 @@ function OrdersList() {
       )}
 
       <p className="text-xs text-muted-foreground">
-        Exibindo {filteredOrders.length} de {data.length} pedidos mais recentes.
+        Exibindo {filteredOrders.length} de {data.length} pedidos carregados na página {page+1}. Filtros aplicados à página atual.
       </p>
+      <div className="flex items-center justify-end gap-3"><button type="button" disabled={page===0||isLoading} onClick={()=>setPage(p=>Math.max(0,p-1))} className="rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-40">Página anterior</button><span className="text-sm text-slate-600">Página {page+1}</span><button type="button" disabled={data.length<100||isLoading} onClick={()=>setPage(p=>p+1)} className="rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-40">Próxima página</button></div>
     </div>
   );
 }
