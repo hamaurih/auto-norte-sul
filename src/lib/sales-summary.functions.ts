@@ -4,7 +4,7 @@ import { tdb } from "@/integrations/supabase/tenant-db";
 import { requireTenantSalesRole } from "@/lib/auth-guards";
 
 const CLOSED = new Set(["cancelado", "cancelled", "estornado", "refunded", "rascunho", "draft"]);
-const PAID_SITE = new Set(["pago", "faturado", "enviado", "entregue"]);
+const PAID_SITE = new Set(["paid", "pago", "processing", "shipped", "delivered", "faturado", "enviado", "entregue"]);
 const money = (value: unknown) => Number(value ?? 0);
 type Origin = "site" | "ia" | "balcao";
 type Sale = { id: string; origin: Origin; createdAt: string; total: number; status: string; customer: string; items: Array<{ name: string; sku?: string; quantity: number; total: number }> };
@@ -32,7 +32,7 @@ export const getSalesSummary = createServerFn({ method: "GET" })
     const products=new Map<string,{name:string;sku?:string;quantity:number;revenue:number}>();
     for(const sale of all) for(const item of sale.items){const key=`${item.sku??""}:${item.name}`, current=products.get(key)??{name:item.name,sku:item.sku,quantity:0,revenue:0};current.quantity+=item.quantity;current.revenue+=item.total;products.set(key,current)}
     const gross=all.reduce((n,r)=>n+r.total,0);
-    return {periodDays:data.days,total:{orders:all.length,gross,averageTicket:all.length?gross/all.length:0},origins:{site:origin("site"),ia:origin("ia"),balcao:origin("balcao")},pendingSiteOrders:site.filter(r=>String(r.status).toLowerCase()==="aguardando_pagamento").length,paidSiteOrders:site.filter(r=>PAID_SITE.has(String(r.status).toLowerCase())).length,topProducts:[...products.values()].sort((a,b)=>b.quantity-a.quantity||b.revenue-a.revenue).slice(0,10),latestSales:all.slice(0,12)};
+    return {periodDays:data.days,total:{orders:all.length,gross,averageTicket:all.length?gross/all.length:0},origins:{site:origin("site"),ia:origin("ia"),balcao:origin("balcao")},pendingSiteOrders:site.filter(r=>["aguardando_pagamento","pending"].includes(String(r.status).toLowerCase())).length,paidSiteOrders:site.filter(r=>PAID_SITE.has(String(r.status).toLowerCase())).length,topProducts:[...products.values()].sort((a,b)=>b.quantity-a.quantity||b.revenue-a.revenue).slice(0,10),latestSales:all.slice(0,12)};
   });
 
 export const getSiteSaleAlerts = createServerFn({ method: "GET" })
