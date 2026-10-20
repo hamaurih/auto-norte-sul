@@ -10,7 +10,7 @@ import {
   type PickupLocation,
 } from "@/lib/order.functions";
 import { createPaymentIntent } from "@/lib/payment.functions";
-import { useCart, cartStore } from "@/lib/cart-store";
+import { useCart, cartStore, markStorefrontCheckoutStarted, markStorefrontOrderSubmitted } from "@/lib/cart-store";
 import { useSession } from "@/lib/session";
 import { brl } from "@/lib/format";
 import {
@@ -322,6 +322,7 @@ function Checkout() {
 
     if (!user) return;
     setSaving(true);
+    markStorefrontCheckoutStarted();
     setPaymentError(null);
     try {
       let orderId = pendingOrderId;
@@ -351,6 +352,7 @@ function Checkout() {
           },
         });
         if (!result.id) throw new Error("Pedido não retornado");
+        markStorefrontOrderSubmitted();
         orderId = result.id;
         setPendingOrderId(orderId);
         idempotencyKey.current = crypto.randomUUID();
