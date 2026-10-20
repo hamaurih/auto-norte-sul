@@ -17,3 +17,10 @@
 6. Conservar isolamento tenant, idempotência, trilha de auditoria e rollback.
 
 **Nenhuma baixa, conciliação ou ajuste de saldo automático foi realizado.**
+
+## Achado crítico adicional (verificado por JOIN tenant_id + transaction_id)
+- 30.807 transações `matched`: **27.158 com match registrado**, **3.649 sem match na tabela `financial_reconciliation_matches`**.
+- 18.718 transações `pending`: nenhuma apresenta registro em `financial_reconciliation_matches`.
+- **0** transações com total dos `matched_amount` superior a `financial_transactions.amount + 0,01`.
+
+As 3.649 transações sem vínculo podem derivar de conciliação legada, integração ou inconsistência real. Não classificar como fraude/duplicidade nem alterar `reconciliation_status` sem examinar `source_type`, `source_id`, eventuais relações em outras tabelas, e os fluxos que escrevem esse status. Bloqueia aprovação de saldo e DRE até comprovação.
