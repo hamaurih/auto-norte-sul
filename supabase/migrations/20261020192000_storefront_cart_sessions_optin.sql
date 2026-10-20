@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS public.storefront_cart_sessions (
  last_event text NOT NULL DEFAULT 'cart_updated' CHECK(last_event IN ('cart_updated','checkout_started','order_submitted','cleared')),
  checkout_started_at timestamptz,
  order_submitted_at timestamptz,
+ recovered_at timestamptz,
  created_at timestamptz NOT NULL DEFAULT now(),
  updated_at timestamptz NOT NULL DEFAULT now(),
  UNIQUE(tenant_id,session_id)
