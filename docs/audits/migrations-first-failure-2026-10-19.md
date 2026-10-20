@@ -36,3 +36,17 @@ Expected in clean branch: `false`.
 ## Acceptance
 
 A newly provisioned Supabase branch must apply **all** 202 baseline migrations, show `ACTIVE_HEALTHY`, and pass RLS/functional smoke tests. Until then, this issue is **reproduced and diagnosed, NOT fixed**.
+
+
+## Validated repair — 19 October 2026
+
+The production migration metadata entry `20260904230343` was corrected **transactionally** to seed Mercado Pago with `INSERT ... SELECT` from the actual active `norte-sul-real` tenant, skipping the seed when this tenant is absent in a clean branch. The pre-correction SQL was preserved in `private.migration_replay_repair_backup` under that version and original MD5 `7b423002ab443854dd29167c7c61a462`. The new stored SQL MD5 is `434cf133e1f8d411ae1491dde7da568e`. **Business data, payment provider records, and ordinary production tables were not changed by this metadata repair.** This is a narrowly scoped exceptional correction to the managed migration history; retain the backup for rollback/audit.
+
+Fresh Supabase test branch `verify-migration-replay-20261019`, ref `zkiacfksewayshlqpczf`:
+- Previously first attempt stopped at **111/202** migrations with SQLSTATE 23503.
+- Following the correction, **202/202** migrations applied.
+- New branch: public base tables without RLS = **0**.
+- New branch: public `SECURITY DEFINER` functions executable by `anon` or `authenticated` = **0**.
+- GitHub PR checks: API Security, Phase 0 Security, Phase 1 ERP Core, Quality = **all passing** at commit `295616cabb771ace1e469f4fe847c050089db0cf`.
+
+**Status note:** branch provisioning reported `FUNCTIONS_DEPLOYED` with preview project `ACTIVE_HEALTHY` at the time the 202/202 replay completed. The legacy default branch's metadata continued to display `MIGRATIONS_FAILED` from its previous history; this field does not mean the repaired replay failed. Do not manually overwrite provider branch state. Full end-user role testing, backup restore verification and manual smoke testing are tracked independently.
