@@ -26,7 +26,7 @@ export const recordStorefrontCart=createServerFn({method:"POST"})
       .eq("tenant_id",store.tenant_id).eq("session_id",data.sessionId).maybeSingle();
     if(existingError) throw new Error("Erro ao verificar carrinho");
     // One write per 3 seconds; cap abuse from anonymous callers.
-    if(existing && Date.now()-new Date(existing.updated_at).getTime()<3000) return {ok:true,throttled:true};
+    if(existing && data.event==="cart_updated" && Date.now()-new Date(existing.updated_at).getTime()<3000) return {ok:true,throttled:true};
     const terminal=existing?.last_event==="order_submitted";
     if(terminal) return {ok:true,terminal:true};
     const event=data.event;
