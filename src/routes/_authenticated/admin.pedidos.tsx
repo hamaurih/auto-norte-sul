@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import {
@@ -45,6 +45,7 @@ function displayStatus(status: string | null) {
 }
 
 function OrdersList() {
+  const siteOnly=useRouterState({ select: (state) => state.location.searchStr.includes("canal=site") });
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [channelFilter, setChannelFilter] = useState<"" | "b2b" | "b2c">("");
@@ -102,6 +103,8 @@ function OrdersList() {
     });
   }, [channelFilter, data, financialFilter, query, statusFilter]);
 
+  // Orders originate from the storefront order table; POS and WhatsApp are stored separately.
+  // Site-only mode adds a dedicated operational label without altering shared ERP data.
   // Receita é somente aquilo que efetivamente foi pago. Valores pendentes e
   // cancelados são mostrados separadamente para não inflar o saldo.
   const paidOrders = data.filter((order) => order.financialStatus === "paid");
@@ -113,6 +116,7 @@ function OrdersList() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
+      {siteOnly && <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4"><p className="text-sm font-black text-blue-950">Canal SITE · Pedidos online</p><p className="text-sm text-blue-800">Esta lista consulta os pedidos do checkout. Vendas do PDV e WhatsApp ficam nos próprios canais e no consolidado do ERP.</p><Link to="/admin/resumo-vendas" className="mt-2 inline-block text-sm font-semibold underline">Voltar ao consolidado</Link></div>}
       <header className="admin-page-hero">
         <div className="relative z-10 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
