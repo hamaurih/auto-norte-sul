@@ -92,16 +92,20 @@ export const settleReceivable=createServerFn({method:"POST"}).middleware([requir
  const {data:result,error}=await (supabaseAdmin as any).rpc("receive_receivable",{p_receivable_id:data.id,p_amount:data.amount,p_account_id:data.accountId,p_received_date:data.receivedDate??new Date().toISOString().slice(0,10),p_idempotency_key:data.idempotencyKey,p_notes:data.notes??null});
  if(error)throw new Error(error.message);return result;
 });
-export const getCashFlow=createServerFn({method:"GET"}).middleware([requireSupabaseAuth]).handler(async({context})=>{
+export const getCashFlow=createServerFn({method:"GET"}).middleware([requireSupabaseAuth])
+.inputValidator(v=>z.object({scope:z.enum(["current","legacy"]).default("current")}).parse(v??{}))
+.handler(async({context,data})=>{
  const sb=tdb(context.supabase);await requireFinanceAdmin(sb,context.userId,context.tenantId);
  const [summary,transactions,receivables,expenses]=await Promise.all([
-  (supabaseAdmin as any).rpc("financial_cash_summary",{p_tenant_id:context.tenantId}),
-  (sb as any).from("financial_transactions").select("id,account_id,transaction_date,direction,amount,description,category,reconciliation_status,source_type,external_reference").eq("tenant_id",context.tenantId).order("transaction_date",{ascending:false}).limit(1000),
+  (supabaseAdmin as any).rpc("financial_cash_summary_cutover",{p_tenant_id:context.tenantId,p_scope:data.scope}),
+  data.scope==="legacy"
+   ? (sb as any).from("financial_transactions").select("id,account_id,transaction_date,direction,amount,description,category,reconciliation_status,source_type,external_reference").eq("tenant_id",context.tenantId).eq("source_type","bling_cash_banks").order("transaction_date",{ascending:false}).limit(1000)
+   : (sb as any).from("financial_transactions").select("id,account_id,transaction_date,direction,amount,description,category,reconciliation_status,source_type,external_reference").eq("tenant_id",context.tenantId).gte("transaction_date","2026-10-21").neq("source_type","bling_cash_banks").order("transaction_date",{ascending:false}).limit(1000),
   (sb as any).from("financial_receivables").select("id,customer_name,description,amount,received_amount,due_date,status").eq("tenant_id",context.tenantId).eq("status","open").order("due_date",{ascending:true}).limit(1000),
   sb.from("expenses").select("id,description,amount,paid_amount,due_date,status").eq("tenant_id",context.tenantId).eq("status","open").order("due_date",{ascending:true}).limit(1000),
  ]);
  for(const result of [summary,transactions,receivables,expenses])if(result.error)throw new Error(result.error.message);
- return {summary:summary.data??{accounts:[],summary:{}},transactions:transactions.data??[],receivables:receivables.data??[],expenses:expenses.data??[]};
+ return {scope:data.scope,cutoverDate:"2026-10-21",summary:summary.data??{accounts:[],summary:{}},transactions:transactions.data??[],receivables:receivables.data??[],expenses:expenses.data??[]};
 });
 const sourceStatus=(value:string|undefined)=>["paid","approved","confirmed","completed","received"].includes((value??"").toLowerCase())?"received":"open";
 export const syncReceivables=createServerFn({method:"POST"}).middleware([requireSupabaseAuth]).handler(async({context})=>{

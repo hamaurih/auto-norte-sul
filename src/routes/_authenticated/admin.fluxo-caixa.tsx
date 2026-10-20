@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowDownRight, ArrowUpRight, Landmark, WalletCards } from "lucide-react";
 import { getCashFlow } from "@/lib/financial.functions";
 import { brl } from "@/lib/format";
+import { useState } from "react";
 
 export const Route=createFileRoute("/_authenticated/admin/fluxo-caixa")({
   head:()=>({meta:[{title:"Fluxo de caixa · Norte Sul"}]}),
@@ -15,7 +16,9 @@ const reconLabel=(s:string)=>s==="matched"?"Conciliado":s==="partial"?"Parcial":
 
 function CashFlow(){
   const get=useServerFn(getCashFlow);
-  const q=useQuery({queryKey:["cash-flow"],queryFn:()=>get()});
+  const [scope,setScope]=useState<"current"|"legacy">("current");
+  const legacy=scope==="legacy";
+  const q=useQuery({queryKey:["cash-flow",scope],queryFn:()=>get({data:{scope}})});
   const receivables=q.data?.receivables??[];
   const expenses=q.data?.expenses??[];
   const transactions=q.data?.transactions??[];
@@ -29,11 +32,13 @@ function CashFlow(){
     <header>
       <p className="text-xs font-bold uppercase tracking-[.18em] text-emerald-700">Financeiro</p>
       <h1 className="mt-1 flex items-center gap-2 font-display text-3xl font-extrabold"><Landmark className="h-7 w-7 text-emerald-600"/> Fluxo de caixa</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Realizado vem exclusivamente de Caixa/Bancos. Contas a pagar e receber em aberto entram apenas como previsão, evitando dupla contabilização.</p>
+      <p className="mt-1 text-sm text-muted-foreground">{legacy?"Consulta histórica dos movimentos Bling anteriores a 21/10/2026. Não compõem os indicadores operacionais atuais.":"Operação desde 21/10/2026, separada dos lançamentos históricos do Bling. Títulos em aberto são previsões, não caixa realizado."}</p>
     </header>
 
+    <div className="flex flex-wrap items-center gap-2 rounded-2xl border bg-white p-3" role="group" aria-label="Período do financeiro"><button type="button" aria-pressed={!legacy} onClick={()=>setScope("current")} className={`rounded-xl px-4 py-2 text-sm font-semibold ${!legacy?"bg-emerald-700 text-white":"bg-slate-100 text-slate-700"}`}>Operação atual · desde 21/10/2026</button><button type="button" aria-pressed={legacy} onClick={()=>setScope("legacy")} className={`rounded-xl px-4 py-2 text-sm font-semibold ${legacy?"bg-slate-800 text-white":"bg-slate-100 text-slate-700"}`}>Histórico Bling · até 20/10/2026</button></div>
+    {!legacy&&<p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Saldos de abertura aguardam conferência dos extratos e fechamento de caixa; não trate valores provisórios como saldos bancários homologados.</p>}
     <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <Metric label="Saldo das contas" value={brl(accountBalance)} tone="emerald"/>
+      <Metric label={legacy?"Saldo líquido histórico (não validado)":"Saldo das contas (provisório)"} value={brl(accountBalance)} tone="emerald"/>
       <Metric label="A receber (previsto)" value={brl(incomingOpen)} tone="amber"/>
       <Metric label="A pagar (previsto)" value={brl(outOpen)} tone="rose"/>
       <Metric label="Movimentos pendentes" value={String(Number(summary.pending_movements??0))} tone="slate"/>
@@ -77,10 +82,10 @@ function CashFlow(){
       </div>
     </section>
 
-    <section className="grid gap-4 lg:grid-cols-2">
+    {!legacy&&<section className="grid gap-4 lg:grid-cols-2">
       <Forecast title="Próximos recebimentos" rows={receivables} type="in"/>
       <Forecast title="Próximos pagamentos" rows={expenses} type="out"/>
-    </section>
+    </section>}
   </div>;
 }
 
