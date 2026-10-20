@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { bannerUpsert, bannerDelete, bannerToggle, type BannerInput } from "@/lib/banners.functions";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { SiteAppearanceStudio } from "@/components/admin/SiteAppearanceStudio";
 
 export const Route = createFileRoute("/_authenticated/admin/banners")({
   head: () => ({ meta: [{ title: "Banners · Admin" }] }),
@@ -64,6 +65,7 @@ function BannersList() {
 
   return (
     <div>
+      <SiteAppearanceStudio />
       <div className="mb-4 flex items-center justify-between">
         <h1 className="font-display text-2xl font-bold uppercase">Banners</h1>
         <button onClick={() => setEditing(emptyBanner())} className="inline-flex items-center gap-2 rounded bg-primary px-4 py-2 text-sm font-bold uppercase text-primary-foreground">
