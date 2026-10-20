@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { recordStorefrontCart } from "@/lib/storefront-cart-analytics.functions";
+import { activeTenantSlug } from "@/integrations/supabase/tenant";
 
 export interface CartItem {
   productId: string;
@@ -21,9 +23,40 @@ function read(): CartItem[] {
   }
 }
 
+const ANALYTICS_CONSENT_KEY="nsa_analytics_consent";
+const CART_SESSION_KEY="nsa_cart_session_v1";
+function trackingSession():string {
+  let id=localStorage.getItem(CART_SESSION_KEY);
+  if(!id){id=crypto.randomUUID();localStorage.setItem(CART_SESSION_KEY,id);}
+  return id;
+}
+function trackCart(items:CartItem[],event:"cart_updated"|"checkout_started"|"order_submitted"|"cleared") {
+  if(typeof window==="undefined"||localStorage.getItem(ANALYTICS_CONSENT_KEY)!=="granted") return;
+  try {
+    void recordStorefrontCart({data:{
+      storefrontSlug:activeTenantSlug(),sessionId:trackingSession(),event,
+      itemsCount:items.reduce((n,x)=>n+x.quantity,0),
+      estimatedTotal:items.reduce((n,x)=>n+x.unitPrice*x.quantity,0),consent:true
+    }}).catch(()=>undefined);
+  }catch{ /* Analytics must never block checkout */ }
+}
+export function setCartAnalyticsConsent(allowed:boolean){
+  if(typeof window==="undefined") return;
+  localStorage.setItem(ANALYTICS_CONSENT_KEY,allowed?"granted":"denied");
+  if(allowed) trackCart(read(),"cart_updated");
+  window.dispatchEvent(new Event("nsa:analytics-consent"));
+}
+export function cartAnalyticsConsent(){
+  if(typeof window==="undefined")return null;
+  return localStorage.getItem(ANALYTICS_CONSENT_KEY);
+}
+export function markStorefrontCheckoutStarted(){trackCart(read(),"checkout_started");}
+export function markStorefrontOrderSubmitted(){trackCart(read(),"order_submitted");}
+
 function write(items: CartItem[]) {
   localStorage.setItem(KEY, JSON.stringify(items));
   window.dispatchEvent(new CustomEvent("nsa:cart"));
+  trackCart(items,items.length?"cart_updated":"cleared");
 }
 
 export const cartStore = {
