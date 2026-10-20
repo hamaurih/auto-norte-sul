@@ -79,3 +79,13 @@ Resultado observado: `total=202, com_sql=202, sem_sql=0`.
 2. Snapshot/backup completo, seguido de restauração em ambiente realmente isolado; o tenant demo no mesmo banco não conta.
 3. Execução real de regressão de RLS com identidades autenticadas sintéticas em instância isolada, incluindo todos os perfis relevantes.
 4. Diagnóstico na infraestrutura do status `MIGRATIONS_FAILED`, sem adulterar `schema_migrations`.
+
+### Reconciliação secundária por nome — 19/10/2026
+
+- **117** registros remotos encontram um nome de migration correspondente no GitHub.
+- **79** registros têm o mesmo nome mas timestamp diferente.
+- **85** registros remotos não encontram nome correspondente no GitHub.
+- Comparação por nome é somente uma pista de origem. **Não autoriza** marcar migration como aplicada/equivalente sem comparar SQL e ordem.
+- O detector foi estendido para informar essas classes separadamente e manter `equivalence_verified: false`.
+
+O histórico remoto possui todas as 202 entradas SQL e permite recuperação privada posterior, porém publicar o SQL bruto em repositório público seria inseguro antes de revisar a presença de dados sensíveis ou operações privilegiadas.
