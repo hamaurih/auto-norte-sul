@@ -101,8 +101,8 @@ export const getCashFlow=createServerFn({method:"GET"}).middleware([requireSupab
   data.scope==="legacy"
    ? (sb as any).from("financial_transactions").select("id,account_id,transaction_date,direction,amount,description,category,reconciliation_status,source_type,external_reference").eq("tenant_id",context.tenantId).eq("source_type","bling_cash_banks").order("transaction_date",{ascending:false}).limit(1000)
    : (sb as any).from("financial_transactions").select("id,account_id,transaction_date,direction,amount,description,category,reconciliation_status,source_type,external_reference").eq("tenant_id",context.tenantId).gte("transaction_date","2026-10-21").neq("source_type","bling_cash_banks").order("transaction_date",{ascending:false}).limit(1000),
-  (sb as any).from("financial_receivables").select("id,customer_name,description,amount,received_amount,due_date,status").eq("tenant_id",context.tenantId).eq("status","open").order("due_date",{ascending:true}).limit(1000),
-  sb.from("expenses").select("id,description,amount,paid_amount,due_date,status").eq("tenant_id",context.tenantId).eq("status","open").order("due_date",{ascending:true}).limit(1000),
+  (sb as any).from("financial_receivables").select("id,customer_name,description,amount,received_amount,due_date,status,source_type").eq("tenant_id",context.tenantId).eq("status","open").order("due_date",{ascending:true}).limit(1000),
+  sb.from("expenses").select("id,description,amount,paid_amount,due_date,status,source_type").eq("tenant_id",context.tenantId).eq("status","open").order("due_date",{ascending:true}).limit(1000),
  ]);
  for(const result of [summary,transactions,receivables,expenses])if(result.error)throw new Error(result.error.message);
  return {scope:data.scope,cutoverDate:"2026-10-21",summary:summary.data??{accounts:[],summary:{}},transactions:transactions.data??[],receivables:receivables.data??[],expenses:expenses.data??[]};
