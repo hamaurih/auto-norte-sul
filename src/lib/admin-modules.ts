@@ -327,7 +327,7 @@ export const adminModules: AdminModule[] = [
     icon: Store,
     accent: "bg-rose-100 text-rose-700",
     shortcuts: [
-      { to: "/admin/resumo-vendas", label: "Vendas por canal", description: "Painel consolidado com identificação de Site, Balcão e WhatsApp/IA", icon: BarChart3 },
+      { to: "/admin/resumo-vendas?canal=site", label: "Painel exclusivo do site", description: "Indicadores e gestão da loja virtual, sem misturar com o PDV", icon: BarChart3 },
       { to: "/admin/pedidos", label: "Pedidos gerais", description: "Lista atual compartilhada; filtro exclusivo do site ainda será implementado", icon: ShoppingBag },
       { to: "/admin/expedicao", label: "Entregas e retiradas", description: "Separação, transporte e retirada em loja", icon: Truck },
       { to: "/admin/ecossistema?categoria=payment", label: "Pagamentos do site", description: "Integração de checkout via Asaas", icon: CreditCard, adminOnly: true },
