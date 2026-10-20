@@ -3,14 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { BarChart3, Bot, MonitorSmartphone, ScanLine, ShoppingBag, Trophy, WalletCards } from "lucide-react";
 import { getSalesSummary } from "@/lib/sales-summary.functions";
+import { getStorefrontCartAnalytics } from "@/lib/storefront-cart-analytics.functions";
 
 export const Route=createFileRoute("/_authenticated/admin/resumo-vendas")({head:()=>({meta:[{title:"Resumo de vendas · Norte Sul"}]}),component:SalesSummary});
 const brl=(n:number)=>n.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const origin={site:{label:"Site",icon:MonitorSmartphone,tone:"bg-blue-50 text-blue-700"},ia:{label:"IA",icon:Bot,tone:"bg-violet-50 text-violet-700"},balcao:{label:"Balcão",icon:ScanLine,tone:"bg-emerald-50 text-emerald-700"}} as const;
 
 function SalesSummary(){
- const siteOnly=useRouterState({select:(s)=>s.location.searchStr.includes("canal=site")});
  const salesFn=useServerFn(getSalesSummary);
+ const cartAnalyticsFn=useServerFn(getStorefrontCartAnalytics);
+ const siteOnly=useRouterState({select:(s)=>s.location.searchStr.includes("canal=site")});
+ const cartQuery=useQuery({queryKey:["site-cart-analytics",30],queryFn:()=>cartAnalyticsFn({data:{days:30}}),enabled:siteOnly,refetchInterval:60000});
  const q=useQuery({queryKey:["sales-summary",30],queryFn:()=>salesFn({data:{days:30}}),refetchInterval:60_000}),data:any=q.data;
  if(q.isLoading)return <div className="p-6 text-sm text-muted-foreground">Carregando vendas consolidadas…</div>;
  if(q.isError||!data)return <div className="m-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">Não foi possível carregar o resumo.</div>;
@@ -26,6 +29,9 @@ function SalesSummary(){
     <article className="rounded-2xl border bg-white p-5"><p className="text-sm text-slate-500">Pedidos com pagamento pendente</p><p className="mt-2 text-3xl font-black">{data.pendingSiteOrders}</p></article>
     <article className="rounded-2xl border bg-white p-5"><p className="text-sm text-slate-500">Pedidos com estado pago/faturado</p><p className="mt-2 text-3xl font-black">{data.paidSiteOrders}</p></article>
   </section><p className="text-xs text-slate-500">* Volume de pedidos é diferente de receita recebida; confirme os recebimentos no financeiro do ERP. Fonte: pedidos do checkout, sem vendas do PDV ou WhatsApp.</p>
+  <section className="rounded-2xl border bg-white p-5"><h2 className="text-xl font-black">Funil e abandono de carrinhos</h2><p className="mt-1 text-sm text-slate-500">Somente sessões com consentimento, sem dados pessoais. Pedidos pagos continuam apurados separadamente pelo ERP.</p>
+   {cartQuery.isLoading?<p className="mt-3 text-sm">Carregando sessões consentidas…</p>:cartQuery.isError?<p role="alert" className="mt-3 text-sm text-red-700">Não foi possível consultar o funil.</p>:cartQuery.data?<><div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{([["Sessões de carrinho",cartQuery.data.sessions],["Iniciaram checkout",cartQuery.data.checkoutStarted],["Enviaram pedido",cartQuery.data.ordersSubmitted],["Abandonaram",cartQuery.data.abandoned]] as const).map(([label,value])=><div key={label} className="rounded-xl bg-slate-50 p-4"><p className="text-xs font-semibold text-slate-500">{label}</p><p className="mt-2 text-2xl font-black">{value}</p></div>)}</div><p className="mt-3 text-sm font-semibold">Valor estimado em carrinhos abandonados: {brl(cartQuery.data.abandonedEstimatedTotal)}</p><p className="mt-2 text-xs text-slate-500">{cartQuery.data.definition} {cartQuery.data.sampled?"Limite de 10.000 sessões atingido; indicadores são amostrais.":""}</p></>:null}
+  </section>
   <section><h2 className="mb-3 text-xl font-black">Operação da loja virtual</h2><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{actions.map(([title,url,description])=><a key={title} href={url} className="rounded-2xl border bg-white p-5 shadow-sm hover:border-blue-400"><p className="font-bold">{title}</p><p className="mt-1 text-sm text-slate-500">{description}</p></a>)}</div></section>
   <section className="rounded-2xl border bg-white"><div className="border-b p-5"><h2 className="font-black">Últimos pedidos do site</h2><p className="text-sm text-slate-500">Amostra dos últimos pedidos; não inclui vendas do balcão ou da IA.</p></div><div className="divide-y">{onlineSales.length?onlineSales.map((sale:any)=><div key={sale.id} className="flex justify-between gap-4 p-4"><div><p className="font-semibold">{sale.customer}</p><p className="text-xs text-slate-500">{sale.status} · {new Date(sale.createdAt).toLocaleString("pt-BR")}</p></div><b>{brl(Number(sale.total))}</b></div>):<p className="p-5 text-sm text-slate-500">Não há pedidos recentes do site nesta amostra.</p>}</div></section>
  </div>;
