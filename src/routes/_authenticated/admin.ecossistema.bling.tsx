@@ -40,6 +40,7 @@ import {
   reprocessBlingLog,
   revokeBlingConnection,
   sendPendingOrders,
+  processPendingBlingOrdersNow,
   syncBlingImages,
   testBlingConnection,
   updateBlingConfig,
@@ -106,6 +107,7 @@ function BlingModule() {
 
   const syncImages = useServerFn(syncBlingImages);
   const sendOrders = useServerFn(sendPendingOrders);
+  const processOrdersNow = useServerFn(processPendingBlingOrdersNow);
 
   const status = useQuery({ queryKey: ["bling-status"], queryFn: () => statusFn() });
   const stats = useQuery({ queryKey: ["bling-stats"], queryFn: () => statsFn() });
@@ -567,6 +569,12 @@ function BlingModule() {
             onSync={runSync(sendOrders, "Pedidos")}
             pending={busy === "Pedidos"}
           >
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <Button variant="default" size="sm" disabled={!!busy} onClick={runSync(() => processOrdersNow(), "Processar Bling agora")}>
+                Processar fila agora
+              </Button>
+              <span className="text-xs text-muted-foreground">Consulta o Bling antes de criar pedidos. Falhas HTTP 500 são reagendadas sem duplicidade.</span>
+            </div>
             <ErrorList
               logs={(logs.data ?? []).filter((l) => l.entity === "pedido" && l.status === "erro")}
               onReprocess={(id) => reprocessMut.mutate(id)}
