@@ -40,7 +40,7 @@ begin
  if v_user is null then raise exception 'Usuário não autenticado'; end if;
  if p_sale_ids is null or cardinality(p_sale_ids)<1 or cardinality(p_sale_ids)>100
    then raise exception 'Selecione de 1 a 100 vendas'; end if;
- select count(distinct s.tenant_id), min(s.tenant_id),count(distinct coalesce(s.customer_id::text,'__anon__'))
+ select count(distinct s.tenant_id), (array_agg(s.tenant_id))[1],count(distinct coalesce(s.customer_id::text,'__anon__'))
  into v_distinct,v_tenant,v_count
  from public.pos_sales s where s.id=any(p_sale_ids);
  if v_distinct<>1 or v_tenant is null then raise exception 'Vendas não encontradas no mesmo estabelecimento';end if;
