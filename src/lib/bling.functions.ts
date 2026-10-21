@@ -785,6 +785,14 @@ export const sendPendingOrders = createServerFn({ method: "POST" })
     return {ok:true,queued:fresh.length,message:`${fresh.length} venda(s) paga(s) enfileirada(s), sem gerar nota fiscal.`};
   });
 
+export const processPendingBlingOrdersNow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireBlingAdmin(context);
+    const { processBlingPaidSalesQueue } = await import("@/lib/bling-sales-export.server");
+    return await processBlingPaidSalesQueue();
+  });
+
 export const getBlingStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

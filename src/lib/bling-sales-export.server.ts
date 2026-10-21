@@ -41,6 +41,24 @@ async function finish(job: Job, status: "done" | "failed", reason?: string) {
   if (error) throw error;
 }
 
+async function retryReadOnly(job: Job, reason: string) {
+  // A GET request cannot create a remote order. Requeuing after API downtime is safe,
+  // unlike automatically repeating an ambiguous POST.
+  if (job.attempts >= 5) {
+    await db.from("orders").update({
+      bling_sync_status: "error", bling_sync_error: reason.slice(0, 250),
+    }).eq("id",job.order_id).eq("tenant_id",job.tenant_id);
+    return finish(job,"failed",reason);
+  }
+  const minutes = Math.min(60, 2 ** Math.min(job.attempts,5) * 2);
+  const {error} = await db.from("bling_order_sync_jobs").update({
+    status:"queued",started_at:null,finished_at:null,updated_at:new Date().toISOString(),
+    scheduled_at:new Date(Date.now()+minutes*60_000).toISOString(),
+    last_error:reason.slice(0,450),
+  }).eq("id",job.job_id).eq("tenant_id",job.tenant_id).eq("status","processing");
+  if(error) throw error;
+}
+
 async function processJob(job: Job) {
   const { data: order, error } = await db.from("orders")
     .select("id,tenant_id,status,customer_id,created_at,total,subtotal,discount,shipping,bling_id,bling_sync_status")
@@ -76,6 +94,17 @@ async function processJob(job: Job) {
   if (itens.some((x: any) => !Number.isSafeInteger(x.produto.id) || x.produto.id <= 0))
     return finish(job, "failed", "Há produtos sem ID de integração Bling");
 
+  // Não exportar pedidos cujos totais divergiriam no Bling: o recibo e o ERP
+  // são a fonte da verdade. Exigem mapeamento explícito de desconto/frete.
+  const itemsTotal = Number(lines.reduce((acc: number, l: any) => acc + Number(l.total), 0).toFixed(2));
+  const orderTotal = Number(order.total);
+  const discount = Number(order.discount ?? 0);
+  const shipping = Number(order.shipping ?? 0);
+  if (discount < 0 || shipping < 0 || shipping !== 0 ||
+      Math.abs(Number((itemsTotal - discount).toFixed(2)) - orderTotal) > 0.01) {
+    return finish(job, "failed", "Totais da venda não conciliam com itens e desconto, ou frete exige mapeamento; nenhuma exportação feita");
+  }
+
   // Não criar nota fiscal, contas, pagamentos nem baixar estoque novamente aqui.
   const numeroLoja = "NS-" + order.id;
   const payload = {
@@ -83,18 +112,12 @@ async function processJob(job: Job) {
     data: new Date(order.created_at).toISOString().slice(0, 10),
     contato: { id: Number(customer.bling_id) },
     itens,
+    ...(discount > 0 ? { desconto: { valor: discount, unidade: "REAL" } } : {}),
     observacoes: "Registro comercial Norte Sul " + order.id + ". Pagamento confirmado no ERP. Documento fiscal sob controle do vendedor/gestor. Não emitir automaticamente.",
   };
   if (!Number.isSafeInteger(payload.contato.id) || payload.contato.id <= 0)
     return finish(job, "failed", "Identificação de contato Bling inválida");
 
-  // Não exportar pedidos cujos totais divergiriam no Bling: o recibo e o ERP
-  // são a fonte da verdade. Exigem mapeamento explícito de desconto/frete.
-  const itemsTotal = Number(lines.reduce((acc: number, l: any) => acc + Number(l.total), 0).toFixed(2));
-  const orderTotal = Number(order.total);
-  if (Math.abs(itemsTotal - orderTotal) > 0.01 || Number(order.discount ?? 0) !== 0 || Number(order.shipping ?? 0) !== 0) {
-    return finish(job, "failed", "Pedido exige integração de desconto/frete antes do envio; não é seguro divergir o total no Bling");
-  }
   const token = await accessToken(job.tenant_id);
   const lookup = await fetch(API + "/pedidos/vendas?" + new URLSearchParams({
     pagina:"1",limite:"10","numerosLojas[]":numeroLoja,
@@ -102,7 +125,11 @@ async function processJob(job: Job) {
     headers:{ Authorization:"Bearer " + token,Accept:"application/json","enable-jwt":"1" },
     signal:AbortSignal.timeout(15000),
   });
-  if (!lookup.ok) return finish(job, "failed", "Consulta de deduplicação Bling indisponível (HTTP " + lookup.status + ")");
+  if (!lookup.ok) {
+    const reason="Consulta Bling indisponível (HTTP "+lookup.status+"), operação remota não iniciada";
+    if (lookup.status===429 || lookup.status>=500) return retryReadOnly(job,reason);
+    return finish(job,"failed",reason);
+  }
   const prior = await lookup.json().catch(()=>({}));
   const existing = (Array.isArray(prior?.data) ? prior.data : []).find(
     (item:any)=>String(item.numeroLoja??"")===numeroLoja && item.id
