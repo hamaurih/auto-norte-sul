@@ -35,7 +35,7 @@ export const listPosFiscalBatches = createServerFn({method:"GET"})
    const db=tdb(context.supabase);
    await requireTenantRole(db,context.userId,context.tenantId,["owner","admin","manager","sales"]);
    const {data,error}=await db.from("pos_fiscal_batches")
-     .select("id,status,customer_id,created_at,created_by,notes")
+     .select("id,status,customer_id,fiscal_document_id,created_at,created_by,reviewed_at,notes")
      .eq("tenant_id",context.tenantId).order("created_at",{ascending:false}).limit(100);
    if(error)throw new Error(error.message);
    const ids=(data??[]).map((x:any)=>x.id);
@@ -58,4 +58,27 @@ export const createPosFiscalBatch = createServerFn({method:"POST"})
    const {data:batch,error}=await db.rpc("create_pos_fiscal_batch",{p_sale_ids:ids,p_notes:data.notes??null});
    if(error)throw new Error(error.message);
    return {id:batch as string};
+ });
+
+export const cancelPosFiscalBatch = createServerFn({method:"POST"})
+ .middleware([requireSupabaseAuth])
+ .inputValidator((input:{batchId:string})=>input)
+ .handler(async({context,data})=>{
+  const db=tdb(context.supabase);
+  await requireTenantRole(db,context.userId,context.tenantId,["owner","admin","manager","sales"]);
+  const {data:result,error}=await db.rpc("cancel_pos_fiscal_batch",{p_batch_id:data.batchId});
+  if(error)throw new Error(error.message);
+  return {ok:result===true};
+ });
+
+export const preparePosFiscalDraft = createServerFn({method:"POST"})
+ .middleware([requireSupabaseAuth])
+ .inputValidator((input:{batchId:string,model:"55"|"65"})=>input)
+ .handler(async({context,data})=>{
+  const db=tdb(context.supabase);
+  await requireTenantRole(db,context.userId,context.tenantId,["owner","admin","manager","sales"]);
+  if(!["55","65"].includes(data.model))throw new Error("Modelo inválido");
+  const {data:documentId,error}=await db.rpc("prepare_pos_fiscal_batch_draft",{p_batch_id:data.batchId,p_model:data.model});
+  if(error)throw new Error(error.message);
+  return {documentId:documentId as string};
  });
