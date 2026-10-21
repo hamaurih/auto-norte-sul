@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, FileCheck2, FileClock, KeyRound, Landmark, ShieldCheck, Trash2, Upload } from "lucide-react";
 import { SupplyGuard } from "@/components/admin/SupplyGuard";
+import { PosFiscalBatchPanel } from "@/components/admin/PosFiscalBatchPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createFiscalDraft, getFiscalOverview, removeFiscalCertificate, runFiscalHomologation, saveFiscalCertificate, saveFiscalSettings, type FiscalSettingsInput } from "@/lib/fiscal.functions";
@@ -52,6 +53,7 @@ function FiscalPage(){
    <div className="mt-4 space-y-2">{(data?.pendingOrders??[]).map((o:any)=><div key={o.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-muted/50 p-3"><div><strong>{o.customer_name}</strong><div className="text-xs text-muted-foreground">{formatDate(o.created_at)} · {o.customer_document||"documento não informado"} · {brl(num(o.total))}</div></div><div className="flex gap-2"><Button size="sm" variant="outline" disabled={draft.isPending||!settings} onClick={()=>draft.mutate({orderId:o.id,model:"65"})}>Preparar NFC-e</Button><Button size="sm" disabled={draft.isPending||!settings} onClick={()=>draft.mutate({orderId:o.id,model:"55"})}>Preparar NF-e</Button></div></div>)}
    {!query.isLoading&&!(data?.pendingOrders??[]).length&&<p className="mt-4 text-sm text-muted-foreground">Nenhuma venda paga aguardando documento.</p>}</div>
   </section>
+  <PosFiscalBatchPanel />
   <section className="overflow-x-auto rounded-2xl border bg-card"><table className="w-full min-w-[760px] text-sm"><thead className="bg-muted/50 text-xs uppercase text-muted-foreground"><tr><th className="p-3 text-left">Documento</th><th className="p-3 text-left">Destinatário</th><th className="p-3 text-left">Ambiente</th><th className="p-3 text-left">Status</th><th className="p-3 text-right">Valor</th><th className="p-3 text-right">Criação</th><th className="p-3 text-right">Homologação</th></tr></thead><tbody>{(data?.documents??[]).map((d:any)=><tr key={d.id} className="border-t"><td className="p-3 font-semibold">{d.model==="55"?"NF-e":"NFC-e"} {d.series}/{d.number}</td><td className="p-3">{d.recipient_name}</td><td className="p-3">{d.environment}</td><td className="p-3">{d.status}</td><td className="p-3 text-right">{brl(num(d.totals?.total))}</td><td className="p-3 text-right">{formatDate(d.created_at)}</td><td className="p-3 text-right"><Button size="sm" variant="outline" disabled={homologation.isPending||!["draft","validation_failed"].includes(d.status)} onClick={()=>homologation.mutate({action:"prepare",documentId:d.id})}>Pré-validar</Button></td></tr>)}</tbody></table></section>
  </div>;
 }
