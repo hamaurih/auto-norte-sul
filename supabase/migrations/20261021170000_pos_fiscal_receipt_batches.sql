@@ -109,6 +109,7 @@ begin
  if v_count=0 then raise exception 'Lote vazio ou contém vendas não elegíveis';end if;
  if v_count<>(select count(*) from public.pos_fiscal_batch_sales where batch_id=p_batch_id) then raise exception 'Alguma venda foi cancelada ou já possui documento fiscal';end if;
  if v_missing<>1 then raise exception 'Não é permitido misturar filiais';end if;
+ if v_discount <> 0 then raise exception 'Vendas com desconto total exigem rateio fiscal validado antes da preparação; não é seguro emitir rascunho ainda';end if;
  select cs.branch_id into v_branch
  from public.pos_fiscal_batch_sales x join public.pos_sales s on s.id=x.sale_id
  join public.pos_cash_sessions cs on cs.id=s.cash_session_id where x.batch_id=p_batch_id limit 1;
