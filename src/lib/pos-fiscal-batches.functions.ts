@@ -9,8 +9,8 @@ export const listPosFiscalCandidates = createServerFn({method:"GET"})
    const db=tdb(context.supabase);
    await requireTenantRole(db,context.userId,context.tenantId,["owner","admin","manager","sales"]);
    const [sales,links]=await Promise.all([
-     db.from("pos_sales").select("id,created_at,status,total,customer_id,fiscal_status")
-       .eq("tenant_id",context.tenantId).eq("status","completed")
+     db.from("pos_sales").select("id,created_at,status,total,customer_id,fiscal_status,fiscal_document_id")
+       .eq("tenant_id",context.tenantId).eq("status","paid")
        .order("created_at",{ascending:false}).limit(200),
      db.from("pos_fiscal_batch_sales").select("sale_id")
        .eq("tenant_id",context.tenantId).limit(10000),
@@ -18,7 +18,7 @@ export const listPosFiscalCandidates = createServerFn({method:"GET"})
    if(sales.error)throw new Error(sales.error.message);
    if(links.error)throw new Error(links.error.message);
    const linked=new Set((links.data??[]).map((row:any)=>row.sale_id));
-   const candidates=(sales.data??[]).filter((s:any)=>!linked.has(s.id));
+   const candidates=(sales.data??[]).filter((s:any)=>!linked.has(s.id)&&!s.fiscal_document_id&&s.fiscal_status==="pending");
    const ids=[...new Set(candidates.map((s:any)=>s.customer_id).filter(Boolean))];
    const customerNames=new Map<string,string>();
    if(ids.length){
