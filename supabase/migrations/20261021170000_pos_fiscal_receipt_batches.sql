@@ -163,4 +163,21 @@ begin
 end$;
 revoke all on function public.prepare_pos_fiscal_batch_draft(uuid,text) from public,anon;
 grant execute on function public.prepare_pos_fiscal_batch_draft(uuid,text) to authenticated;
+-- Update linked POS sales when the fiscal engine changes authorization status.
+-- No stock, cash, payment or commission adjustments are performed by this trigger.
+create or replace function public.sync_pos_batch_fiscal_document_status()
+returns trigger language plpgsql security definer set search_path='' as $
+begin
+ if new.status is distinct from old.status and new.status in ('authorized','rejected','cancelled') then
+  update public.pos_sales s
+  set fiscal_status=case new.status when 'authorized' then 'authorized' when 'rejected' then 'rejected' else 'cancelled' end
+  where s.tenant_id=new.tenant_id and s.fiscal_document_id=new.id::text
+  and exists(select 1 from public.pos_fiscal_batches b where b.tenant_id=new.tenant_id and b.fiscal_document_id=new.id);
+ end if;
+ return new;
+end$;
+drop trigger if exists trg_sync_pos_batch_document_status on public.fiscal_documents;
+create trigger trg_sync_pos_batch_document_status after update of status on public.fiscal_documents
+for each row execute function public.sync_pos_batch_fiscal_document_status();
+revoke all on function public.sync_pos_batch_fiscal_document_status() from public,anon,authenticated;
 commit;
