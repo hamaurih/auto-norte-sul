@@ -94,6 +94,17 @@ async function processJob(job: Job) {
   if (itens.some((x: any) => !Number.isSafeInteger(x.produto.id) || x.produto.id <= 0))
     return finish(job, "failed", "Há produtos sem ID de integração Bling");
 
+  // Não exportar pedidos cujos totais divergiriam no Bling: o recibo e o ERP
+  // são a fonte da verdade. Exigem mapeamento explícito de desconto/frete.
+  const itemsTotal = Number(lines.reduce((acc: number, l: any) => acc + Number(l.total), 0).toFixed(2));
+  const orderTotal = Number(order.total);
+  const discount = Number(order.discount ?? 0);
+  const shipping = Number(order.shipping ?? 0);
+  if (discount < 0 || shipping < 0 || shipping !== 0 ||
+      Math.abs(Number((itemsTotal - discount).toFixed(2)) - orderTotal) > 0.01) {
+    return finish(job, "failed", "Totais da venda não conciliam com itens e desconto, ou frete exige mapeamento; nenhuma exportação feita");
+  }
+
   // Não criar nota fiscal, contas, pagamentos nem baixar estoque novamente aqui.
   const numeroLoja = "NS-" + order.id;
   const payload = {
@@ -107,16 +118,6 @@ async function processJob(job: Job) {
   if (!Number.isSafeInteger(payload.contato.id) || payload.contato.id <= 0)
     return finish(job, "failed", "Identificação de contato Bling inválida");
 
-  // Não exportar pedidos cujos totais divergiriam no Bling: o recibo e o ERP
-  // são a fonte da verdade. Exigem mapeamento explícito de desconto/frete.
-  const itemsTotal = Number(lines.reduce((acc: number, l: any) => acc + Number(l.total), 0).toFixed(2));
-  const orderTotal = Number(order.total);
-  const discount = Number(order.discount ?? 0);
-  const shipping = Number(order.shipping ?? 0);
-  if (discount < 0 || shipping < 0 || shipping !== 0 ||
-      Math.abs(Number((itemsTotal - discount).toFixed(2)) - orderTotal) > 0.01) {
-    return finish(job, "failed", "Totais da venda não conciliam com itens e desconto, ou frete exige mapeamento; nenhuma exportação feita");
-  }
   const token = await accessToken(job.tenant_id);
   const lookup = await fetch(API + "/pedidos/vendas?" + new URLSearchParams({
     pagina:"1",limite:"10","numerosLojas[]":numeroLoja,
