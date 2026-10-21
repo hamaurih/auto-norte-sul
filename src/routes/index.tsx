@@ -149,7 +149,7 @@ function HomeFallback() {
         </section>
       </div>
       <section className="container-x mt-4 grid grid-cols-2 gap-2 md:grid-cols-5">
-        {["Frete Brasil", "Até 6x sem juros", "PIX 5% OFF", "Boleto B2B", "Compra segura"].map((label) => (
+        {["Frete Brasil", "Até 6x sem juros", "PIX disponível", "Boleto B2B", "Compra segura"].map((label) => (
           <div key={label} className="h-10 animate-pulse rounded-lg border border-border bg-card" />
         ))}
       </section>
@@ -249,7 +249,7 @@ function Home() {
         {[
           { icon: Truck, label: "Frete Brasil" },
           { icon: CreditCard, label: "Até 6x sem juros" },
-          { icon: Percent, label: "PIX 5% OFF" },
+          { icon: CreditCard, label: "PIX disponível" },
           { icon: ReceiptText, label: "Boleto B2B (CPF/CNPJ)" },
           { icon: ShieldCheck, label: "Compra segura" },
         ].map(({ icon: Icon, label }) => (
@@ -462,7 +462,7 @@ function FallbackHero() {
       <div className="relative grid overflow-hidden rounded-3xl bg-[radial-gradient(circle_at_90%_20%,rgba(66,133,207,0.65),transparent_34%),linear-gradient(120deg,#020617_0%,#0f2f62_58%,#2563a8_100%)] text-white shadow-xl md:grid-cols-[1.25fr_0.75fr]">
         <div className="relative z-10 p-8 md:p-14">
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-400 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-950">
-            <Zap className="h-3 w-3" /> PIX 5% OFF
+            <Zap className="h-3 w-3" /> PIX disponível
           </span>
           <h1 className="mt-5 max-w-xl text-4xl font-extrabold leading-[1.03] tracking-tight md:text-6xl">
             Peças e acessórios <span className="text-amber-300">para o seu carro.</span>
