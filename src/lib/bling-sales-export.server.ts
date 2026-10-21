@@ -54,9 +54,8 @@ async function processJob(job: Job) {
   }
   if (order.bling_id) return finish(job, "done");
 
-  // A criação remota não tem garantia de idempotência em caso de timeout depois do POST.
-  // Nunca repetir automaticamente uma tentativa de POST ambígua.
-  if (job.attempts > 1) return finish(job, "failed", "Reenvio bloqueado: reconcilie o numeroLoja no Bling antes de tentar novamente");
+  // Nunca gerar um segundo pedido se a primeira tentativa já foi reconhecida no Bling.
+  // O número de referência do ERP será consultado antes de qualquer POST.
 
   const { data: customer, error: customerError } = await db.from("customers")
     .select("bling_id").eq("tenant_id", job.tenant_id).eq("id", order.customer_id).maybeSingle();
@@ -97,6 +96,25 @@ async function processJob(job: Job) {
     return finish(job, "failed", "Pedido exige integração de desconto/frete antes do envio; não é seguro divergir o total no Bling");
   }
   const token = await accessToken(job.tenant_id);
+  const lookup = await fetch(API + "/pedidos/vendas?" + new URLSearchParams({
+    pagina:"1",limite:"10","numerosLojas[]":numeroLoja,
+  }),{
+    headers:{ Authorization:"Bearer " + token,Accept:"application/json","enable-jwt":"1" },
+    signal:AbortSignal.timeout(15000),
+  });
+  if (!lookup.ok) return finish(job, "failed", "Consulta de deduplicação Bling indisponível (HTTP " + lookup.status + ")");
+  const prior = await lookup.json().catch(()=>({}));
+  const existing = (Array.isArray(prior?.data) ? prior.data : []).find(
+    (item:any)=>String(item.numeroLoja??"")===numeroLoja && item.id
+  );
+  if (existing) {
+    const {error:reconcileError}=await db.from("orders").update({
+      bling_id:String(existing.id),bling_number:existing.numero?String(existing.numero):null,
+      bling_sync_status:"synced",bling_last_sync_at:new Date().toISOString(),bling_sync_error:null,
+    }).eq("tenant_id",job.tenant_id).eq("id",order.id);
+    return finish(job,reconcileError?"failed":"done",reconcileError?"Pedido existente no Bling; falha de reconciliação no ERP":undefined);
+  }
+  if (job.attempts > 1) return finish(job, "failed", "Tentativa anterior inconclusiva: conferir o pedido no Bling antes de reenviar");
   const response = await fetch(API + "/pedidos/vendas", {
     method: "POST",
     headers: { Authorization: "Bearer " + token, "Content-Type": "application/json", Accept: "application/json", "enable-jwt": "1" },
