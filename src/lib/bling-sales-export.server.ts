@@ -41,7 +41,7 @@ async function finish(job: Job, status: "done" | "failed", reason?: string) {
   if (error) throw error;
 }
 
-async function process(job: Job) {
+async function processJob(job: Job) {
   const { data: order, error } = await db.from("orders")
     .select("id,tenant_id,status,customer_id,created_at,total,subtotal,discount,shipping,bling_id,bling_sync_status")
     .eq("id", job.order_id).eq("tenant_id", job.tenant_id).maybeSingle();
@@ -127,7 +127,7 @@ export async function processBlingPaidSalesQueue() {
   for (const job of (claimed ?? []) as Job[]) {
     result.checked += 1;
     try {
-      await process(job);
+      await processJob(job);
       result.processed += 1;
     } catch (e) {
       result.failed += 1;
