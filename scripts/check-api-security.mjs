@@ -8,6 +8,7 @@ const allowedPublic = new Set([
   join("public", "bling.callback.ts"),
   join("public", "cron.enrichment.ts"),
   join("public", "cron.bling-health.ts"),
+  join("public", "cron.bling-sales-export.ts"),
   join("public", "cron.shipping-enrichment.ts"),
   join("public", "asaas.webhook.ts"),
   join("public", "signup.ts"),
@@ -80,6 +81,11 @@ if (
 const blingHealthCron=readFileSync(join(root,"public","cron.bling-health.ts"),"utf8");
 if(!blingHealthCron.includes("CRON_SECRET")||!blingHealthCron.includes("timingSafeEqual")||!blingHealthCron.includes("status:401")||!blingHealthCron.includes('request.headers.get("authorization")')) {
  failures.push("cron bling: server-side bearer authentication missing");
+}
+
+const blingSalesCron=readFileSync(join(root,"public","cron.bling-sales-export.ts"),"utf8");
+if(!blingSalesCron.includes("CRON_SECRET")||!blingSalesCron.includes("timingSafeEqual")||!blingSalesCron.includes("status: 401")||!blingSalesCron.includes('request.headers.get("authorization")')) {
+ failures.push("cron bling sales: server-side bearer authentication missing");
 }
 
 const shippingCron = readFileSync(join(root, "public", "cron.shipping-enrichment.ts"), "utf8");
