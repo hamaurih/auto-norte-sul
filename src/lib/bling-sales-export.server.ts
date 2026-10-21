@@ -43,7 +43,7 @@ async function finish(job: Job, status: "done" | "failed", reason?: string) {
 
 async function process(job: Job) {
   const { data: order, error } = await db.from("orders")
-    .select("id,tenant_id,status,customer_id,created_at,total,bling_id,bling_sync_status")
+    .select("id,tenant_id,status,customer_id,created_at,total,subtotal,discount,shipping,bling_id,bling_sync_status")
     .eq("id", job.order_id).eq("tenant_id", job.tenant_id).maybeSingle();
   if (error || !order) return finish(job, "failed", "Pedido ausente ou inacessível");
 
@@ -89,6 +89,13 @@ async function process(job: Job) {
   if (!Number.isSafeInteger(payload.contato.id) || payload.contato.id <= 0)
     return finish(job, "failed", "Identificação de contato Bling inválida");
 
+  // Não exportar pedidos cujos totais divergiriam no Bling: o recibo e o ERP
+  // são a fonte da verdade. Exigem mapeamento explícito de desconto/frete.
+  const itemsTotal = Number(lines.reduce((acc: number, l: any) => acc + Number(l.total), 0).toFixed(2));
+  const orderTotal = Number(order.total);
+  if (Math.abs(itemsTotal - orderTotal) > 0.01 || Number(order.discount ?? 0) !== 0 || Number(order.shipping ?? 0) !== 0) {
+    return finish(job, "failed", "Pedido exige integração de desconto/frete antes do envio; não é seguro divergir o total no Bling");
+  }
   const token = await accessToken(job.tenant_id);
   const response = await fetch(API + "/pedidos/vendas", {
     method: "POST",
