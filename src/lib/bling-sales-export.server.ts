@@ -101,6 +101,7 @@ async function processJob(job: Job) {
     data: new Date(order.created_at).toISOString().slice(0, 10),
     contato: { id: Number(customer.bling_id) },
     itens,
+    ...(discount > 0 ? { desconto: { valor: discount, unidade: "REAL" } } : {}),
     observacoes: "Registro comercial Norte Sul " + order.id + ". Pagamento confirmado no ERP. Documento fiscal sob controle do vendedor/gestor. Não emitir automaticamente.",
   };
   if (!Number.isSafeInteger(payload.contato.id) || payload.contato.id <= 0)
@@ -110,8 +111,11 @@ async function processJob(job: Job) {
   // são a fonte da verdade. Exigem mapeamento explícito de desconto/frete.
   const itemsTotal = Number(lines.reduce((acc: number, l: any) => acc + Number(l.total), 0).toFixed(2));
   const orderTotal = Number(order.total);
-  if (Math.abs(itemsTotal - orderTotal) > 0.01 || Number(order.discount ?? 0) !== 0 || Number(order.shipping ?? 0) !== 0) {
-    return finish(job, "failed", "Pedido exige integração de desconto/frete antes do envio; não é seguro divergir o total no Bling");
+  const discount = Number(order.discount ?? 0);
+  const shipping = Number(order.shipping ?? 0);
+  if (discount < 0 || shipping < 0 || shipping !== 0 ||
+      Math.abs(Number((itemsTotal - discount).toFixed(2)) - orderTotal) > 0.01) {
+    return finish(job, "failed", "Totais da venda não conciliam com itens e desconto, ou frete exige mapeamento; nenhuma exportação feita");
   }
   const token = await accessToken(job.tenant_id);
   const lookup = await fetch(API + "/pedidos/vendas?" + new URLSearchParams({
