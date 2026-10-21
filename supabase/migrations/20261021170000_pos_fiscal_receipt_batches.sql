@@ -28,6 +28,8 @@ create index if not exists pos_fiscal_batches_tenant_idx on public.pos_fiscal_ba
 create index if not exists pos_fiscal_batch_sales_batch_idx on public.pos_fiscal_batch_sales(batch_id);
 alter table public.pos_fiscal_batches enable row level security;
 alter table public.pos_fiscal_batch_sales enable row level security;
+drop policy if exists pos_fiscal_batches_read on public.pos_fiscal_batches;
+drop policy if exists pos_fiscal_batch_sales_read on public.pos_fiscal_batch_sales;
 create policy pos_fiscal_batches_read on public.pos_fiscal_batches for select to authenticated
  using (private.has_tenant_role(tenant_id,null));
 create policy pos_fiscal_batch_sales_read on public.pos_fiscal_batch_sales for select to authenticated
@@ -53,12 +55,12 @@ begin
  perform 1 from public.pos_sales s where s.tenant_id=v_tenant and s.id=any(p_sale_ids) order by s.id for update;
  if (select count(*) from public.pos_sales s where s.tenant_id=v_tenant and s.id=any(p_sale_ids))<>cardinality(p_sale_ids)
  then raise exception 'Uma ou mais vendas não existem';end if;
- if exists(select 1 from public.pos_sales s where s.tenant_id=v_tenant and s.id=any(p_sale_ids) and s.status::text<>'completed')
+ if exists(select 1 from public.pos_sales s where s.tenant_id=v_tenant and s.id=any(p_sale_ids) and s.status::text<>'paid')
  then raise exception 'Somente vendas concluídas podem ser selecionadas';end if;
  if v_count<>1 then raise exception 'Agrupe apenas vendas do mesmo cliente';end if;
  if exists(select 1 from public.pos_fiscal_batch_sales x where x.tenant_id=v_tenant and x.sale_id=any(p_sale_ids))
  then raise exception 'Uma venda selecionada já está vinculada a um lote fiscal';end if;
- if exists (select 1 from public.pos_sales s where s.tenant_id=v_tenant and s.id=any(p_sale_ids) and (s.fiscal_document_id is not null or s.fiscal_status not in ('pending','not_issued','none',''))) then raise exception 'Há vendas com documento fiscal previamente vinculado; revise individualmente';end if;
+ if exists (select 1 from public.pos_sales s where s.tenant_id=v_tenant and s.id=any(p_sale_ids) and (nullif(s.fiscal_document_id,'') is not null or s.fiscal_status <> 'pending')) then raise exception 'Há vendas com documento fiscal previamente vinculado; revise individualmente';end if;
  select customer_id into v_customer from public.pos_sales where tenant_id=v_tenant and id=p_sale_ids[1];
  insert into public.pos_fiscal_batches(tenant_id,customer_id,created_by,notes)
  values(v_tenant,v_customer,v_user,left(nullif(trim(p_notes),''),1000)) returning id into v_batch;
@@ -103,7 +105,7 @@ begin
  from public.pos_fiscal_batch_sales x
  join public.pos_sales s on s.id=x.sale_id and s.tenant_id=x.tenant_id
  join public.pos_cash_sessions cs on cs.id=s.cash_session_id
- where x.batch_id=p_batch_id and x.tenant_id=v_batch.tenant_id and s.status::text='completed' and s.fiscal_document_id is null;
+ where x.batch_id=p_batch_id and x.tenant_id=v_batch.tenant_id and s.status::text='paid' and nullif(s.fiscal_document_id,'') is null;
  if v_count=0 then raise exception 'Lote vazio ou contém vendas não elegíveis';end if;
  if v_count<>(select count(*) from public.pos_fiscal_batch_sales where batch_id=p_batch_id) then raise exception 'Alguma venda foi cancelada ou já possui documento fiscal';end if;
  if v_missing<>1 then raise exception 'Não é permitido misturar filiais';end if;
@@ -154,7 +156,7 @@ begin
  insert into public.fiscal_document_events(tenant_id,fiscal_document_id,event_type,message,payload,created_by)
  values(v_batch.tenant_id,v_doc,'created','Rascunho vinculado a recibos do PDV',jsonb_build_object('batch_id',p_batch_id,'receipts',v_count),v_user);
  update public.pos_fiscal_batches set fiscal_document_id=v_doc,status='reviewed',reviewed_by=v_user,reviewed_at=now() where id=p_batch_id;
- update public.pos_sales s set fiscal_document_id=v_doc,fiscal_status='pending'
+ update public.pos_sales s set fiscal_document_id=v_doc::text,fiscal_status='pending'
  where s.tenant_id=v_batch.tenant_id and s.id in (select sale_id from public.pos_fiscal_batch_sales where batch_id=p_batch_id);
  return v_doc;
 end$;
