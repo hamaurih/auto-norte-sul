@@ -72,7 +72,7 @@ revoke all on function public.create_pos_fiscal_batch(uuid[],text) from public,a
 grant execute on function public.create_pos_fiscal_batch(uuid[],text) to authenticated;
 -- Cancel a pending batch and release receipt links without changing the original sales.
 create or replace function public.cancel_pos_fiscal_batch(p_batch_id uuid)
-returns boolean language plpgsql security definer set search_path='' as $
+returns boolean language plpgsql security definer set search_path='' as $$
 declare v_user uuid:=auth.uid();v_batch public.pos_fiscal_batches;
 begin
  select * into v_batch from public.pos_fiscal_batches where id=p_batch_id for update;
@@ -82,13 +82,13 @@ begin
  delete from public.pos_fiscal_batch_sales where batch_id=v_batch.id and tenant_id=v_batch.tenant_id;
  update public.pos_fiscal_batches set status='cancelled',reviewed_by=v_user,reviewed_at=now() where id=v_batch.id;
  return true;
-end$;
+end$$;
 revoke all on function public.cancel_pos_fiscal_batch(uuid) from public,anon;
 grant execute on function public.cancel_pos_fiscal_batch(uuid) to authenticated;
 
 -- Only creates a draft. This is NOT SEFAZ authorization, invoice transmission or fiscal permission to defer invoices.
 create or replace function public.prepare_pos_fiscal_batch_draft(p_batch_id uuid,p_model text default '55')
-returns uuid language plpgsql security definer set search_path='' as $
+returns uuid language plpgsql security definer set search_path='' as $$
 declare
  v_user uuid:=auth.uid();v_batch public.pos_fiscal_batches;v_settings public.fiscal_settings;
  v_count int;v_missing int;v_total numeric(18,2);v_subtotal numeric(18,2);
@@ -160,13 +160,13 @@ begin
  update public.pos_sales s set fiscal_document_id=v_doc::text,fiscal_status='pending'
  where s.tenant_id=v_batch.tenant_id and s.id in (select sale_id from public.pos_fiscal_batch_sales where batch_id=p_batch_id);
  return v_doc;
-end$;
+end$$;
 revoke all on function public.prepare_pos_fiscal_batch_draft(uuid,text) from public,anon;
 grant execute on function public.prepare_pos_fiscal_batch_draft(uuid,text) to authenticated;
 -- Update linked POS sales when the fiscal engine changes authorization status.
 -- No stock, cash, payment or commission adjustments are performed by this trigger.
 create or replace function public.sync_pos_batch_fiscal_document_status()
-returns trigger language plpgsql security definer set search_path='' as $
+returns trigger language plpgsql security definer set search_path='' as $$
 begin
  if new.status is distinct from old.status and new.status in ('authorized','rejected','cancelled') then
   update public.pos_sales s
@@ -175,7 +175,7 @@ begin
   and exists(select 1 from public.pos_fiscal_batches b where b.tenant_id=new.tenant_id and b.fiscal_document_id=new.id);
  end if;
  return new;
-end$;
+end$$;
 drop trigger if exists trg_sync_pos_batch_document_status on public.fiscal_documents;
 create trigger trg_sync_pos_batch_document_status after update of status on public.fiscal_documents
 for each row execute function public.sync_pos_batch_fiscal_document_status();
