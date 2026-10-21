@@ -4,13 +4,15 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { brl } from "@/lib/format";
-import { listPosFiscalCandidates,listPosFiscalBatches,createPosFiscalBatch } from "@/lib/pos-fiscal-batches.functions";
+import { listPosFiscalCandidates,listPosFiscalBatches,createPosFiscalBatch,cancelPosFiscalBatch,preparePosFiscalDraft } from "@/lib/pos-fiscal-batches.functions";
 
 export function PosFiscalBatchPanel(){
  const qc=useQueryClient();
  const candidatesFn=useServerFn(listPosFiscalCandidates);
  const batchesFn=useServerFn(listPosFiscalBatches);
  const createFn=useServerFn(createPosFiscalBatch);
+ const cancelFn=useServerFn(cancelPosFiscalBatch);
+ const draftFn=useServerFn(preparePosFiscalDraft);
  const [selected,setSelected]=useState<string[]>([]);
  const candidates=useQuery({queryKey:["pos-fiscal-candidates"],queryFn:()=>candidatesFn()});
  const batches=useQuery({queryKey:["pos-fiscal-batches"],queryFn:()=>batchesFn()});
@@ -19,13 +21,15 @@ export function PosFiscalBatchPanel(){
  const total=selectedRows.reduce((n,r)=>n+Number(r.total??0),0);
  const customerIds=[...new Set(selectedRows.map(r=>r.customer_id??"__anonymous"))];
  const sameCustomer=customerIds.length<=1;
+ const refresh=()=>{void qc.invalidateQueries({queryKey:["pos-fiscal-candidates"]});void qc.invalidateQueries({queryKey:["pos-fiscal-batches"]});void qc.invalidateQueries({queryKey:["fiscal-overview"]});};
+ const cancel=useMutation({mutationFn:(id:string)=>cancelFn({data:{batchId:id}}),onSuccess:()=>{toast.success("Lote cancelado e recibos liberados");refresh();},onError:(e:Error)=>toast.error(e.message)});
+ const draft=useMutation({mutationFn:(v:{id:string,model:"55"|"65"})=>draftFn({data:{batchId:v.id,model:v.model}}),onSuccess:()=>{toast.success("Rascunho fiscal de homologação criado e vinculado");refresh();},onError:(e:Error)=>toast.error(e.message)});
  const submit=useMutation({
   mutationFn:()=>createFn({data:{saleIds:selected}}),
   onSuccess:()=>{
    toast.success("Recibos vinculados a uma solicitação de análise fiscal");
    setSelected([]);
-   void qc.invalidateQueries({queryKey:["pos-fiscal-candidates"]});
-   void qc.invalidateQueries({queryKey:["pos-fiscal-batches"]});
+   refresh();
   },
   onError:(e:Error)=>toast.error(e.message),
  });
@@ -55,6 +59,8 @@ export function PosFiscalBatchPanel(){
    {(batches.data??[]).map((b:any)=><div key={b.id} className="rounded-lg bg-muted/50 p-3 text-sm">
     <strong>Lote {String(b.id).slice(0,8).toUpperCase()}</strong> · {b.sale_ids?.length??0} recibo(s) · {b.status==="pending_review"?"Aguardando análise fiscal":b.status}
     <div className="text-xs text-muted-foreground">Criado em {new Date(b.created_at).toLocaleString("pt-BR")}</div>
+    {b.fiscal_document_id&&<p className="mt-1 text-xs">Documento vinculado: {String(b.fiscal_document_id).slice(0,8).toUpperCase()}</p>}
+    {b.status==="pending_review"&&<div className="mt-2 flex flex-wrap gap-2"><Button size="sm" disabled={draft.isPending||cancel.isPending} onClick={()=>draft.mutate({id:b.id,model:"55"})}>Preparar NF-e</Button><Button size="sm" variant="outline" disabled={draft.isPending||cancel.isPending} onClick={()=>draft.mutate({id:b.id,model:"65"})}>Preparar NFC-e</Button><Button size="sm" variant="destructive" disabled={draft.isPending||cancel.isPending} onClick={()=>{if(window.confirm("Cancelar esta seleção e liberar os recibos?"))cancel.mutate(b.id)}}>Desvincular recibos</Button></div>}
    </div>)}
    {batches.isError&&<p role="alert" className="text-sm text-destructive">Erro ao consultar lotes fiscais.</p>}
   </div>
