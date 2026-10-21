@@ -41,6 +41,24 @@ async function finish(job: Job, status: "done" | "failed", reason?: string) {
   if (error) throw error;
 }
 
+async function retryReadOnly(job: Job, reason: string) {
+  // A GET request cannot create a remote order. Requeuing after API downtime is safe,
+  // unlike automatically repeating an ambiguous POST.
+  if (job.attempts >= 5) {
+    await db.from("orders").update({
+      bling_sync_status: "error", bling_sync_error: reason.slice(0, 250),
+    }).eq("id",job.order_id).eq("tenant_id",job.tenant_id);
+    return finish(job,"failed",reason);
+  }
+  const minutes = Math.min(60, 2 ** Math.min(job.attempts,5) * 2);
+  const {error} = await db.from("bling_order_sync_jobs").update({
+    status:"queued",started_at:null,finished_at:null,updated_at:new Date().toISOString(),
+    scheduled_at:new Date(Date.now()+minutes*60_000).toISOString(),
+    last_error:reason.slice(0,450),
+  }).eq("id",job.job_id).eq("tenant_id",job.tenant_id).eq("status","processing");
+  if(error) throw error;
+}
+
 async function processJob(job: Job) {
   const { data: order, error } = await db.from("orders")
     .select("id,tenant_id,status,customer_id,created_at,total,subtotal,discount,shipping,bling_id,bling_sync_status")
@@ -102,7 +120,11 @@ async function processJob(job: Job) {
     headers:{ Authorization:"Bearer " + token,Accept:"application/json","enable-jwt":"1" },
     signal:AbortSignal.timeout(15000),
   });
-  if (!lookup.ok) return finish(job, "failed", "Consulta de deduplicação Bling indisponível (HTTP " + lookup.status + ")");
+  if (!lookup.ok) {
+    const reason="Consulta Bling indisponível (HTTP "+lookup.status+"), operação remota não iniciada";
+    if (lookup.status===429 || lookup.status>=500) return retryReadOnly(job,reason);
+    return finish(job,"failed",reason);
+  }
   const prior = await lookup.json().catch(()=>({}));
   const existing = (Array.isArray(prior?.data) ? prior.data : []).find(
     (item:any)=>String(item.numeroLoja??"")===numeroLoja && item.id
