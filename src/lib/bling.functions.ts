@@ -757,54 +757,32 @@ export const sendPendingOrders = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await requireBlingAdmin(context);
-    const sb = context.supabase as any;
-    const integrationId = await getBlingIntegrationId(sb);
-    const { data: orders, error } = await sb
-      .from("orders")
-      .select("id")
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+    const { data: orders, error } = await admin.from("orders")
+      .select("id,bling_id")
       .eq("tenant_id", context.tenantId)
       .is("deleted_at", null)
-      .in("status", ["paid", "processing"])
+      .is("bling_id", null)
+      .in("status", ["pago", "faturado", "enviado", "entregue"])
       .limit(100);
     if (error) throw new Error(error.message);
-
-    let queued = 0;
-    for (const order of orders ?? []) {
-      const idempotencyKey = `order:${order.id}:bling:v1`;
-      const { data: event, error: eventError } = await sb
-        .from("integration_events")
-        .upsert(
-          {
-            tenant_id: context.tenantId,
-            integration_id: integrationId,
-            direction: "outbound",
-            event_type: "order.export.requested",
-            aggregate_type: "order",
-            aggregate_id: order.id,
-            idempotency_key: idempotencyKey,
-            status: "pending",
-            payload: { order_id: order.id },
-            available_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "tenant_id,integration_id,direction,idempotency_key", ignoreDuplicates: true },
-        )
-        .select("id")
-        .maybeSingle();
-      if (eventError) throw new Error(eventError.message);
-      if (event?.id) {
-        queued += 1;
-        await writeLog(sb, context.tenantId, {
-          entity: "pedido",
-          entity_id: order.id,
-          action: "queue_outbound",
-          status: "pendente",
-          message: "Pedido enfileirado para exportação ERP → Bling.",
-          integration_event_id: event.id,
-        });
-      }
+    if (!orders?.length) return {ok:true,queued:0,message:"Nenhuma venda paga pendente de integração."};
+    const { data: existing, error: existingError } = await admin.from("bling_order_sync_jobs")
+      .select("order_id").eq("tenant_id", context.tenantId)
+      .eq("event_type", "paid").in("order_id", orders.map((o: any) => o.id));
+    if (existingError) throw new Error(existingError.message);
+    const existingIds = new Set((existing??[]).map((x: any) => x.order_id));
+    const fresh = orders.filter((o: any) => !existingIds.has(o.id));
+    if (fresh.length) {
+      const { error: queueError } = await admin.from("bling_order_sync_jobs")
+        .upsert(fresh.map((o: any) => ({
+          tenant_id: context.tenantId, order_id: o.id, event_type:"paid",
+          status:"queued", scheduled_at:new Date().toISOString(),
+        })),{onConflict:"tenant_id,order_id,event_type",ignoreDuplicates:true});
+      if (queueError) throw new Error(queueError.message);
     }
-    return { ok: true, message: `${queued} pedido(s) enfileirado(s) para exportação ao Bling.`, queued };
+    return {ok:true,queued:fresh.length,message:`${fresh.length} venda(s) paga(s) enfileirada(s), sem gerar nota fiscal.`};
   });
 
 export const getBlingStats = createServerFn({ method: "GET" })

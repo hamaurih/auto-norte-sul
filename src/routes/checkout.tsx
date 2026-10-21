@@ -29,8 +29,6 @@ export const Route = createFileRoute("/checkout")({
   component: Checkout,
 });
 
-const PIX_DISCOUNT = 0.05;
-
 const schema = z.object({
   customer_name: z.string().trim().min(3, "Informe o nome completo").max(120),
   customer_email: z.string().trim().email("Email inválido").max(255),
@@ -216,8 +214,7 @@ function Checkout() {
   }, [resumeOrderId, user]);
 
   const selectedPickup = pickupLocations.find((location) => location.id === pickupBranchId) ?? null;
-  const pixDiscount = form.payment_method === "pix" ? subtotal * PIX_DISCOUNT : 0;
-  const total = resumeTotal ?? subtotal - pixDiscount;
+  const total = resumeTotal ?? subtotal;
 
   const updateCard = <K extends keyof CardForm>(key: K, value: CardForm[K]) =>
     setCard((current) => ({ ...current, [key]: value }));
@@ -699,9 +696,7 @@ function Checkout() {
               {[
                 {
                   v: "pix",
-                  label: `PIX — 5% de desconto (${brl(
-                    pixDiscount > 0 ? pixDiscount : subtotal * PIX_DISCOUNT,
-                  )})`,
+                  label: "PIX",
                 },
                 { v: "cartao", label: "Cartão — até 6× sem juros" },
                 {
@@ -865,12 +860,7 @@ function Checkout() {
                 {fulfillmentType === "pickup" ? "Grátis" : "Calculado no pedido"}
               </span>
             </div>
-            {form.payment_method === "pix" && (
-              <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
-                <span>Desconto PIX (5%)</span>
-                <span>− {brl(pixDiscount)}</span>
-              </div>
-            )}
+
             <div className="mt-2 flex items-baseline justify-between border-t border-border pt-2">
               <span className="text-sm font-semibold">Total</span>
               <span className="price-tag text-2xl">{brl(total)}</span>

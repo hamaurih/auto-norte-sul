@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MapPin, Store } from "lucide-react";
+import { MapPin, Store, Printer } from "lucide-react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { brl } from "@/lib/format";
@@ -30,6 +31,7 @@ function pickupTone(order: any) {
 
 function Pedidos() {
   const { user } = useSession();
+  const [receiptOrderId, setReceiptOrderId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const cancelMutation = useMutation({
     mutationFn: (orderId: string) => cancelOrder({ data: { orderId } }),
@@ -46,12 +48,18 @@ function Pedidos() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("orders")
-        .select("id,status,total,payment_method,created_at,bling_number,fulfillment_type,pickup_status,pickup_ready_at,picked_up_at,pickup_branch:branches(name,address,city,state,phone,pickup_instructions),order_items(sku,name,quantity)")
+        .select("id,status,total,subtotal,discount,shipping,customer_name,payment_method,created_at,bling_number,fulfillment_type,pickup_status,pickup_ready_at,picked_up_at,pickup_branch:branches(name,address,city,state,phone,pickup_instructions),order_items(sku,name,quantity,unit_price,total)")
         .order("created_at", { ascending: false });
       if (error) throw new Error(error.message);
       return data ?? [];
     },
   });
+
+  const receiptOrder = orders.find((order: any) => order.id === receiptOrderId);
+  const printOrder = (orderId: string) => {
+    setReceiptOrderId(orderId);
+    window.setTimeout(() => window.print(), 50);
+  };
 
   return (
     <div className="container-x py-6">
@@ -152,6 +160,11 @@ function Pedidos() {
                     </button>
                   </div>
                 )}
+                {["pago", "faturado", "enviado", "entregue"].includes(order.status) && (
+                  <button type="button" className="mt-3 inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold" onClick={() => printOrder(order.id)}>
+                    <Printer className="h-4 w-4" /> Imprimir recibo não fiscal
+                  </button>
+                )}
                 {order.bling_number && (
                   <div className="mt-2 text-xs">
                     Bling: <b>{order.bling_number}</b>
@@ -160,6 +173,33 @@ function Pedidos() {
               </div>
             );
           })}
+        </div>
+      )}
+      {receiptOrder && (
+        <div className="pdv-receipt" aria-label="Recibo não fiscal da Norte Sul">
+          <div className="pdv-receipt-center"><strong>NORTE SUL ACESSÓRIOS</strong></div>
+          <hr />
+          <div className="pdv-receipt-center"><strong>RECIBO NÃO FISCAL</strong></div>
+          <div>Pedido: {receiptOrder.id.toUpperCase()}</div>
+          <div>Data da compra: {new Date(receiptOrder.created_at).toLocaleString("pt-BR")}</div>
+          <div>Cliente: {receiptOrder.customer_name || "Consumidor"}</div>
+          <div>Pagamento: {receiptOrder.payment_method}</div>
+          <div>Estado: {receiptOrder.status}</div>
+          <hr />
+          {(receiptOrder.order_items ?? []).map((item: any, i: number) => (
+            <div key={i} className="pdv-receipt-item">
+              <div>{item.sku} · {item.name}</div>
+              <div className="pdv-receipt-row"><span>{item.quantity} × {brl(Number(item.unit_price))}</span><span>{brl(Number(item.total))}</span></div>
+            </div>
+          ))}
+          <hr />
+          <div className="pdv-receipt-row"><span>Subtotal</span><span>{brl(Number(receiptOrder.subtotal ?? 0))}</span></div>
+          <div className="pdv-receipt-row"><span>Desconto</span><span>{brl(Number(receiptOrder.discount ?? 0))}</span></div>
+          <div className="pdv-receipt-row"><span>Entrega</span><span>{brl(Number(receiptOrder.shipping ?? 0))}</span></div>
+          <div className="pdv-receipt-row"><strong>Total pago</strong><strong>{brl(Number(receiptOrder.total))}</strong></div>
+          <hr />
+          <div className="pdv-receipt-center">Comprovante comercial sem valor fiscal.</div>
+          <div className="pdv-receipt-center">Não substitui NF-e ou NFC-e quando obrigatória.</div>
         </div>
       )}
     </div>
