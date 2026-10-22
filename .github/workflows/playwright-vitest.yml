@@ -17,7 +17,7 @@ jobs:
       - name: Install test runners in CI workspace
         run: bun add --dev vitest@^4 @playwright/test@^1
       - name: Existing Bun tests
-        run: bun test
+        run: bun test tests/
       - name: Vitest
         run: bunx vitest run --config vitest.config.ts
       - name: Playwright browser dependencies
