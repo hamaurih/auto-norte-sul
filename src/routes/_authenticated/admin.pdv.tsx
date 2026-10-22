@@ -2,12 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { Calculator, Receipt, ScanLine } from "lucide-react";
+import { Calculator, Receipt, ScanLine, FileText } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PdvNewSale } from "@/components/pdv/PdvNewSale";
 import { PdvSalesHistory } from "@/components/pdv/PdvSalesHistory";
 import { PdvCashReport } from "@/components/pdv/PdvCashReport";
 import { getPosPermissions } from "@/lib/pos-history.functions";
+import { PosFiscalBatchPanel } from "@/components/admin/PosFiscalBatchPanel";
 
 export const Route = createFileRoute("/_authenticated/admin/pdv")({
   head: () => ({
@@ -52,6 +53,7 @@ function PdvPage() {
           <TabsTrigger value="historico">
             <Receipt className="mr-1 h-4 w-4" /> Histórico
           </TabsTrigger>
+          {["owner","admin","manager","sales"].includes(permissionsQuery.data?.role??"")&&<TabsTrigger value="faturamento"><FileText className="mr-1 h-4 w-4"/> Faturamento</TabsTrigger>}
           <TabsTrigger value="caixa">
             <Calculator className="mr-1 h-4 w-4" /> Relatório de caixa
           </TabsTrigger>
@@ -63,6 +65,7 @@ function PdvPage() {
         <TabsContent value="historico">
           <PdvSalesHistory canCancel={Boolean(permissionsQuery.data?.canCancel)} />
         </TabsContent>
+        {["owner","admin","manager","sales"].includes(permissionsQuery.data?.role??"")&&<TabsContent value="faturamento"><PosFiscalBatchPanel /></TabsContent>}
         <TabsContent value="caixa">
           <PdvCashReport />
         </TabsContent>
