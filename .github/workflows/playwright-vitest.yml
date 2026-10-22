@@ -1,0 +1,33 @@
+name: Playwright + Vitest
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unit-and-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+      - run: bun install --frozen-lockfile
+      - name: Install test runners in CI workspace
+        run: bun add --dev vitest@^4 @playwright/test@^1
+      - name: Existing Bun tests
+        run: bun test
+      - name: Vitest
+        run: bunx vitest run --config vitest.config.ts
+      - name: Playwright browser dependencies
+        run: bunx playwright install --with-deps chromium
+      - name: Playwright E2E
+        run: bunx playwright test
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          if-no-files-found: ignore
