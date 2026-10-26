@@ -271,9 +271,10 @@ begin
       end;
       if item_specific_price is not null and item_specific_price >= 0 then
         item_unit_price := round(item_specific_price, 2);
+        item_list_price := greatest(item_list_price, item_unit_price);
         item_discount_pct := case
           when item_list_price > 0
-            then round(((item_list_price - item_unit_price) / item_list_price) * 100, 2)
+            then greatest(0, round(((item_list_price - item_unit_price) / item_list_price) * 100, 2))
           else 0
         end;
       else
@@ -331,7 +332,7 @@ begin
       item_unit_price,
       case when current_is_b2b then current_price_table end,
       case when current_is_b2b then item_discount_pct else 0 end,
-      round((item_list_price - item_unit_price) * item_quantity, 2),
+      round(greatest(item_list_price - item_unit_price, 0) * item_quantity, 2),
       item_unit_price * item_quantity
     );
 
