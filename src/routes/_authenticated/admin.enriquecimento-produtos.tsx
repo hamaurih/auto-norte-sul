@@ -13,8 +13,10 @@ import {
   copyProductEnrichmentImage,
   enqueueMissingProductEnrichment,
   getEnrichmentOverview,
+  getProductNameRecoveryOverview,
   listProductEnrichmentJobs,
   processManufacturerEnrichment,
+  publishRecoveredProduct,
   rejectProductEnrichmentCandidate,
 } from "@/lib/product-enrichment.functions";
 import { setProductEnrichmentItemSelection, type EnrichmentSelectionKind } from "@/lib/product-enrichment-selection.functions";
@@ -43,22 +45,30 @@ function EnrichmentPage() {
   const qc = useQueryClient();
   const listFn = useServerFn(listProductEnrichmentJobs);
   const overviewFn = useServerFn(getEnrichmentOverview);
+  const recoveryOverviewFn = useServerFn(getProductNameRecoveryOverview);
   const enqueueFn = useServerFn(enqueueMissingProductEnrichment);
   const processFn = useServerFn(processManufacturerEnrichment);
   const addFn = useServerFn(addProductEnrichmentCandidate);
   const copyFn = useServerFn(copyProductEnrichmentImage);
   const approveFn = useServerFn(approveProductEnrichmentCandidate);
   const rejectFn = useServerFn(rejectProductEnrichmentCandidate);
+  const publishRecoveredFn = useServerFn(publishRecoveredProduct);
   const selectionFn = useServerFn(setProductEnrichmentItemSelection);
   const [status, setStatus] = useState("all");
+  const [recoveryOnly, setRecoveryOnly] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [form, setForm] = useState(emptyForm);
 
   const overview = useQuery({ queryKey: ["product-enrichment-overview"], queryFn: () => overviewFn() });
-  const jobs = useQuery({ queryKey: ["product-enrichment", status], queryFn: () => listFn({ data: { status } }) });
+  const recoveryOverview = useQuery({ queryKey: ["product-name-recovery-overview"], queryFn: () => recoveryOverviewFn() });
+  const jobs = useQuery({
+    queryKey: ["product-enrichment", status, recoveryOnly],
+    queryFn: () => listFn({ data: { status, recoveryOnly } }),
+  });
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["product-enrichment"] });
     qc.invalidateQueries({ queryKey: ["product-enrichment-overview"] });
+    qc.invalidateQueries({ queryKey: ["product-name-recovery-overview"] });
   };
 
   const enqueue = useMutation({
@@ -108,6 +118,11 @@ function EnrichmentPage() {
     onSuccess: () => { toast.success("Sugestão rejeitada"); refresh(); },
     onError: (e: Error) => toast.error(e.message),
   });
+  const publishRecovered = useMutation({
+    mutationFn: (productId: string) => publishRecoveredFn({ data: { productId } }),
+    onSuccess: (r) => { toast.success(`${r.name} publicado no site`); refresh(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const rows = (jobs.data ?? []) as any[];
   const o = overview.data;
@@ -124,6 +139,43 @@ function EnrichmentPage() {
         <Button variant="outline" disabled={enqueue.isPending} onClick={() => enqueue.mutate()}><Search className="mr-2 h-4 w-4" />{enqueue.isPending ? "Preparando…" : "Enfileirar agora"}</Button>
       </div>
     </header>
+
+    <section className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-bold uppercase tracking-[.16em] text-primary">Recuperação da vitrine</div>
+          <h2 className="mt-1 font-display text-lg font-bold uppercase">Nomes inválidos / produtos ocultos</h2>
+          <p className="mt-1 max-w-3xl text-xs text-muted-foreground">
+            A fila prioriza fonte oficial + código do fabricante. Produto corrigido continua fora da loja até passar preço, estoque, marca e categoria.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant={recoveryOnly ? "default" : "outline"}
+            onClick={() => { setRecoveryOnly((value) => !value); setStatus("all"); }}
+          >
+            {recoveryOnly ? "Mostrando recuperação" : "Ver somente recuperação"}
+          </Button>
+          <Button
+            variant="outline"
+            disabled={enqueue.isPending}
+            onClick={() => { setRecoveryOnly(true); enqueue.mutate(); }}
+          >
+            <Search className="mr-2 h-4 w-4" />
+            {enqueue.isPending ? "Preparando…" : "Priorizar nomes agora"}
+          </Button>
+        </div>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
+        <Metric label="Ainda inválidos" value={recoveryOverview.data?.invalidRemaining ?? 0} />
+        <Metric label="Na fila" value={recoveryOverview.data?.queued ?? 0} />
+        <Metric label="Processando" value={recoveryOverview.data?.processing ?? 0} />
+        <Metric label="Revisão" value={recoveryOverview.data?.review ?? 0} />
+        <Metric label="Nome aprovado" value={recoveryOverview.data?.approved ?? 0} />
+        <Metric label="Prontos p/ publicar" value={recoveryOverview.data?.readyToPublish ?? 0} />
+        <Metric label="Republicados" value={recoveryOverview.data?.published ?? 0} />
+      </div>
+    </section>
 
     <section className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
       <Metric label="Na fila" value={o?.queued ?? 0} active={status === "queued"} onClick={() => setStatus("queued")} />
@@ -165,6 +217,15 @@ function EnrichmentPage() {
           <Status value={job.status} />
           <a href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(job.search_query || job.product?.name || "")}`} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-md border px-3 py-2 text-xs font-semibold">Pesquisa manual <ExternalLink className="ml-1 h-3 w-3" /></a>
           <Button size="sm" variant="outline" onClick={() => { setEditing(job); setForm({ ...emptyForm, suggestedName: job.product?.name || "", gtin: job.product?.gtin || "", manufacturerCode: job.product?.manufacturer_code || "" }); }}><Plus className="mr-1 h-3 w-3" />Sugestão manual</Button>
+          {String(job.search_query ?? "").startsWith("[catalog-name]") && job.status === "approved" && !job.product?.available_for_online && (
+            <Button
+              size="sm"
+              disabled={publishRecovered.isPending}
+              onClick={() => publishRecovered.mutate(job.product.id)}
+            >
+              <Check className="mr-1 h-3 w-3" />Publicar no site
+            </Button>
+          )}
         </div>
       </div>
       {(job.candidates ?? []).length > 0 && <div className="mt-4 grid gap-3 lg:grid-cols-2">{job.candidates.map((c: any) => <CandidateCard key={c.id} candidate={c} selectionBusy={selection.isPending} onSelection={(candidateId, kind, itemIds, selected) => selection.mutate({ candidateId, kind, itemIds, selected })} onCopy={(id) => copy.mutate(id)} onApprove={(id) => approve.mutate(id)} onReject={(id) => reject.mutate(id)} />)}</div>}
