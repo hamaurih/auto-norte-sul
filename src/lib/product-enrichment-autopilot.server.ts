@@ -194,22 +194,35 @@ export async function runEnrichmentAutopilot(options: {
         }
         if (result.status !== "review") continue;
 
-        const { data: candidate } = await admin
-          .from("product_enrichment_candidates")
-          .select("id")
-          .eq("tenant_id", tenantId)
-          .eq("job_id", result.jobId)
-          .eq("status", "pending")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        const [{ data: candidate }, { data: jobMeta }] = await Promise.all([
+          admin
+            .from("product_enrichment_candidates")
+            .select("id")
+            .eq("tenant_id", tenantId)
+            .eq("job_id", result.jobId)
+            .eq("status", "pending")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          admin
+            .from("product_enrichment_jobs")
+            .select("search_query")
+            .eq("tenant_id", tenantId)
+            .eq("id", result.jobId)
+            .maybeSingle(),
+        ]);
         if (!candidate?.id) {
           summary.sentReview += 1;
           pushDetail({ jobId: result.jobId, status: "review", reason: "Sugestão pendente não localizada" });
           continue;
         }
 
-        const { data: dryRaw, error: dryError } = await admin.rpc("auto_approve_product_enrichment_candidate", {
+        const recoveryOnly = String(jobMeta?.search_query ?? "").startsWith("[catalog-name]");
+        const autoApproveRpc = recoveryOnly
+          ? "auto_approve_catalog_name_candidate"
+          : "auto_approve_product_enrichment_candidate";
+
+        const { data: dryRaw, error: dryError } = await admin.rpc(autoApproveRpc, {
           p_candidate_id: candidate.id,
           p_dry_run: true,
         });
@@ -246,7 +259,7 @@ export async function runEnrichmentAutopilot(options: {
           }
         }
 
-        const { data: finalRaw, error: finalError } = await admin.rpc("auto_approve_product_enrichment_candidate", {
+        const { data: finalRaw, error: finalError } = await admin.rpc(autoApproveRpc, {
           p_candidate_id: candidate.id,
           p_dry_run: false,
         });
