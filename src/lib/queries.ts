@@ -154,11 +154,14 @@ const PRODUCT_LIST_SELECT = `
 `;
 
 export async function fetchFeatured(): Promise<ProductRow[]> {
+  const tenant = await tenantScope();
+  if (!tenant) return [];
   // Prefer curated "featured"; if none, fall back to any active products so the
   // storefront always shows merchandise.
   const curated = await supabase
     .from("products")
     .select(PRODUCT_LIST_SELECT)
+    .eq("tenant_id", tenant)
     .eq("active", true)
     .eq("available_for_online", true)
     .is("deleted_at", null)
@@ -169,6 +172,7 @@ export async function fetchFeatured(): Promise<ProductRow[]> {
   const { data, error } = await supabase
     .from("products")
     .select(PRODUCT_LIST_SELECT)
+    .eq("tenant_id", tenant)
     .eq("active", true)
     .eq("available_for_online", true)
     .is("deleted_at", null)
@@ -182,9 +186,12 @@ export async function fetchFeatured(): Promise<ProductRow[]> {
 }
 
 export async function fetchOffers(): Promise<ProductRow[]> {
+  const tenant = await tenantScope();
+  if (!tenant) return [];
   const { data, error } = await supabase
     .from("products")
     .select(PRODUCT_LIST_SELECT)
+    .eq("tenant_id", tenant)
     .eq("active", true)
     .eq("available_for_online", true)
     .is("deleted_at", null)
@@ -200,11 +207,14 @@ export async function fetchOffers(): Promise<ProductRow[]> {
 }
 
 export async function fetchNewArrivals(): Promise<ProductRow[]> {
+  const tenant = await tenantScope();
+  if (!tenant) return [];
   // Show newest products; do not require the "is_new" flag so recently
   // imported items automatically populate the rail.
   const { data, error } = await supabase
     .from("products")
     .select(PRODUCT_LIST_SELECT)
+    .eq("tenant_id", tenant)
     .eq("active", true)
     .eq("available_for_online", true)
     .is("deleted_at", null)
@@ -218,9 +228,12 @@ export async function fetchNewArrivals(): Promise<ProductRow[]> {
 }
 
 export async function fetchBestSellers(): Promise<ProductRow[]> {
+  const tenant = await tenantScope();
+  if (!tenant) return [];
   const { data, error } = await supabase
     .from("products")
     .select(PRODUCT_LIST_SELECT)
+    .eq("tenant_id", tenant)
     .eq("active", true)
     .eq("available_for_online", true)
     .is("deleted_at", null)
