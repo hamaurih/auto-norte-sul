@@ -105,16 +105,16 @@ function B2BPage() {
         <div className="container-x grid gap-6 py-10 md:grid-cols-2 md:py-16">
           <div>
             <span className="rounded bg-primary px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-primary-foreground">Norte Sul B2B</span>
-            <h1 className="mt-3 font-display text-4xl font-black uppercase leading-tight md:text-5xl">Uma conta. Condições comerciais para sua empresa.</h1>
-            <p className="mt-3 max-w-lg text-sm text-white/80 md:text-base">
-              Todo cadastro começa como varejo. Depois da aprovação do CNPJ, sua própria conta passa a usar
-              tabela de atacado e somente as formas de pagamento liberadas pelo comercial.
+            <h1 className="mt-3 font-display text-4xl font-black uppercase leading-[1.05] md:text-5xl">Compre no atacado com preço e prazo do seu negócio.</h1>
+            <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/80 md:text-base">
+              Use a mesma conta do varejo. Envie seu CNPJ uma vez e, após aprovação, o site libera automaticamente
+              sua tabela B2B e somente as condições comerciais autorizadas.
             </p>
             <div className="mt-6 grid gap-2 sm:grid-cols-3">
               {[
-                { icon: Zap, t: "Tabela A, B ou C" },
-                { icon: CreditCard, t: "Prazo por cliente" },
-                { icon: Package, t: "Estoque integrado" },
+                { icon: Zap, t: "Preço atacado" },
+                { icon: CreditCard, t: "Crédito controlado" },
+                { icon: Package, t: "Estoque em tempo real" },
               ].map((b) => (
                 <div key={b.t} className="flex items-center gap-2 rounded-lg bg-white/5 p-3 text-sm">
                   <b.icon className="h-4 w-4 text-primary" /> {b.t}
@@ -219,18 +219,25 @@ function B2BPage() {
         </div>
       </section>
 
-      <section className="container-x mt-10 grid gap-3 md:grid-cols-3">
+      <section className="container-x mt-8">
+        <div className="mb-4">
+          <p className="text-xs font-bold uppercase tracking-[.18em] text-primary">Como funciona</p>
+          <h2 className="mt-1 font-display text-2xl font-black uppercase">Do cadastro à compra em 3 passos</h2>
+        </div>
+        <div className="grid gap-3 md:grid-cols-3">
         {[
           { icon: Zap, t: "Preço correto por cliente", d: "Tabela A, B ou C e preços específicos por produto são respeitados no servidor." },
           { icon: Wrench, t: "Cadastro único", d: "A mesma conta funciona no varejo e, após aprovação, recebe os benefícios B2B." },
           { icon: Store, t: "Crédito controlado", d: "Boleto e faturado aparecem somente nos prazos que o comercial liberou." },
-        ].map((b) => (
-          <div key={b.t} className="rounded-lg border border-border bg-card p-5">
+        ].map((b, index) => (
+          <div key={b.t} className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <div className="mb-3 flex size-8 items-center justify-center rounded-full bg-primary text-sm font-black text-primary-foreground">{index + 1}</div>
             <b.icon className="h-6 w-6 text-primary" />
             <h4 className="mt-2 font-display text-lg font-bold uppercase">{b.t}</h4>
             <p className="text-sm text-muted-foreground">{b.d}</p>
           </div>
         ))}
+        </div>
       </section>
     </div>
   );
