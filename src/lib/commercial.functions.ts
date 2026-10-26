@@ -355,6 +355,10 @@ export const createOfflineB2BCustomer = createServerFn({ method: "POST" })
     name: z.string().trim().min(2).max(180), document: z.string().trim().min(14).max(30),
     phone: z.string().trim().max(30).optional(), email: z.string().trim().max(255).optional(),
     customer_group: z.enum(["revendedor", "oficina", "distribuidor"]), price_table: z.enum(["A", "B", "C"]),
+    allowed_boleto_days: z.array(z.union([z.literal(15),z.literal(30),z.literal(45),z.literal(60),z.literal(90),z.literal(120)])).max(6).default([15]),
+    allow_invoice: z.boolean().default(false),
+    invoice_due_days: z.number().int().min(1).max(120).default(28),
+    max_card_installments: z.number().int().min(1).max(6).default(6),
   }).parse(input))
   .handler(async ({ data, context }) => {
     const sb = tdb(context.supabase); await requireManager(sb, context.userId, context.tenantId);
@@ -366,7 +370,19 @@ export const createOfflineB2BCustomer = createServerFn({ method: "POST" })
     let customerId = existing?.id;
     if (customerId) { const { error } = await (sb.from("customers") as any).update(payload).eq("id", customerId).eq("tenant_id", context.tenantId); if (error) throw new Error(error.message); }
     else { const { data: created, error } = await (sb.from("customers") as any).insert(payload).select("id").single(); if (error) throw new Error(error.message); customerId = created.id; }
-    const { error: tableError } = await (sb.from("b2b_customer_price_tables") as any).upsert({ tenant_id: context.tenantId, customer_id: customerId, cnpj_digits: cnpjDigits, price_table: data.price_table, active: true, created_by: context.userId, updated_by: context.userId }, { onConflict: "tenant_id,customer_id" });
+    const { error: tableError } = await (sb.from("b2b_customer_price_tables") as any).upsert({
+      tenant_id: context.tenantId,
+      customer_id: customerId,
+      cnpj_digits: cnpjDigits,
+      price_table: data.price_table,
+      allowed_boleto_days: [...new Set(data.allowed_boleto_days)].sort((a,b)=>a-b),
+      allow_invoice: data.allow_invoice,
+      invoice_due_days: data.invoice_due_days,
+      max_card_installments: data.max_card_installments,
+      active: true,
+      created_by: context.userId,
+      updated_by: context.userId,
+    }, { onConflict: "tenant_id,customer_id" });
     if (tableError) throw new Error(tableError.message);
     return { ok: true, customerId, updated: Boolean(existing) };
   });
