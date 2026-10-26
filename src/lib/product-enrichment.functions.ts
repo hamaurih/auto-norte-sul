@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 import { tdb } from "@/integrations/supabase/tenant-db";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupplyRole, SUPPLY_APPROVE_ROLES } from "./supplies.server";
 
 export type EnrichmentCandidateInput = {
@@ -117,19 +118,66 @@ export const getProductNameRecoveryOverview = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<NameRecoveryOverview> => {
     const sb = tdb(context.supabase);
     await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_APPROVE_ROLES);
-    const { data, error } = await (sb.rpc as any)("get_product_name_recovery_overview", {
-      p_tenant_id: context.tenantId,
-    });
-    if (error) throw new Error(error.message);
-    const raw = (data ?? {}) as any;
+    const db = supabaseAdmin as any;
+
+    const countJobs = async (status: string) => {
+      const { count, error } = await db
+        .from("product_enrichment_jobs")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", context.tenantId)
+        .eq("status", status)
+        .like("search_query", "[catalog-name]%");
+      if (error) throw new Error(error.message);
+      return Number(count ?? 0);
+    };
+
+    const invalidQuery = db
+      .from("products")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", context.tenantId)
+      .eq("active", true)
+      .is("deleted_at", null)
+      .or("name.ilike.%undefined%,name.ilike.INATIVAR%");
+    const [invalidResult, queued, processing, review, approved] = await Promise.all([
+      invalidQuery,
+      countJobs("queued"),
+      countJobs("processing"),
+      countJobs("review"),
+      countJobs("approved"),
+    ]);
+    if (invalidResult.error) throw new Error(invalidResult.error.message);
+
+    const recoveredQuery = (online: boolean) => db
+      .from("product_enrichment_jobs")
+      .select("id,product:products!inner(id)", { count: "exact", head: true })
+      .eq("tenant_id", context.tenantId)
+      .eq("status", "approved")
+      .like("search_query", "[catalog-name]%")
+      .eq("product.active", true)
+      .is("product.deleted_at", null)
+      .eq("product.available_for_online", online)
+      .gt("product.price_b2c", 0)
+      .gt("product.stock", 0)
+      .not("product.brand_id", "is", null)
+      .not("product.category_id", "is", null)
+      .not("product.name", "ilike", "%undefined%")
+      .not("product.name", "ilike", "INATIVAR%");
+
+    const [readyResult, publishedResult] = await Promise.all([
+      recoveredQuery(false),
+      recoveredQuery(true),
+    ]);
+    if (readyResult.error) throw new Error(readyResult.error.message);
+    if (publishedResult.error) throw new Error(publishedResult.error.message);
+
     return {
-      invalidRemaining: Number(raw.invalidRemaining ?? 0),
-      queued: Number(raw.queued ?? 0),
-      processing: Number(raw.processing ?? 0),
-      review: Number(raw.review ?? 0),
-      approved: Number(raw.approved ?? 0),
-      readyToPublish: Number(raw.readyToPublish ?? 0),
-      published: Number(raw.published ?? 0),
+      invalidRemaining: Number(invalidResult.count ?? 0),
+      queued,
+      processing,
+      review,
+      approved,
+      readyToPublish: Number(readyResult.count ?? 0),
+      published: Number(publishedResult.count ?? 0),
     };
   });
 
