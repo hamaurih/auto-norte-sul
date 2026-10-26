@@ -84,6 +84,17 @@ function Catalog() {
 
   return (
     <div className="container-x py-6">
+      {isB2BApproved && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-primary">Condição B2B ativa</p>
+            <p className="text-sm text-muted-foreground">Os preços exibidos já consideram sua tabela comercial.</p>
+          </div>
+          <Link to="/b2b" className="rounded-lg border border-primary/20 bg-background px-3 py-2 text-xs font-bold text-primary hover:bg-primary/5">
+            Ver minhas condições
+          </Link>
+        </div>
+      )}
       <div className="mb-4 flex items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl font-bold uppercase leading-none">Catálogo</h1>
@@ -130,12 +141,27 @@ function Catalog() {
         </aside>
 
         <div>
+          {isLoading && (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {Array.from({ length: 12 }).map((_, index) => (
+                <div key={index} className="overflow-hidden rounded-xl border border-border bg-card">
+                  <div className="aspect-square animate-pulse bg-muted" />
+                  <div className="space-y-2 p-3">
+                    <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
+                    <div className="h-4 w-full animate-pulse rounded bg-muted" />
+                    <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+                    <div className="h-6 w-1/2 animate-pulse rounded bg-muted" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           {products.length === 0 && !isLoading && (
             <div className="rounded-lg border border-dashed border-border p-10 text-center text-muted-foreground">
               Nenhum produto encontrado. Tente ajustar os filtros.
             </div>
           )}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {!isLoading && <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {products.map((p) => (
               <div key={p.id} className="w-full [&>div]:w-full">
                 <ProductCard
@@ -145,7 +171,7 @@ function Catalog() {
                 />
               </div>
             ))}
-          </div>
+          </div>}
         </div>
       </div>
     </div>
