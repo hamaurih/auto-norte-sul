@@ -117,7 +117,7 @@ export const getProductNameRecoveryOverview = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<NameRecoveryOverview> => {
     const sb = tdb(context.supabase);
     await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_APPROVE_ROLES);
-    const { data, error } = await sb.rpc("get_product_name_recovery_overview", {
+    const { data, error } = await (sb.rpc as any)("get_product_name_recovery_overview", {
       p_tenant_id: context.tenantId,
     });
     if (error) throw new Error(error.message);
@@ -139,7 +139,7 @@ export const publishRecoveredProduct = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const sb = tdb(context.supabase);
     await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_APPROVE_ROLES);
-    const { data: result, error } = await sb.rpc("publish_recovered_product", {
+    const { data: result, error } = await (sb.rpc as any)("publish_recovered_product", {
       p_tenant_id: context.tenantId,
       p_product_id: data.productId,
     });
