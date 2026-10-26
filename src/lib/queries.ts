@@ -164,6 +164,8 @@ export async function fetchFeatured(): Promise<ProductRow[]> {
     .eq("tenant_id", tenant)
     .eq("active", true)
     .eq("available_for_online", true)
+    .not("name", "ilike", "%undefined%")
+    .not("name", "ilike", "INATIVAR%")
     .is("deleted_at", null)
     .eq("featured", true)
     .limit(12);
@@ -175,6 +177,8 @@ export async function fetchFeatured(): Promise<ProductRow[]> {
     .eq("tenant_id", tenant)
     .eq("active", true)
     .eq("available_for_online", true)
+    .not("name", "ilike", "%undefined%")
+    .not("name", "ilike", "INATIVAR%")
     .is("deleted_at", null)
     .order("name")
     .limit(12);
@@ -194,6 +198,8 @@ export async function fetchOffers(): Promise<ProductRow[]> {
     .eq("tenant_id", tenant)
     .eq("active", true)
     .eq("available_for_online", true)
+    .not("name", "ilike", "%undefined%")
+    .not("name", "ilike", "INATIVAR%")
     .is("deleted_at", null)
     .or("is_offer.eq.true,sale_price_b2c.not.is.null")
     .order("sales_count", { ascending: false })
@@ -217,6 +223,8 @@ export async function fetchNewArrivals(): Promise<ProductRow[]> {
     .eq("tenant_id", tenant)
     .eq("active", true)
     .eq("available_for_online", true)
+    .not("name", "ilike", "%undefined%")
+    .not("name", "ilike", "INATIVAR%")
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(12);
@@ -236,6 +244,8 @@ export async function fetchBestSellers(): Promise<ProductRow[]> {
     .eq("tenant_id", tenant)
     .eq("active", true)
     .eq("available_for_online", true)
+    .not("name", "ilike", "%undefined%")
+    .not("name", "ilike", "INATIVAR%")
     .is("deleted_at", null)
     .order("sales_count", { ascending: false })
     .order("name")
@@ -269,6 +279,8 @@ export async function fetchCatalog(
     .eq("tenant_id", tenant)
     .eq("active", true)
     .eq("available_for_online", true)
+    .not("name", "ilike", "%undefined%")
+    .not("name", "ilike", "INATIVAR%")
     .is("deleted_at", null);
 
   let brandIdFromQuery: string | null = null;
@@ -365,6 +377,8 @@ export async function fetchProductBySlug(
     .eq("slug", slug)
     .eq("active", true)
     .eq("available_for_online", true)
+    .not("name", "ilike", "%undefined%")
+    .not("name", "ilike", "INATIVAR%")
     .is("deleted_at", null)
     .maybeSingle();
   if (error) {
@@ -395,6 +409,8 @@ export async function fetchRelated(
     .eq("tenant_id", tenant)
     .eq("active", true)
     .eq("available_for_online", true)
+    .not("name", "ilike", "%undefined%")
+    .not("name", "ilike", "INATIVAR%")
     .is("deleted_at", null)
     .neq("id", excludeId)
     .limit(8);
@@ -444,6 +460,9 @@ export async function fetchSearchSuggestions(
     .select("id, sku, name, slug, price_b2c, images:product_images(url, is_primary, sort_order)")
     .eq("tenant_id", tenant)
     .eq("active", true)
+    .eq("available_for_online", true)
+    .not("name", "ilike", "%undefined%")
+    .not("name", "ilike", "INATIVAR%")
     .is("deleted_at", null);
   if (brandMatch) {
     query = query.eq("brand_id", brandMatch.id);
