@@ -74,7 +74,12 @@ export function useSession(): SessionState {
   useEffect(() => {
     let cancelled = false;
 
-    async function findActiveTenantAccess(userId: string): Promise<{ tenantId: string; role: string } | null> {
+    async function findActiveTenantContext(userId: string): Promise<{
+      tenantId: string;
+      role: string | null;
+      customerGroup: CustomerGroup | null;
+      b2bStatus: B2BStatus | null;
+    } | null> {
       try {
         const db = tdb(supabase);
         const slug = activeTenantSlug();
@@ -89,15 +94,30 @@ export function useSession(): SessionState {
           tenantId = (tenant?.id as string | undefined) ?? null;
         }
         if (!tenantId) return null;
-        const { data: membership } = await db
-          .from("tenant_memberships")
-          .select("tenant_id, role")
-          .eq("tenant_id", tenantId)
-          .eq("user_id", userId)
-          .eq("active", true)
-          .maybeSingle();
-        if (!membership?.tenant_id) return null;
-        return { tenantId: membership.tenant_id as string, role: String(membership.role ?? "viewer") };
+
+        const [{ data: membership }, { data: customer }] = await Promise.all([
+          db
+            .from("tenant_memberships")
+            .select("tenant_id, role")
+            .eq("tenant_id", tenantId)
+            .eq("user_id", userId)
+            .eq("active", true)
+            .maybeSingle(),
+          db
+            .from("customers")
+            .select("customer_group,b2b_status")
+            .eq("tenant_id", tenantId)
+            .eq("user_id", userId)
+            .eq("active", true)
+            .maybeSingle(),
+        ]);
+
+        return {
+          tenantId,
+          role: membership?.tenant_id ? String(membership.role ?? "viewer") : null,
+          customerGroup: (customer?.customer_group as CustomerGroup | undefined) ?? null,
+          b2bStatus: (customer?.b2b_status as B2BStatus | undefined) ?? null,
+        };
       } catch {
         return null;
       }
@@ -109,37 +129,32 @@ export function useSession(): SessionState {
         return;
       }
 
-      const [{ data: profile }, tenantAccess] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("customer_group, b2b_status")
-          .eq("id", session.user.id)
-          .maybeSingle(),
-        findActiveTenantAccess(session.user.id),
-      ]);
+      const tenantContext = await findActiveTenantContext(session.user.id);
 
-      const customerGroup = (profile?.customer_group ?? "b2c") as CustomerGroup;
-      const b2bStatus = (profile?.b2b_status ?? "none") as B2BStatus;
-      const systemRole = systemRoleForTenantRole(tenantAccess?.role);
+      // B2B is strictly tenant-scoped. Global profile flags are never an
+      // authorization source for commercial pricing or payment terms.
+      const customerGroup = (tenantContext?.customerGroup ?? "b2c") as CustomerGroup;
+      const b2bStatus = (tenantContext?.b2bStatus ?? "none") as B2BStatus;
+      const systemRole = systemRoleForTenantRole(tenantContext?.role);
       let permissions = defaultPermissionsForRole(systemRole);
 
-      if (tenantAccess) {
+      if (tenantContext) {
         const { data: permissionRows } = await tdb(supabase)
           .from("tenant_user_permissions")
           .select("module_key, can_view, can_create, can_update, can_delete")
-          .eq("tenant_id", tenantAccess.tenantId)
+          .eq("tenant_id", tenantContext.tenantId)
           .eq("user_id", session.user.id);
-        const metadataRows = permissionsFromAppMetadata(session.user, tenantAccess.tenantId);
+        const metadataRows = permissionsFromAppMetadata(session.user, tenantContext.tenantId);
         permissions = permissionMapFromRows(
           systemRole,
           ((permissionRows?.length ? permissionRows : metadataRows) ?? []) as ModulePermission[],
         );
       }
 
-      const isAdmin = Boolean(tenantAccess && systemRole === "admin");
-      const isSalesRep = Boolean(tenantAccess && systemRole === "vendedor");
+      const isAdmin = Boolean(tenantContext && systemRole === "admin");
+      const isSalesRep = Boolean(tenantContext && systemRole === "vendedor");
       const isStaff = Boolean(
-        tenantAccess &&
+        tenantContext &&
           (["admin", "gerente", "vendedor"].includes(systemRole) ||
             Object.values(permissions).some((permission) => permission.can_view)),
       );
@@ -156,7 +171,7 @@ export function useSession(): SessionState {
           systemRole,
           permissions,
           isSalesRep,
-          isB2BApproved: isStaff || (b2bGroup && b2bStatus === "approved"),
+          isB2BApproved: b2bGroup && b2bStatus === "approved",
           isB2BPending: customerGroup === "b2b_pendente" || b2bStatus === "pending",
           roles,
           customerGroup,

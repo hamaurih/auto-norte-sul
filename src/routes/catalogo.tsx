@@ -1,11 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 import { fetchBrands, fetchCatalog, fetchCatalogTaxonomy, type CatalogFilters } from "@/lib/queries";
 import { ProductCard } from "@/components/site/ProductCard";
 import { useSession } from "@/lib/session";
 import { useCompanyProfile } from "@/lib/company";
+import { getMyB2BPrices } from "@/lib/b2b.functions";
 import { ChevronDown, ChevronRight, Filter, FolderTree } from "lucide-react";
 
 type CatalogCategory = {
@@ -39,6 +41,7 @@ function Catalog() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const { isB2BApproved } = useSession();
+  const loadB2BPrices = useServerFn(getMyB2BPrices);
   const { data: company } = useCompanyProfile();
   const tenantId = company?.tenant_id;
   const [openFilters, setOpenFilters] = useState(false);
@@ -54,6 +57,13 @@ function Catalog() {
     queryKey: ["catalog", tenantId, filters],
     queryFn: () => fetchCatalog(filters, tenantId),
     enabled: Boolean(tenantId),
+  });
+  const b2bProductIds = useMemo(() => products.map((product) => product.id), [products]);
+  const { data: b2bPriceData } = useQuery({
+    queryKey: ["catalog-b2b-prices", b2bProductIds],
+    queryFn: () => loadB2BPrices({ data: { productIds: b2bProductIds } }),
+    enabled: isB2BApproved && b2bProductIds.length > 0,
+    staleTime: 60_000,
   });
   // Taxonomy lists are tenant-scoped: without the tenant id in the key/filter
   // other tenants' categories/brands leak in and appear duplicated.
@@ -128,7 +138,11 @@ function Catalog() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {products.map((p) => (
               <div key={p.id} className="w-full [&>div]:w-full">
-                <ProductCard p={p} isB2B={isB2BApproved} />
+                <ProductCard
+                  p={p}
+                  isB2B={isB2BApproved}
+                  b2bEffectivePrice={b2bPriceData?.prices?.[p.id]?.effective ?? null}
+                />
               </div>
             ))}
           </div>

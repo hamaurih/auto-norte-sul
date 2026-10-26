@@ -1,6 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useMemo, useState } from "react";
 import { ShoppingCart, MessageCircle, Truck, Shield, Package } from "lucide-react";
 import { fetchProductApplications, fetchProductBySlug, fetchRelated, displayPrice, primaryImage } from "@/lib/queries";
 import { brl, installments } from "@/lib/format";
@@ -8,6 +9,7 @@ import { cartStore } from "@/lib/cart-store";
 import { useSession } from "@/lib/session";
 import { ProductCard } from "@/components/site/ProductCard";
 import { toast } from "sonner";
+import { getMyB2BPrices } from "@/lib/b2b.functions";
 
 export const Route = createFileRoute("/produto/$slug")({
   loader: async ({ params }) => {
@@ -37,6 +39,7 @@ export const Route = createFileRoute("/produto/$slug")({
 function ProductPage() {
   const { product } = Route.useLoaderData();
   const { isB2BApproved } = useSession();
+  const loadB2BPrices = useServerFn(getMyB2BPrices);
   const [qty, setQty] = useState(1);
   const [imgIdx, setImgIdx] = useState(0);
 
@@ -48,8 +51,22 @@ function ProductPage() {
     queryKey: ["related", product.category?.slug, product.id],
     queryFn: () => fetchRelated(product.category?.slug ?? null, product.id),
   });
+  const b2bIds = useMemo(
+    () => [product.id, ...related.map((item) => item.id)].slice(0, 100),
+    [product.id, related],
+  );
+  const { data: b2bPriceData } = useQuery({
+    queryKey: ["product-b2b-prices", b2bIds],
+    queryFn: () => loadB2BPrices({ data: { productIds: b2bIds } }),
+    enabled: isB2BApproved && b2bIds.length > 0,
+    staleTime: 60_000,
+  });
 
-  const price = displayPrice(product, isB2BApproved);
+  const price = displayPrice(
+    product,
+    isB2BApproved,
+    b2bPriceData?.prices?.[product.id]?.effective ?? null,
+  );
   const images = (product.images ?? []).slice().sort((a: { is_primary: boolean }, b: { is_primary: boolean }) => Number(b.is_primary) - Number(a.is_primary));
   const currentImg = images[imgIdx]?.url ?? primaryImage(product);
   const inStock = product.stock > 0;
@@ -197,7 +214,12 @@ function ProductPage() {
           <h2 className="mb-3 font-display text-2xl font-bold uppercase">Produtos relacionados</h2>
           <div className="scroll-rail">
             {related.map((p) => (
-              <ProductCard key={p.id} p={p} isB2B={isB2BApproved} />
+              <ProductCard
+                key={p.id}
+                p={p}
+                isB2B={isB2BApproved}
+                b2bEffectivePrice={b2bPriceData?.prices?.[p.id]?.effective ?? null}
+              />
             ))}
           </div>
         </section>

@@ -36,7 +36,7 @@ export const createPaymentIntent = createServerFn({ method: "POST" })
 
     const { data: order, error: orderError } = await (supabaseAdmin as any)
       .from("orders")
-      .select("id,payment_method,status,user_id,is_b2b,customer_document")
+      .select("id,payment_method,status,user_id,is_b2b,customer_id,customer_document,payment_due_days")
       .eq("tenant_id", context.tenantId)
       .eq("id", data.orderId)
       .maybeSingle();
@@ -60,17 +60,34 @@ export const createPaymentIntent = createServerFn({ method: "POST" })
     if (!["pix", "cartao", "boleto"].includes(String(order.payment_method))) {
       throw new Error("O Asaas está habilitado neste checkout apenas para PIX, cartão e boleto.");
     }
-    const boletoDueDays = data.boletoDueDays ?? 15;
+    let allowedBoletoDays = order.is_b2b ? [15] : [3];
+    let maxCardInstallments = 6;
+    if (order.is_b2b && order.customer_id) {
+      const { data: terms, error: termsError } = await (supabaseAdmin as any)
+        .from("b2b_customer_price_tables")
+        .select("allowed_boleto_days,max_card_installments,active")
+        .eq("tenant_id", context.tenantId)
+        .eq("customer_id", order.customer_id)
+        .eq("active", true)
+        .maybeSingle();
+      if (termsError) throw new Error(termsError.message);
+      allowedBoletoDays = terms?.allowed_boleto_days ?? [15];
+      maxCardInstallments = Number(terms?.max_card_installments ?? 6);
+    }
+
+    const boletoDueDays = data.boletoDueDays ?? Number(order.payment_due_days ?? allowedBoletoDays[0] ?? 3);
     const installments = data.installments ?? 1;
-    if (!Number.isInteger(installments) || installments < 1 || installments > 6) {
-      throw new Error("Escolha de 1 a 6 parcelas para o cartão.");
+    if (!Number.isInteger(installments) || installments < 1 || installments > maxCardInstallments) {
+      throw new Error(`Este cadastro permite cartão em até ${maxCardInstallments}x.`);
     }
     if (order.payment_method === "boleto") {
       if (!/^(?:\d{11}|\d{14})$/.test(String(order.customer_document ?? "").replace(/\D/g, ""))) {
         throw new Error("Informe CPF ou CNPJ válido para gerar o boleto.");
       }
-      if (order.is_b2b ? ![15, 30, 45, 60, 90, 120].includes(boletoDueDays) : boletoDueDays !== 3) {
-        throw new Error(order.is_b2b ? "Prazo de boleto B2B inválido." : "Para cliente B2C, o boleto vence em até 3 dias.");
+      if (!allowedBoletoDays.includes(boletoDueDays)) {
+        throw new Error(order.is_b2b
+          ? "Este prazo de boleto não está liberado para seu cadastro B2B."
+          : "Para cliente B2C, o boleto vence em até 3 dias.");
       }
     }
 

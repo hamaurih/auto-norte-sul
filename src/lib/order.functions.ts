@@ -175,6 +175,49 @@ export const createStorefrontOrder = createServerFn({ method: "POST" })
         .eq("tenant_id", context.tenantId);
       if (linkError) throw new Error(linkError.message);
     }
+    const { data: commercialCustomer, error: commercialCustomerError } = await (supabaseAdmin as any)
+      .from("customers")
+      .select("id,customer_group,b2b_status")
+      .eq("tenant_id", context.tenantId)
+      .eq("user_id", context.userId)
+      .eq("active", true)
+      .maybeSingle();
+    if (commercialCustomerError) throw new Error(commercialCustomerError.message);
+
+    const isB2BApproved = Boolean(
+      commercialCustomer &&
+      ["revendedor", "oficina", "distribuidor"].includes(String(commercialCustomer.customer_group)) &&
+      commercialCustomer.b2b_status === "approved"
+    );
+    let allowedBoletoDays = isB2BApproved ? [15] : [3];
+    let allowInvoice = false;
+    let invoiceDueDays = 28;
+    if (isB2BApproved && commercialCustomer?.id) {
+      const { data: commercialTerms, error: termsError } = await (supabaseAdmin as any)
+        .from("b2b_customer_price_tables")
+        .select("allowed_boleto_days,allow_invoice,invoice_due_days,active")
+        .eq("tenant_id", context.tenantId)
+        .eq("customer_id", commercialCustomer.id)
+        .eq("active", true)
+        .maybeSingle();
+      if (termsError) throw new Error(termsError.message);
+      allowedBoletoDays = commercialTerms?.allowed_boleto_days ?? [15];
+      allowInvoice = Boolean(commercialTerms?.allow_invoice ?? false);
+      invoiceDueDays = Number(commercialTerms?.invoice_due_days ?? 28);
+    }
+
+    if (data.paymentMethod === "boleto") {
+      const dueDays = Number(data.boletoDueDays ?? (isB2BApproved ? allowedBoletoDays[0] : 3));
+      if (!allowedBoletoDays.includes(dueDays)) {
+        throw new Error(isB2BApproved
+          ? "Este prazo de boleto não está liberado para seu cadastro B2B."
+          : "Para cliente B2C, o boleto vence em até 3 dias.");
+      }
+    }
+    if (data.paymentMethod === "faturado_b2b" && (!isB2BApproved || !allowInvoice)) {
+      throw new Error("Compra faturada não está liberada para este cadastro.");
+    }
+
     const { data: validatedItems, error: validationError } = await (supabaseAdmin as any).rpc(
       "validate_cart_items",
       { p_tenant_id: context.tenantId, p_items: data.items },
@@ -209,6 +252,12 @@ export const createStorefrontOrder = createServerFn({ method: "POST" })
         pickup_status: fulfillmentType === "pickup" ? "awaiting_preparation" : null,
         pickup_ready_at: null,
         picked_up_at: null,
+        payment_due_days:
+          data.paymentMethod === "boleto"
+            ? Number(data.boletoDueDays ?? (isB2BApproved ? allowedBoletoDays[0] : 3))
+            : data.paymentMethod === "faturado_b2b"
+              ? invoiceDueDays
+              : null,
         ...(fulfillmentType === "pickup" ? { shipping: 0 } : {}),
       })
       .eq("id", orderId)
@@ -217,10 +266,62 @@ export const createStorefrontOrder = createServerFn({ method: "POST" })
 
     return {
       id: orderId as string,
-      boletoDueDays: data.boletoDueDays ?? 15,
+      boletoDueDays:
+        data.paymentMethod === "boleto"
+          ? Number(data.boletoDueDays ?? (isB2BApproved ? allowedBoletoDays[0] : 3))
+          : data.paymentMethod === "faturado_b2b"
+            ? invoiceDueDays
+            : undefined,
       fulfillmentType,
       pickupBranchId: pickupBranch?.id ?? null,
     };
+  });
+
+export const finalizeB2BInvoiceOrder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => orderIdInputSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: order, error: orderError } = await (supabaseAdmin as any)
+      .from("orders")
+      .select("id,user_id,status,is_b2b,payment_method,customer_id")
+      .eq("tenant_id", context.tenantId)
+      .eq("id", data.orderId)
+      .maybeSingle();
+    if (orderError) throw new Error(orderError.message);
+    if (!order || order.user_id !== context.userId) throw new Error("Pedido B2B não encontrado.");
+    if (!order.is_b2b || order.payment_method !== "faturado_b2b") {
+      throw new Error("Pedido não está configurado para faturamento B2B.");
+    }
+    if (order.status === "faturado") return { status: "faturado" as const };
+
+    const { data: terms, error: termsError } = await (supabaseAdmin as any)
+      .from("b2b_customer_price_tables")
+      .select("allow_invoice,invoice_due_days,active")
+      .eq("tenant_id", context.tenantId)
+      .eq("customer_id", order.customer_id)
+      .eq("active", true)
+      .maybeSingle();
+    if (termsError) throw new Error(termsError.message);
+    if (!terms?.allow_invoice) throw new Error("Crédito faturado não autorizado para este cliente.");
+
+    const { data: status, error } = await (supabaseAdmin as any).rpc(
+      "internal_transition_order",
+      {
+        p_order_id: data.orderId,
+        p_action: "approve_b2b_invoice",
+        p_actor_user_id: null,
+      },
+    );
+    if (error) throw new Error(error.message);
+
+    try {
+      const { processBlingPaidSaleNow } = await import("@/lib/bling-sales-export.server");
+      await processBlingPaidSaleNow(context.tenantId, data.orderId);
+    } catch (blingError) {
+      console.error("[Bling B2B invoice sync]", blingError);
+    }
+    return { status: String(status), dueDays: Number(terms.invoice_due_days ?? 28) };
   });
 
 export const cancelOrder = createServerFn({ method: "POST" })

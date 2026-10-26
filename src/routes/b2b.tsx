@@ -1,17 +1,21 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useEffect, useState } from "react";
 import { z } from "zod";
-import { CheckCircle2, Clock, XCircle, Zap, Store, Wrench, Package } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { activeTenantSlug } from "@/integrations/supabase/tenant";
+import { CheckCircle2, Clock, XCircle, Zap, Store, Wrench, Package, CreditCard } from "lucide-react";
 import { useSession } from "@/lib/session";
+import {
+  getMyB2BCommercialProfile,
+  submitB2BRegistration,
+  type B2BCommercialProfile,
+} from "@/lib/b2b.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/b2b")({
   head: () => ({
     meta: [
       { title: "Compre no Atacado · Norte Sul Acessórios" },
-      { name: "description", content: "Cadastre seu CNPJ e ganhe acesso à tabela de preços de atacado, condição faturada e catálogo completo." },
+      { name: "description", content: "Cadastre seu CNPJ e tenha tabela de atacado e condições comerciais definidas para sua empresa." },
     ],
   }),
   component: B2BPage,
@@ -29,23 +33,15 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
-async function activeStorefrontTenantId(): Promise<string> {
-  const { data, error } = await supabase
-    .from("tenant_storefronts")
-    .select("tenant_id")
-    .eq("slug", activeTenantSlug())
-    .eq("active", true)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data?.tenant_id) throw new Error("A loja selecionada não está disponível para cadastro B2B.");
-  return data.tenant_id;
-}
-
 function B2BPage() {
-  const { user, isB2BApproved } = useSession();
+  const { user } = useSession();
   const navigate = useNavigate();
-  const [existing, setExisting] = useState<{ status: string; created_at: string } | null>(null);
+  const submitRegistration = useServerFn(submitB2BRegistration);
+  const loadCommercialProfile = useServerFn(getMyB2BCommercialProfile);
+  const [commercial, setCommercial] = useState<B2BCommercialProfile | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(Boolean(user));
   const [loading, setLoading] = useState(false);
+  const [editingRejected, setEditingRejected] = useState(false);
   const [form, setForm] = useState<FormValues>({
     cnpj: "",
     razao_social: "",
@@ -57,30 +53,24 @@ function B2BPage() {
     volume_medio_compra: "",
   });
 
-  useEffect(() => {
+  async function refreshProfile() {
     if (!user) {
-      setExisting(null);
+      setCommercial(null);
+      setLoadingProfile(false);
       return;
     }
-    let mounted = true;
-    void (async () => {
-      try {
-        const tenantId = await activeStorefrontTenantId();
-        const { data, error } = await supabase
-          .from("b2b_registrations")
-          .select("status, created_at")
-          .eq("tenant_id", tenantId)
-          .eq("user_id", user.id)
-          .maybeSingle();
-        if (error) throw error;
-        if (mounted) setExisting(data);
-      } catch (error) {
-        console.error("Falha ao carregar o cadastro B2B.", error);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
+    try {
+      setCommercial(await loadCommercialProfile());
+    } catch (error) {
+      console.error("Falha ao carregar condição comercial B2B.", error);
+    } finally {
+      setLoadingProfile(false);
+    }
+  }
+
+  useEffect(() => {
+    void refreshProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   async function submit(e: React.FormEvent) {
@@ -96,18 +86,10 @@ function B2BPage() {
     }
     setLoading(true);
     try {
-      const tenantId = await activeStorefrontTenantId();
-      const { error } = await supabase.from("b2b_registrations").insert({
-        tenant_id: tenantId,
-        user_id: user.id,
-        ...parsed.data,
-        nome_fantasia: parsed.data.nome_fantasia || null,
-        estado: parsed.data.estado || null,
-        volume_medio_compra: parsed.data.volume_medio_compra || null,
-      });
-      if (error) throw error;
-      toast.success("Cadastro enviado! Nossa equipe analisa em até 1 dia útil.");
-      setExisting({ status: "pendente", created_at: new Date().toISOString() });
+      await submitRegistration({ data: parsed.data });
+      toast.success("Solicitação B2B enviada para análise.");
+      setEditingRejected(false);
+      await refreshProfile();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível enviar o cadastro B2B.");
     } finally {
@@ -115,23 +97,24 @@ function B2BPage() {
     }
   }
 
+  const showForm = !commercial?.approved && !commercial?.pending && (!commercial?.rejected || editingRejected);
+
   return (
     <div>
-      {/* Hero */}
       <section className="bg-secondary text-secondary-foreground">
         <div className="container-x grid gap-6 py-10 md:grid-cols-2 md:py-16">
           <div>
             <span className="rounded bg-primary px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-primary-foreground">Norte Sul B2B</span>
-            <h1 className="mt-3 font-display text-4xl font-black uppercase leading-tight md:text-5xl">Compre no atacado com quem entende de automotivo</h1>
+            <h1 className="mt-3 font-display text-4xl font-black uppercase leading-tight md:text-5xl">Uma conta. Condições comerciais para sua empresa.</h1>
             <p className="mt-3 max-w-lg text-sm text-white/80 md:text-base">
-              Somos parceiros de lojistas, oficinas, instaladores e revendedores em todo o Brasil.
-              Preço especial, catálogo completo e condições exclusivas.
+              Todo cadastro começa como varejo. Depois da aprovação do CNPJ, sua própria conta passa a usar
+              tabela de atacado e somente as formas de pagamento liberadas pelo comercial.
             </p>
             <div className="mt-6 grid gap-2 sm:grid-cols-3">
               {[
-                { icon: Zap, t: "Preço atacado" },
-                { icon: Store, t: "Faturado 28d" },
-                { icon: Package, t: "Envio nacional" },
+                { icon: Zap, t: "Tabela A, B ou C" },
+                { icon: CreditCard, t: "Prazo por cliente" },
+                { icon: Package, t: "Estoque integrado" },
               ].map((b) => (
                 <div key={b.t} className="flex items-center gap-2 rounded-lg bg-white/5 p-3 text-sm">
                   <b.icon className="h-4 w-4 text-primary" /> {b.t}
@@ -140,36 +123,62 @@ function B2BPage() {
             </div>
           </div>
 
-          {/* Form / status */}
           <div className="rounded-2xl border border-white/10 bg-black/30 p-6 text-secondary-foreground backdrop-blur">
-            {isB2BApproved ? (
-              <div className="text-center">
-                <CheckCircle2 className="mx-auto h-10 w-10 text-success" />
-                <h3 className="mt-2 font-display text-xl font-bold uppercase">Cadastro aprovado</h3>
-                <p className="mt-1 text-sm text-white/70">Você já está vendo os preços de atacado no catálogo.</p>
-                <Link to="/catalogo" className="mt-4 inline-block rounded-md bg-primary px-6 py-3 text-sm font-bold uppercase text-primary-foreground">
-                  Ir para o catálogo
+            {loadingProfile ? (
+              <div className="py-10 text-center text-sm text-white/70">Carregando seu cadastro…</div>
+            ) : commercial?.approved ? (
+              <div>
+                <div className="text-center">
+                  <CheckCircle2 className="mx-auto h-10 w-10 text-success" />
+                  <h3 className="mt-2 font-display text-xl font-bold uppercase">B2B aprovado</h3>
+                  <p className="mt-1 text-sm text-white/70">Sua conta já compra com a condição comercial aprovada.</p>
+                </div>
+                <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                  <Info label="Tabela de preço" value={`Tabela ${commercial.priceTable ?? "C"}`} />
+                  <Info label="Perfil" value={groupLabel(commercial.customerGroup)} />
+                  <Info
+                    label="Boleto"
+                    value={commercial.allowedBoletoDays.length
+                      ? commercial.allowedBoletoDays.map((d) => `${d} dias`).join(", ")
+                      : "Não liberado"}
+                  />
+                  <Info label="Cartão" value={`Até ${commercial.maxCardInstallments}x`} />
+                  <Info
+                    label="Faturado"
+                    value={commercial.allowInvoice ? `${commercial.invoiceDueDays} dias` : "Não liberado"}
+                  />
+                  <Info label="Regra" value="Preço validado no servidor" />
+                </div>
+                <Link to="/catalogo" className="mt-5 block rounded-md bg-primary px-6 py-3 text-center text-sm font-bold uppercase text-primary-foreground">
+                  Comprar com minha tabela
                 </Link>
               </div>
-            ) : existing ? (
+            ) : commercial?.pending ? (
               <div className="text-center">
-                {existing.status === "pendente" && <Clock className="mx-auto h-10 w-10 text-hot" />}
-                {existing.status === "aprovado" && <CheckCircle2 className="mx-auto h-10 w-10 text-success" />}
-                {existing.status === "reprovado" && <XCircle className="mx-auto h-10 w-10 text-destructive" />}
-                <h3 className="mt-2 font-display text-xl font-bold uppercase">
-                  {existing.status === "pendente" && "Cadastro em análise"}
-                  {existing.status === "aprovado" && "Cadastro aprovado"}
-                  {existing.status === "reprovado" && "Cadastro reprovado"}
-                </h3>
-                <p className="mt-1 text-sm text-white/70">
-                  {existing.status === "pendente" && "Sua solicitação foi recebida. Retornamos em até 1 dia útil."}
-                  {existing.status === "aprovado" && "Você já pode comprar com preços de atacado."}
-                  {existing.status === "reprovado" && "Fale com nosso comercial pelo WhatsApp para mais informações."}
+                <Clock className="mx-auto h-10 w-10 text-hot" />
+                <h3 className="mt-2 font-display text-xl font-bold uppercase">Cadastro em análise</h3>
+                <p className="mt-2 text-sm text-white/70">
+                  Enquanto a análise não for concluída, sua conta continua comprando normalmente como B2C.
+                  Nenhum preço ou prazo B2B é liberado antes da aprovação.
                 </p>
+                <Link to="/catalogo" className="mt-4 inline-block rounded-md border border-white/20 px-5 py-2.5 text-sm font-bold">
+                  Continuar no varejo
+                </Link>
               </div>
-            ) : (
+            ) : commercial?.rejected && !editingRejected ? (
+              <div className="text-center">
+                <XCircle className="mx-auto h-10 w-10 text-destructive" />
+                <h3 className="mt-2 font-display text-xl font-bold uppercase">Cadastro não aprovado</h3>
+                <p className="mt-2 text-sm text-white/70">
+                  Sua conta continua disponível para compras no varejo. Você pode revisar os dados e enviar uma nova solicitação.
+                </p>
+                <button onClick={() => setEditingRejected(true)} className="mt-4 rounded-md bg-primary px-5 py-2.5 text-sm font-bold uppercase text-primary-foreground">
+                  Revisar e reenviar
+                </button>
+              </div>
+            ) : showForm ? (
               <form onSubmit={submit} className="space-y-3">
-                <h3 className="font-display text-lg font-bold uppercase">Solicite seu cadastro B2B</h3>
+                <h3 className="font-display text-lg font-bold uppercase">Solicite sua condição B2B</h3>
                 <Grid>
                   <F label="CNPJ"><input required value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} className={inp} /></F>
                   <F label="WhatsApp"><input required value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} className={inp} /></F>
@@ -201,21 +210,20 @@ function B2BPage() {
                   </select>
                 </F>
                 <button disabled={loading} className="mt-2 w-full rounded-md bg-primary px-4 py-3 text-sm font-bold uppercase text-primary-foreground shadow-[var(--shadow-brand)] hover:brightness-110 disabled:opacity-60">
-                  {loading ? "Enviando…" : "Enviar solicitação"}
+                  {loading ? "Enviando…" : "Enviar para análise"}
                 </button>
-                {!user && <p className="text-center text-[10px] text-white/60">Você precisará entrar antes de enviar.</p>}
+                {!user && <p className="text-center text-[10px] text-white/60">Você entrará na sua conta antes de enviar.</p>}
               </form>
-            )}
+            ) : null}
           </div>
         </div>
       </section>
 
-      {/* Benefits */}
       <section className="container-x mt-10 grid gap-3 md:grid-cols-3">
         {[
-          { icon: Zap, t: "Preço de atacado", d: "Tabela especial liberada após aprovação do CNPJ." },
-          { icon: Wrench, t: "Suporte técnico", d: "Time comercial pronto para tirar dúvidas de aplicação e instalação." },
-          { icon: Store, t: "Catálogo revenda", d: "Fotos, descrições e SKU prontos para uso na sua loja." },
+          { icon: Zap, t: "Preço correto por cliente", d: "Tabela A, B ou C e preços específicos por produto são respeitados no servidor." },
+          { icon: Wrench, t: "Cadastro único", d: "A mesma conta funciona no varejo e, após aprovação, recebe os benefícios B2B." },
+          { icon: Store, t: "Crédito controlado", d: "Boleto e faturado aparecem somente nos prazos que o comercial liberou." },
         ].map((b) => (
           <div key={b.t} className="rounded-lg border border-border bg-card p-5">
             <b.icon className="h-6 w-6 text-primary" />
@@ -228,14 +236,20 @@ function B2BPage() {
   );
 }
 
+function groupLabel(group: B2BCommercialProfile["customerGroup"]) {
+  if (group === "oficina") return "Oficina";
+  if (group === "revendedor") return "Revendedor";
+  if (group === "distribuidor") return "Distribuidor";
+  return "Cliente";
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-lg border border-white/10 bg-white/5 p-3"><div className="text-[10px] font-bold uppercase text-white/50">{label}</div><div className="mt-1 text-sm font-semibold">{value}</div></div>;
+}
+
 const inp = "w-full rounded-md border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/50 outline-none focus:border-primary";
 function F({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[11px] font-semibold uppercase text-white/70">{label}</span>
-      {children}
-    </label>
-  );
+  return <label className="block"><span className="mb-1 block text-[11px] font-semibold uppercase text-white/70">{label}</span>{children}</label>;
 }
 function Grid({ children }: { children: React.ReactNode }) {
   return <div className="grid gap-3 sm:grid-cols-2">{children}</div>;

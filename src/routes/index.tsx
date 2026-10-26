@@ -1,5 +1,7 @@
+import { useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowRight,
   Truck,
@@ -24,9 +26,11 @@ import {
   fetchNewArrivals,
   fetchOffers,
   fetchBestSellers,
+  displayPrice,
 } from "@/lib/queries";
 import { useSession } from "@/lib/session";
 import { useCompanyProfile } from "@/lib/company";
+import { getMyB2BPrices } from "@/lib/b2b.functions";
 
 // Categories/brands are intentionally NOT prefetched here: they are
 // tenant-scoped and the active tenant is only known on the client, so
@@ -169,6 +173,7 @@ function HomeFallback() {
 
 function Home() {
   const { isB2BApproved } = useSession();
+  const loadB2BPrices = useServerFn(getMyB2BPrices);
   const { data: company } = useCompanyProfile();
   const tenantId = company?.tenant_id;
   const common = { staleTime: 60_000, retry: 1 } as const;
@@ -217,6 +222,16 @@ function Home() {
     queryFn: () => fetchBrands(tenantId),
     enabled: Boolean(tenantId),
     ...common,
+  });
+  const homeB2BProductIds = useMemo(
+    () => [...new Set([...offers, ...news, ...best, ...featured].map((product) => product.id))].slice(0, 100),
+    [offers, news, best, featured],
+  );
+  const { data: b2bPriceData } = useQuery({
+    queryKey: ["home-b2b-prices", homeB2BProductIds],
+    queryFn: () => loadB2BPrices({ data: { productIds: homeB2BProductIds } }),
+    enabled: isB2BApproved && homeB2BProductIds.length > 0,
+    staleTime: 60_000,
   });
   const shopperCategories = homeCategories(categories);
 
@@ -276,7 +291,7 @@ function Home() {
       ) : offers.length > 0 ? (
         <Rail title="Ofertas do dia" subtitle="Descontos que não voltam" viewAllHref="/catalogo">
           {offers.map((p) => (
-            <ProductCard key={p.id} p={p} isB2B={isB2BApproved} />
+            <ProductCard key={p.id} p={p} isB2B={isB2BApproved} b2bEffectivePrice={b2bPriceData?.prices?.[p.id]?.effective ?? null} />
           ))}
         </Rail>
       ) : null}
@@ -289,7 +304,7 @@ function Home() {
       ) : news.length > 0 ? (
         <Rail title="Lançamentos" subtitle="Chegou primeiro na Norte Sul" viewAllHref="/catalogo">
           {news.map((p) => (
-            <ProductCard key={p.id} p={p} isB2B={isB2BApproved} />
+            <ProductCard key={p.id} p={p} isB2B={isB2BApproved} b2bEffectivePrice={b2bPriceData?.prices?.[p.id]?.effective ?? null} />
           ))}
         </Rail>
       ) : null}
@@ -305,7 +320,7 @@ function Home() {
       ) : best.length > 0 ? (
         <Rail title="Mais vendidos" subtitle="Escolhidos por quem entende" viewAllHref="/catalogo">
           {best.map((p) => (
-            <ProductCard key={p.id} p={p} isB2B={isB2BApproved} />
+            <ProductCard key={p.id} p={p} isB2B={isB2BApproved} b2bEffectivePrice={b2bPriceData?.prices?.[p.id]?.effective ?? null} />
           ))}
         </Rail>
       ) : null}
@@ -316,7 +331,7 @@ function Home() {
           <RailSkeleton />
         </SectionShell>
       ) : featured.length > 0 ? (
-        <FeaturedShowcase products={featured} isB2B={isB2BApproved} />
+        <FeaturedShowcase products={featured} isB2B={isB2BApproved} b2bPrices={b2bPriceData?.prices ?? {}} />
       ) : null}
 
       {/* ============ MARCAS ============ */}
@@ -559,13 +574,16 @@ function MiniBannersGrid({ banners }: { banners: MiniBannerRow[] }) {
 function FeaturedShowcase({
   products,
   isB2B,
+  b2bPrices,
 }: {
   products: React.ComponentProps<typeof ProductCard>["p"][];
   isB2B: boolean;
+  b2bPrices: Record<string, { effective: number; base: number }>;
 }) {
   const [main, ...rest] = products;
   if (!main) return null;
   const sideItems = rest.slice(0, 4);
+  const mainPrice = displayPrice(main, isB2B, b2bPrices[main.id]?.effective ?? null);
 
   return (
     <section className="container-x mt-10">
@@ -592,10 +610,10 @@ function FeaturedShowcase({
             <div className="mt-2 flex items-baseline gap-2">
               <span className="font-display text-3xl font-black text-primary">
                 {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
-                  main.price_b2c,
+                  mainPrice.effective,
                 )}
               </span>
-              {main.compare_at_price && main.compare_at_price > main.price_b2c && (
+              {main.compare_at_price && main.compare_at_price > mainPrice.effective && (
                 <span className="text-sm text-white/50 line-through">
                   {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
                     main.compare_at_price,
@@ -624,7 +642,7 @@ function FeaturedShowcase({
         {/* Side cards */}
         <div className="grid grid-cols-2 gap-3">
           {sideItems.map((p) => (
-            <ProductCard key={p.id} p={p} isB2B={isB2B} />
+            <ProductCard key={p.id} p={p} isB2B={isB2B} b2bEffectivePrice={b2bPrices[p.id]?.effective ?? null} />
           ))}
           {sideItems.length === 0 && (
             <div className="col-span-2 grid place-items-center rounded-lg border border-dashed border-border p-6 text-xs text-muted-foreground">

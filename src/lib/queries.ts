@@ -575,8 +575,14 @@ export function primaryImage(p: ProductRow): string | null {
   return imgs[0]?.url ?? null;
 }
 
-export function displayPrice(p: ProductRow, isB2BApproved: boolean) {
-  const b2b = isB2BApproved && p.price_b2b ? p.price_b2b : null;
+export function displayPrice(
+  p: ProductRow,
+  isB2BApproved: boolean,
+  b2bEffectivePrice?: number | null,
+) {
+  const b2b = isB2BApproved
+    ? (b2bEffectivePrice ?? (p.price_b2b ? Number(p.price_b2b) : null))
+    : null;
   return {
     retail: p.price_b2c,
     wholesale: b2b,
