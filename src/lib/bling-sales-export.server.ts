@@ -187,13 +187,14 @@ async function processJob(job: Job) {
     data: new Date(order.created_at).toISOString().slice(0, 10),
     contato: { id: customerBlingId },
     itens,
-    ...(discount > 0 ? { desconto: { valor: discount, unidade: "REAL" } } : {}),\n    ...(shipping > 0 ? { transporte: { frete: shipping } } : {}),
+    ...(discount > 0 ? { desconto: { valor: discount, unidade: "REAL" } } : {}),
+    ...(shipping > 0 ? { transporte: { frete: shipping } } : {}),
     observacoes: "Registro comercial Norte Sul " + order.id + ". Pagamento confirmado no ERP. Documento fiscal sob controle do vendedor/gestor. Não emitir automaticamente.",
   };
   if (!Number.isSafeInteger(payload.contato.id) || payload.contato.id <= 0)
     return finish(job, "failed", "Identificação de contato Bling inválida");
 
- const lookup = await fetch(API + "/pedidos/vendas?" + new URLSearchParams({
+  const lookup = await fetch(API + "/pedidos/vendas?" + new URLSearchParams({
     pagina:"1",limite:"10","numerosLojas[]":numeroLoja,
   }),{
     headers:{ Authorization:"Bearer " + token,Accept:"application/json","enable-jwt":"1" },
