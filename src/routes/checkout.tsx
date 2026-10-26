@@ -11,7 +11,11 @@ import {
   type PickupLocation,
 } from "@/lib/order.functions";
 import { createPaymentIntent } from "@/lib/payment.functions";
-import { getMyB2BCommercialProfile, type B2BCommercialProfile } from "@/lib/b2b.functions";
+import {
+  getMyB2BCommercialProfile,
+  getMyB2BPrices,
+  type B2BCommercialProfile,
+} from "@/lib/b2b.functions";
 import { useCart, cartStore, markStorefrontCheckoutStarted, markStorefrontOrderSubmitted } from "@/lib/cart-store";
 import { useSession } from "@/lib/session";
 import { brl } from "@/lib/format";
@@ -79,6 +83,7 @@ function Checkout() {
   const { pedido: resumeOrderId } = Route.useSearch();
   const listPickupLocations = useServerFn(listStorefrontPickupLocations);
   const loadB2BCommercialProfile = useServerFn(getMyB2BCommercialProfile);
+  const loadB2BPrices = useServerFn(getMyB2BPrices);
   const finalizeInvoice = useServerFn(finalizeB2BInvoiceOrder);
 
   const [saving, setSaving] = useState(false);
@@ -86,6 +91,7 @@ function Checkout() {
   const [paymentView, setPaymentView] = useState<PaymentView | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [commercialProfile, setCommercialProfile] = useState<B2BCommercialProfile | null>(null);
+  const [b2bPrices, setB2BPrices] = useState<Record<string, { effective: number; base: number }>>({});
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(resumeOrderId ?? null);
   const [resumeTotal, setResumeTotal] = useState<number | null>(null);
   const [resumeLoading, setResumeLoading] = useState(Boolean(resumeOrderId));
@@ -167,6 +173,21 @@ function Checkout() {
   }, [user, loadB2BCommercialProfile]);
 
   useEffect(() => {
+    if (!user || !commercialProfile?.approved || items.length === 0) {
+      setB2BPrices({});
+      return;
+    }
+    let active = true;
+    const productIds = [...new Set(items.map((item) => item.productId))].slice(0, 100);
+    void loadB2BPrices({ data: { productIds } })
+      .then((result) => {
+        if (active) setB2BPrices(result.prices ?? {});
+      })
+      .catch((error: Error) => console.error("Falha ao carregar preços B2B do checkout.", error));
+    return () => { active = false; };
+  }, [user, commercialProfile?.approved, items, loadB2BPrices]);
+
+  useEffect(() => {
     if (!user) return;
     void (supabase as any)
       .from("orders")
@@ -242,8 +263,11 @@ function Checkout() {
   }, [resumeOrderId, user]);
 
   const selectedPickup = pickupLocations.find((location) => location.id === pickupBranchId) ?? null;
-  const total = resumeTotal ?? subtotal;
   const b2bApproved = commercialProfile?.approved ?? isB2BApproved;
+  const effectiveSubtotal = b2bApproved
+    ? items.reduce((sum, item) => sum + (b2bPrices[item.productId]?.effective ?? item.unitPrice) * item.quantity, 0)
+    : subtotal;
+  const total = resumeTotal ?? effectiveSubtotal;
   const allowedBoletoDays = b2bApproved
     ? (commercialProfile?.allowedBoletoDays ?? [15])
     : [3];
@@ -898,14 +922,14 @@ function Checkout() {
                 <span className="line-clamp-1">
                   {item.quantity}× {item.name}
                 </span>
-                <span>{brl(item.unitPrice * item.quantity)}</span>
+                <span>{brl((b2bPrices[item.productId]?.effective ?? item.unitPrice) * item.quantity)}</span>
               </li>
             ))}
           </ul>
           <div className="space-y-1 border-t border-border pt-3">
             <div className="flex justify-between text-sm">
               <span>Subtotal</span>
-              <span>{brl(subtotal)}</span>
+              <span>{brl(effectiveSubtotal)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span>{fulfillmentType === "pickup" ? "Retirada na loja" : "Entrega"}</span>
