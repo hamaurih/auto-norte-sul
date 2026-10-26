@@ -512,15 +512,31 @@ function Checkout() {
 
   return (
     <div className="container-x py-6">
-      <h1 className="mb-4 font-display text-3xl font-bold uppercase">Checkout</h1>
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[.18em] text-primary">Compra segura</p>
+          <h1 className="mt-1 font-display text-3xl font-bold uppercase">Finalizar pedido</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Revise seus dados, escolha entrega e pagamento. O preço final é validado pelo servidor.</p>
+        </div>
+        <div className="hidden items-center gap-2 text-xs font-semibold text-muted-foreground sm:flex">
+          <span className="rounded-full bg-primary px-2.5 py-1 text-primary-foreground">1 Dados</span>
+          <span>→</span><span>2 Entrega</span><span>→</span><span>3 Pagamento</span>
+        </div>
+      </div>
       {commercialProfile?.approved && (
-        <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm">
-          <b>B2B aprovado · Tabela {commercialProfile.priceTable ?? "C"}</b>
-          <span className="ml-2 text-muted-foreground">
-            Boleto: {commercialProfile.allowedBoletoDays.length ? commercialProfile.allowedBoletoDays.map((d) => `${d}d`).join(", ") : "não liberado"}
-            {" · "}Cartão: até {commercialProfile.maxCardInstallments}x
-            {" · "}Faturado: {commercialProfile.allowInvoice ? `${commercialProfile.invoiceDueDays}d` : "não liberado"}
-          </span>
+        <div className="mb-5 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-primary">Condição B2B ativa</p>
+              <p className="font-display text-lg font-bold">Tabela {commercialProfile.priceTable ?? "C"}</p>
+            </div>
+            <Link to="/b2b" className="text-xs font-bold text-primary underline-offset-4 hover:underline">Ver cadastro comercial</Link>
+          </div>
+          <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+            <div className="rounded-lg bg-background/70 p-2.5"><b>Boleto</b><br/><span className="text-muted-foreground">{commercialProfile.allowedBoletoDays.length ? commercialProfile.allowedBoletoDays.map((d) => `${d} dias`).join(", ") : "Não liberado"}</span></div>
+            <div className="rounded-lg bg-background/70 p-2.5"><b>Cartão</b><br/><span className="text-muted-foreground">Até {commercialProfile.maxCardInstallments}x</span></div>
+            <div className="rounded-lg bg-background/70 p-2.5"><b>Faturado</b><br/><span className="text-muted-foreground">{commercialProfile.allowInvoice ? `${commercialProfile.invoiceDueDays} dias` : "Não liberado"}</span></div>
+          </div>
         </div>
       )}
       {resumeLoading && (
