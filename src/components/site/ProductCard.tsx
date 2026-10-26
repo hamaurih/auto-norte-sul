@@ -5,9 +5,17 @@ import { cartStore } from "@/lib/cart-store";
 import { displayPrice, primaryImage, type ProductRow } from "@/lib/queries";
 import { toast } from "sonner";
 
-export function ProductCard({ p, isB2B }: { p: ProductRow; isB2B: boolean }) {
+export function ProductCard({
+  p,
+  isB2B,
+  b2bEffectivePrice,
+}: {
+  p: ProductRow;
+  isB2B: boolean;
+  b2bEffectivePrice?: number | null;
+}) {
   const img = primaryImage(p);
-  const price = displayPrice(p, isB2B);
+  const price = displayPrice(p, isB2B, b2bEffectivePrice);
   const off =
     price.compare && price.compare > price.effective
       ? Math.round(((price.compare - price.effective) / price.compare) * 100)
