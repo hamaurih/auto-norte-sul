@@ -292,6 +292,90 @@ begin
 end;
 $$;
 
+create or replace function public.get_product_name_recovery_overview(p_tenant_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path=''
+as $
+declare
+  v_invalid integer:=0;
+  v_queued integer:=0;
+  v_processing integer:=0;
+  v_review integer:=0;
+  v_approved integer:=0;
+  v_ready integer:=0;
+  v_published integer:=0;
+begin
+  if auth.uid() is null
+     or not private.has_tenant_role(p_tenant_id,array['owner','admin','manager'])
+  then
+    raise exception 'Sem permissão para acompanhar recuperação do catálogo';
+  end if;
+
+  select count(*) into v_invalid
+  from public.products p
+  where p.tenant_id=p_tenant_id
+    and p.active
+    and p.deleted_at is null
+    and not private.product_name_is_storefront_safe(p.name);
+
+  select
+    count(*) filter (where j.status='queued'),
+    count(*) filter (where j.status='processing'),
+    count(*) filter (where j.status='review'),
+    count(*) filter (where j.status='approved')
+  into v_queued,v_processing,v_review,v_approved
+  from public.product_enrichment_jobs j
+  where j.tenant_id=p_tenant_id
+    and coalesce(j.search_query,'') like '[catalog-name]%';
+
+  select count(distinct p.id) into v_ready
+  from public.products p
+  where p.tenant_id=p_tenant_id
+    and p.active
+    and p.deleted_at is null
+    and p.available_for_online=false
+    and private.product_name_is_storefront_safe(p.name)
+    and coalesce(p.price_b2c,0)>0
+    and coalesce(p.stock,0)>0
+    and p.brand_id is not null
+    and p.category_id is not null
+    and exists (
+      select 1
+      from public.product_enrichment_jobs j
+      where j.tenant_id=p.tenant_id
+        and j.product_id=p.id
+        and j.status='approved'
+        and coalesce(j.search_query,'') like '[catalog-name]%'
+    );
+
+  select count(distinct p.id) into v_published
+  from public.products p
+  where p.tenant_id=p_tenant_id
+    and p.available_for_online=true
+    and private.product_name_is_storefront_safe(p.name)
+    and exists (
+      select 1
+      from public.product_enrichment_jobs j
+      where j.tenant_id=p.tenant_id
+        and j.product_id=p.id
+        and j.status='approved'
+        and coalesce(j.search_query,'') like '[catalog-name]%'
+    );
+
+  return jsonb_build_object(
+    'invalidRemaining',v_invalid,
+    'queued',v_queued,
+    'processing',v_processing,
+    'review',v_review,
+    'approved',v_approved,
+    'readyToPublish',v_ready,
+    'published',v_published
+  );
+end;
+$;
+
 create or replace function private.publish_recovered_product(p_tenant_id uuid,p_product_id uuid)
 returns jsonb
 language plpgsql
@@ -358,6 +442,8 @@ as $$
 $$;
 
 revoke all on function private.guard_catalog_name_candidate_approval() from public,anon,authenticated;
+revoke all on function public.get_product_name_recovery_overview(uuid) from public,anon;
+grant execute on function public.get_product_name_recovery_overview(uuid) to authenticated;
 revoke all on function private.publish_recovered_product(uuid,uuid) from public,anon,authenticated;
 revoke all on function public.publish_recovered_product(uuid,uuid) from public,anon;
 grant execute on function public.publish_recovered_product(uuid,uuid) to authenticated;
