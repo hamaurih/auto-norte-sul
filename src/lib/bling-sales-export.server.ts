@@ -164,6 +164,48 @@ async function processJob(job: Job) {
   return finish(job, "done");
 }
 
+/** Processa somente a venda recém-paga, mantendo a fila como fallback. */
+export async function processBlingPaidSaleNow(tenantId: string, orderId: string) {
+  const { data: pending, error } = await db.from("bling_order_sync_jobs")
+    .select("id,tenant_id,order_id,event_type,status,attempts,scheduled_at")
+    .eq("tenant_id", tenantId).eq("order_id", orderId).eq("event_type", "paid").maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!pending || pending.status === "done") return { checked: 0, processed: 0, failed: 0 };
+  if (pending.status !== "queued" || Date.parse(String(pending.scheduled_at ?? "")) > Date.now()) {
+    return { checked: 0, processed: 0, failed: 0 };
+  }
+
+  const now = new Date().toISOString();
+  const nextAttempts = Number(pending.attempts ?? 0) + 1;
+  const { data: claimed, error: claimError } = await db.from("bling_order_sync_jobs").update({
+    status: "processing",
+    started_at: now,
+    finished_at: null,
+    attempts: nextAttempts,
+    last_error: null,
+    updated_at: now,
+  }).eq("id", pending.id).eq("tenant_id", tenantId).eq("status", "queued")
+    .select("id,tenant_id,order_id,event_type,attempts").maybeSingle();
+  if (claimError) throw new Error(claimError.message);
+  if (!claimed) return { checked: 0, processed: 0, failed: 0 };
+
+  const job: Job = {
+    job_id: claimed.id,
+    tenant_id: claimed.tenant_id,
+    order_id: claimed.order_id,
+    event_type: claimed.event_type,
+    attempts: Number(claimed.attempts ?? nextAttempts),
+  };
+
+  try {
+    await processJob(job);
+    return { checked: 1, processed: 1, failed: 0 };
+  } catch (e) {
+    await finish(job, "failed", e instanceof Error ? e.message : "Erro de sincronização");
+    return { checked: 1, processed: 0, failed: 1 };
+  }
+}
+
 /** Invocado somente pelo cron autenticado; nunca por navegador ou RPC público. */
 export async function processBlingPaidSalesQueue() {
   const { data: claimed, error } = await db.rpc("claim_bling_order_sync_jobs", { p_limit: 5 });
