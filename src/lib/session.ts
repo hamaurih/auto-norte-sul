@@ -129,19 +129,12 @@ export function useSession(): SessionState {
         return;
       }
 
-      const [{ data: profile }, tenantContext] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("customer_group, b2b_status")
-          .eq("id", session.user.id)
-          .maybeSingle(),
-        findActiveTenantContext(session.user.id),
-      ]);
+      const tenantContext = await findActiveTenantContext(session.user.id);
 
-      // B2B is tenant-scoped. The customer record of the active storefront
-      // takes precedence over the legacy global profile flags.
-      const customerGroup = (tenantContext?.customerGroup ?? profile?.customer_group ?? "b2c") as CustomerGroup;
-      const b2bStatus = (tenantContext?.b2bStatus ?? profile?.b2b_status ?? "none") as B2BStatus;
+      // B2B is strictly tenant-scoped. Global profile flags are never an
+      // authorization source for commercial pricing or payment terms.
+      const customerGroup = (tenantContext?.customerGroup ?? "b2c") as CustomerGroup;
+      const b2bStatus = (tenantContext?.b2bStatus ?? "none") as B2BStatus;
       const systemRole = systemRoleForTenantRole(tenantContext?.role);
       let permissions = defaultPermissionsForRole(systemRole);
 
@@ -178,7 +171,7 @@ export function useSession(): SessionState {
           systemRole,
           permissions,
           isSalesRep,
-          isB2BApproved: isStaff || (b2bGroup && b2bStatus === "approved"),
+          isB2BApproved: b2bGroup && b2bStatus === "approved",
           isB2BPending: customerGroup === "b2b_pendente" || b2bStatus === "pending",
           roles,
           customerGroup,
