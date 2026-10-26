@@ -206,12 +206,12 @@ async function hash(value: string) { const d = await crypto.subtle.digest("SHA-2
 export async function processAsaasWebhook(admin: AdminClient, rawBody: string, headers: Headers) {
   const payload = JSON.parse(rawBody); const paymentId = String(payload?.payment?.id ?? "");
   if (!paymentId) return { ignored: true, reason: "missing_payment" };
-  let { data: intent, error } = await admin.from("payment_intents").select("id,tenant_id,provider_id,amount,provider_metadata").eq("external_id", paymentId).maybeSingle();
+  let { data: intent, error } = await admin.from("payment_intents").select("id,tenant_id,order_id,provider_id,amount,provider_metadata").eq("external_id", paymentId).maybeSingle();
   if (error) throw new Error(error.message);
   // Parcelamentos geram várias cobranças: cada uma chega pelo webhook com seu
   // próprio id, mas preserva a referência interna do pedido.
   if (!intent && payload?.payment?.externalReference) {
-    const fallback = await admin.from("payment_intents").select("id,tenant_id,provider_id,amount,provider_metadata").eq("id", String(payload.payment.externalReference)).maybeSingle();
+    const fallback = await admin.from("payment_intents").select("id,tenant_id,order_id,provider_id,amount,provider_metadata").eq("id", String(payload.payment.externalReference)).maybeSingle();
     if (fallback.error) throw new Error(fallback.error.message);
     intent = fallback.data;
   }
@@ -230,5 +230,6 @@ export async function processAsaasWebhook(admin: AdminClient, rawBody: string, h
   const { error: updateError } = await admin.from("payment_intents").update({ provider_metadata: { asaas_payment_id: paymentId, asaas_last_event: payload?.event ?? null, asaas_status: remote?.status ?? null }, updated_at: new Date().toISOString() }).eq("id", intent.id).eq("tenant_id", intent.tenant_id);
   if (updateError) throw new Error(updateError.message);
   const { data, error: applyError } = await admin.rpc("internal_apply_payment_webhook", { p_provider_id: c.providerId, p_provider_event_id: eventId.slice(0,255), p_event_type: String(payload?.event ?? "PAYMENT_UPDATED").slice(0,120), p_external_payment_id: paymentId, p_normalized_status: status, p_payload_sha256: await hash(rawBody), p_signature_verified: true });
-  if (applyError) throw new Error(applyError.message); return { ignored: false, normalizedStatus: status, result: data };
+  if (applyError) throw new Error(applyError.message);
+  return { ignored: false, normalizedStatus: status, result: data, tenantId: intent.tenant_id, orderId: intent.order_id };
 }

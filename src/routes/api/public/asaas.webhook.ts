@@ -13,7 +13,24 @@ export const Route = createFileRoute("/api/public/asaas/webhook")({
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const { processAsaasWebhook } = await import("@/lib/asaas-payments.server");
           const result = await processAsaasWebhook(supabaseAdmin as any, rawBody, request.headers);
-          return json(200, { ok: true, ignored: Boolean(result.ignored), status: result.normalizedStatus ?? null });
+          let blingImmediate: { checked: number; processed: number; failed: number } | null = null;
+          if (!result.ignored && result.normalizedStatus === "paid" && result.tenantId && result.orderId) {
+            try {
+              const { processBlingPaidSaleNow } = await import("@/lib/bling-sales-export.server");
+              blingImmediate = await processBlingPaidSaleNow(result.tenantId, result.orderId);
+            } catch (blingError: any) {
+              // O pagamento segue confirmado no ERP. A fila permanece como fallback.
+              console.error("[Bling immediate sync]", String(blingError?.message ?? blingError).slice(0, 500));
+            }
+          }
+          return json(200, {
+            ok: true,
+            ignored: Boolean(result.ignored),
+            status: result.normalizedStatus ?? null,
+            blingImmediate: blingImmediate
+              ? { processed: blingImmediate.processed, failed: blingImmediate.failed }
+              : null,
+          });
         } catch (error: any) {
           console.error("[Asaas webhook]", String(error?.message ?? error).slice(0, 500));
           return json(500, { error: "asaas_webhook_failed" });
