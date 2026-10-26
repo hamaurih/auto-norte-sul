@@ -21,6 +21,16 @@ export type EnrichmentCandidateInput = {
   matchReasons?: string[];
 };
 
+export type NameRecoveryOverview = {
+  invalidRemaining: number;
+  queued: number;
+  processing: number;
+  review: number;
+  approved: number;
+  readyToPublish: number;
+  published: number;
+};
+
 export type EnrichmentOverview = {
   queued: number;
   processing: number;
@@ -102,17 +112,53 @@ export const getEnrichmentOverview = createServerFn({ method: "GET" })
     };
   });
 
+export const getProductNameRecoveryOverview = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<NameRecoveryOverview> => {
+    const sb = tdb(context.supabase);
+    await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_APPROVE_ROLES);
+    const { data, error } = await sb.rpc("get_product_name_recovery_overview", {
+      p_tenant_id: context.tenantId,
+    });
+    if (error) throw new Error(error.message);
+    const raw = (data ?? {}) as any;
+    return {
+      invalidRemaining: Number(raw.invalidRemaining ?? 0),
+      queued: Number(raw.queued ?? 0),
+      processing: Number(raw.processing ?? 0),
+      review: Number(raw.review ?? 0),
+      approved: Number(raw.approved ?? 0),
+      readyToPublish: Number(raw.readyToPublish ?? 0),
+      published: Number(raw.published ?? 0),
+    };
+  });
+
+export const publishRecoveredProduct = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { productId: string }) => input)
+  .handler(async ({ data, context }) => {
+    const sb = tdb(context.supabase);
+    await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_APPROVE_ROLES);
+    const { data: result, error } = await sb.rpc("publish_recovered_product", {
+      p_tenant_id: context.tenantId,
+      p_product_id: data.productId,
+    });
+    if (error) throw new Error(error.message);
+    return result as { ok: boolean; product_id: string; name: string; published: boolean };
+  });
+
 export const listProductEnrichmentJobs = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input?: { status?: string }) => input ?? {})
+  .inputValidator((input?: { status?: string; recoveryOnly?: boolean }) => input ?? {})
   .handler(async ({ data, context }) => {
     const sb = tdb(context.supabase);
     await requireSupplyRole(sb, context.userId, context.tenantId, SUPPLY_APPROVE_ROLES);
     const db = sb as any;
     let query = db.from("product_enrichment_jobs")
-      .select("id,status,trigger_source,approval_mode,search_query,attempts,last_error,started_at,finished_at,created_at,product:products(id,name,sku,gtin,manufacturer_code,description,short_description),candidates:product_enrichment_candidates(id,source_type,source_name,source_url,license_name,license_url,image_url,storage_url,suggested_name,suggested_short_description,suggested_description,suggested_gtin,suggested_manufacturer_code,confidence,match_reasons,status,auto_approved,review_reason,gallery:product_enrichment_candidate_images(id,source_url,storage_url,alt,sort_order,is_primary,selected),applications:product_enrichment_candidate_applications(id,vehicle_make,vehicle_model,year_from,year_to,notes,source_text,confidence,selected))")
+      .select("id,status,trigger_source,approval_mode,search_query,attempts,last_error,started_at,finished_at,created_at,product:products(id,name,sku,gtin,manufacturer_code,description,short_description,active,available_for_online,stock,price_b2c,brand_id,category_id),candidates:product_enrichment_candidates(id,source_type,source_name,source_url,license_name,license_url,image_url,storage_url,suggested_name,suggested_short_description,suggested_description,suggested_gtin,suggested_manufacturer_code,confidence,match_reasons,status,auto_approved,review_reason,gallery:product_enrichment_candidate_images(id,source_url,storage_url,alt,sort_order,is_primary,selected),applications:product_enrichment_candidate_applications(id,vehicle_make,vehicle_model,year_from,year_to,notes,source_text,confidence,selected))")
       .eq("tenant_id", context.tenantId).order("created_at", { ascending: false }).limit(150);
     if (data.status && data.status !== "all") query = query.eq("status", data.status);
+    if (data.recoveryOnly) query = query.like("search_query", "[catalog-name]%");
     const { data: rows, error } = await query;
     if (error) throw new Error(error.message);
     return rows ?? [];
