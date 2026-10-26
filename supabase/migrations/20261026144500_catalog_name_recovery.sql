@@ -495,7 +495,9 @@ select
   now(),
   null
 from public.products p
-where p.tenant_id='87fee723-b111-411e-827e-ea6e67fd29ae'::uuid
+join public.tenants target_tenant on target_tenant.id=p.tenant_id
+where target_tenant.slug='norte-sul-real'
+  and target_tenant.environment='production'
   and p.active
   and p.deleted_at is null
   and not private.product_name_is_storefront_safe(p.name)
