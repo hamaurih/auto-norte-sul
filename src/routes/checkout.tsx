@@ -5,11 +5,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import {
   createStorefrontOrder,
+  finalizeB2BInvoiceOrder,
   listStorefrontPickupLocations,
   type FulfillmentType,
   type PickupLocation,
 } from "@/lib/order.functions";
 import { createPaymentIntent } from "@/lib/payment.functions";
+import { getMyB2BCommercialProfile, type B2BCommercialProfile } from "@/lib/b2b.functions";
 import { useCart, cartStore, markStorefrontCheckoutStarted, markStorefrontOrderSubmitted } from "@/lib/cart-store";
 import { useSession } from "@/lib/session";
 import { brl } from "@/lib/format";
@@ -76,11 +78,14 @@ function Checkout() {
   const navigate = useNavigate();
   const { pedido: resumeOrderId } = Route.useSearch();
   const listPickupLocations = useServerFn(listStorefrontPickupLocations);
+  const loadB2BCommercialProfile = useServerFn(getMyB2BCommercialProfile);
+  const finalizeInvoice = useServerFn(finalizeB2BInvoiceOrder);
 
   const [saving, setSaving] = useState(false);
   const [fetchingCep, setFetchingCep] = useState(false);
   const [paymentView, setPaymentView] = useState<PaymentView | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [commercialProfile, setCommercialProfile] = useState<B2BCommercialProfile | null>(null);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(resumeOrderId ?? null);
   const [resumeTotal, setResumeTotal] = useState<number | null>(null);
   const [resumeLoading, setResumeLoading] = useState(Boolean(resumeOrderId));
@@ -111,7 +116,7 @@ function Checkout() {
     shipping_city: "",
     shipping_state: "",
     payment_method: "pix",
-    boleto_due_days: 15,
+    boleto_due_days: 3,
   });
 
   useEffect(() => {
@@ -137,6 +142,29 @@ function Checkout() {
       active = false;
     };
   }, [user, listPickupLocations]);
+
+  useEffect(() => {
+    if (!user) {
+      setCommercialProfile(null);
+      return;
+    }
+    let active = true;
+    void loadB2BCommercialProfile()
+      .then((profile) => {
+        if (!active) return;
+        setCommercialProfile(profile);
+        if (profile.approved && profile.allowedBoletoDays.length > 0) {
+          setForm((current) => ({
+            ...current,
+            boleto_due_days: profile.allowedBoletoDays.includes(current.boleto_due_days)
+              ? current.boleto_due_days
+              : profile.allowedBoletoDays[0] as FormData["boleto_due_days"],
+          }));
+        }
+      })
+      .catch((error: Error) => console.error("Falha ao carregar condições comerciais B2B.", error));
+    return () => { active = false; };
+  }, [user, loadB2BCommercialProfile]);
 
   useEffect(() => {
     if (!user) return;
@@ -215,6 +243,13 @@ function Checkout() {
 
   const selectedPickup = pickupLocations.find((location) => location.id === pickupBranchId) ?? null;
   const total = resumeTotal ?? subtotal;
+  const b2bApproved = commercialProfile?.approved ?? isB2BApproved;
+  const allowedBoletoDays = b2bApproved
+    ? (commercialProfile?.allowedBoletoDays ?? [15])
+    : [3];
+  const allowInvoice = b2bApproved && Boolean(commercialProfile?.allowInvoice);
+  const invoiceDueDays = commercialProfile?.invoiceDueDays ?? 28;
+  const maxCardInstallments = commercialProfile?.maxCardInstallments ?? 6;
 
   const updateCard = <K extends keyof CardForm>(key: K, value: CardForm[K]) =>
     setCard((current) => ({ ...current, [key]: value }));
@@ -427,11 +462,19 @@ function Checkout() {
         }
       }
 
-      toast.success(
-        fulfillmentType === "pickup"
-          ? "Pedido B2B criado. Avisaremos quando estiver pronto para retirada."
-          : "Pedido B2B criado e estoque reservado.",
-      );
+      if (paymentMethod === "faturado_b2b") {
+        await finalizeInvoice({ data: { orderId } });
+        cartStore.clear();
+        toast.success(
+          fulfillmentType === "pickup"
+            ? `Pedido faturado em ${invoiceDueDays} dias. Vamos preparar para retirada.`
+            : `Pedido faturado em ${invoiceDueDays} dias e liberado para separação.`,
+        );
+        navigate({ to: "/pedidos" });
+        return;
+      }
+
+      toast.success("Pedido B2B criado.");
       navigate({ to: "/pedidos" });
     } catch (error: any) {
       console.error(error);
@@ -444,6 +487,16 @@ function Checkout() {
   return (
     <div className="container-x py-6">
       <h1 className="mb-4 font-display text-3xl font-bold uppercase">Checkout</h1>
+      {commercialProfile?.approved && (
+        <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm">
+          <b>B2B aprovado · Tabela {commercialProfile.priceTable ?? "C"}</b>
+          <span className="ml-2 text-muted-foreground">
+            Boleto: {commercialProfile.allowedBoletoDays.length ? commercialProfile.allowedBoletoDays.map((d) => `${d}d`).join(", ") : "não liberado"}
+            {" · "}Cartão: até {commercialProfile.maxCardInstallments}x
+            {" · "}Faturado: {commercialProfile.allowInvoice ? `${commercialProfile.invoiceDueDays}d` : "não liberado"}
+          </span>
+        </div>
+      )}
       {resumeLoading && (
         <div className="mb-4 rounded-md border border-border bg-card p-3 text-sm">
           Carregando o pedido para pagamento…
@@ -701,12 +754,12 @@ function Checkout() {
                 { v: "cartao", label: "Cartão — até 6× sem juros" },
                 {
                   v: "boleto",
-                  label: isB2BApproved
+                  label: b2bApproved
                     ? "Boleto para CPF ou CNPJ"
                     : "Boleto — vencimento em até 3 dias",
                 },
-                ...(isB2BApproved
-                  ? [{ v: "faturado_b2b", label: "Faturado 28 dias (B2B)" }]
+                ...(allowInvoice
+                  ? [{ v: "faturado_b2b", label: `Faturado ${invoiceDueDays} dias (B2B)` }]
                   : []),
               ].map((option) => (
                 <label
@@ -722,7 +775,7 @@ function Checkout() {
                     checked={form.payment_method === option.v}
                     onChange={() => {
                       set("payment_method", option.v as FormData["payment_method"]);
-                      if (option.v === "boleto" && !isB2BApproved) set("boleto_due_days", 3);
+                      if (option.v === "boleto" && !b2bApproved) set("boleto_due_days", 3);
                     }}
                   />
                   {option.label}
@@ -745,15 +798,15 @@ function Checkout() {
                   }
                   className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                 >
-                  {(isB2BApproved ? [15, 30, 45, 60, 90, 120] : [3]).map((days) => (
+                  {(b2bApproved ? allowedBoletoDays : [3]).map((days) => (
                     <option key={days} value={days}>
                       {days} dias{days === 120 ? " — grande negociação" : ""}
                     </option>
                   ))}
                 </select>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  {isB2BApproved
-                    ? "Cliente B2B aprovado: escolha o prazo negociado com CPF ou CNPJ."
+                  {b2bApproved
+                    ? "Mostramos somente os prazos liberados no seu cadastro comercial."
                     : "Cliente B2C: boleto com vencimento em até 3 dias, mediante CPF ou CNPJ válido."}
                 </p>
               </div>
@@ -821,7 +874,7 @@ function Checkout() {
                       }
                       className={inp()}
                     >
-                      {[1, 2, 3, 4, 5, 6].map((count) => (
+                      {Array.from({ length: maxCardInstallments }, (_, index) => index + 1).map((count) => (
                         <option key={count} value={count}>
                           {count}× de {brl(total / count)} sem juros
                         </option>
