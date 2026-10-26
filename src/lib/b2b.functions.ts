@@ -181,26 +181,18 @@ export const submitB2BRegistration = createServerFn({ method: "POST" })
 export const getMyB2BCommercialProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const [{ data: customer, error: customerError }, { data: profile }, { data: registration }] = await Promise.all([
+    const [{ data: customer, error: customerError }, { data: registration }] = await Promise.all([
       (supabaseAdmin as any).from("customers")
         .select("id,customer_group,b2b_status")
         .eq("tenant_id", context.tenantId).eq("user_id", context.userId).eq("active", true).maybeSingle(),
-      (supabaseAdmin as any).from("profiles")
-        .select("customer_group,b2b_status").eq("id", context.userId).maybeSingle(),
       (supabaseAdmin as any).from("b2b_registrations")
         .select("status").eq("tenant_id", context.tenantId).eq("user_id", context.userId).maybeSingle(),
     ]);
     if (customerError) throw new Error(customerError.message);
 
-    const group = String(customer?.customer_group ?? profile?.customer_group ?? "b2c");
-    const status = String(customer?.b2b_status ?? profile?.b2b_status ?? "none");
-    let approved = ["revendedor", "oficina", "distribuidor"].includes(group) && status === "approved";
-
-    if (!approved) {
-      const { data: membership } = await (supabaseAdmin as any).from("tenant_memberships")
-        .select("role").eq("tenant_id", context.tenantId).eq("user_id", context.userId).eq("active", true).maybeSingle();
-      approved = Boolean(membership && ["owner","admin","manager","sales"].includes(String(membership.role)));
-    }
+    const group = String(customer?.customer_group ?? "b2c");
+    const status = String(customer?.b2b_status ?? "none");
+    const approved = ["revendedor", "oficina", "distribuidor"].includes(group) && status === "approved";
 
     let assignment: any = null;
     let settings: any = null;
@@ -297,6 +289,7 @@ export const getB2BAdminData = createServerFn({ method: "GET" })
       (supabaseAdmin as any).from("customers")
         .select("id,user_id,name,trade_name,document,phone,email,customer_group,b2b_status,active")
         .eq("tenant_id", context.tenantId)
+        .eq("active", true)
         .in("customer_group", ["b2b_pendente","revendedor","oficina","distribuidor"])
         .order("name"),
       (supabaseAdmin as any).from("b2b_customer_price_tables")
