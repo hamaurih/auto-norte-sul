@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Trash2 } from "lucide-react";
+import { CreditCard, ShieldCheck, Trash2, Truck } from "lucide-react";
 import { useCart, cartStore } from "@/lib/cart-store";
 import { brl, installments } from "@/lib/format";
 import { useSession } from "@/lib/session";
@@ -55,7 +55,11 @@ function CartPage() {
 
   return (
     <div className="container-x py-6">
-      <h1 className="mb-4 font-display text-3xl font-bold uppercase">Carrinho</h1>
+      <div className="mb-5">
+        <p className="text-xs font-bold uppercase tracking-[.18em] text-primary">Seu pedido</p>
+        <h1 className="mt-1 font-display text-3xl font-bold uppercase">Carrinho</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Confira quantidades e valores antes de seguir para entrega e pagamento.</p>
+      </div>
       {commercialProfile?.approved && (
         <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm">
           <b>Condição B2B ativa · Tabela {commercialProfile.priceTable ?? "C"}</b>
@@ -65,7 +69,7 @@ function CartPage() {
       <div className="grid gap-6 md:grid-cols-[1fr_320px]">
         <div className="space-y-2">
           {items.map((i) => (
-            <div key={i.productId} className="flex gap-3 rounded-lg border border-border bg-card p-3">
+            <div key={i.productId} className="flex gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
               {i.imageUrl && <img src={i.imageUrl} alt={i.name} className="h-24 w-24 rounded object-cover" />}
               <div className="flex flex-1 flex-col">
                 <Link to="/produto/$slug" params={{ slug: i.slug }} className="line-clamp-2 text-sm font-semibold hover:text-primary">
@@ -73,7 +77,7 @@ function CartPage() {
                 </Link>
                 <span className="text-xs text-muted-foreground">SKU {i.sku}</span>
                 <div className="mt-auto flex items-center justify-between">
-                  <div className="flex items-center rounded-md border border-border">
+                  <div className="flex items-center rounded-lg border border-border bg-background">
                     <button className="px-2 py-1" onClick={() => cartStore.setQty(i.productId, i.quantity - 1)}>−</button>
                     <span className="w-8 text-center text-sm">{i.quantity}</span>
                     <button className="px-2 py-1" onClick={() => cartStore.setQty(i.productId, i.quantity + 1)}>+</button>
@@ -90,7 +94,7 @@ function CartPage() {
           ))}
         </div>
 
-        <aside className="h-fit rounded-lg border border-border bg-card p-4">
+        <aside className="h-fit rounded-2xl border border-border bg-card p-5 shadow-sm md:sticky md:top-24">
           <h3 className="mb-3 font-display text-lg font-bold uppercase">Resumo</h3>
           <div className="flex justify-between text-sm">
             <span>Subtotal</span>
@@ -107,10 +111,15 @@ function CartPage() {
           <p className="text-xs text-muted-foreground">{installments(effectiveSubtotal, maxInstallments)} sem juros</p>
           <Link
             to="/checkout"
-            className="mt-4 block rounded-md bg-primary px-4 py-3 text-center text-sm font-bold uppercase text-primary-foreground shadow-[var(--shadow-brand)] hover:brightness-110"
+            className="mt-4 block rounded-xl bg-primary px-4 py-3.5 text-center text-sm font-bold uppercase text-primary-foreground shadow-[var(--shadow-brand)] hover:brightness-110"
           >
-            Finalizar compra
+            Ir para o checkout
           </Link>
+          <div className="mt-4 grid gap-2 border-t border-border pt-4 text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Preço e estoque validados no servidor</div>
+            <div className="flex items-center gap-2"><CreditCard className="h-4 w-4 text-primary" /> PIX, cartão e boleto conforme seu cadastro</div>
+            <div className="flex items-center gap-2"><Truck className="h-4 w-4 text-primary" /> Entrega ou retirada escolhidas no checkout</div>
+          </div>
           <Link to="/catalogo" className="mt-2 block text-center text-xs text-muted-foreground hover:text-primary">
             Continuar comprando
           </Link>
