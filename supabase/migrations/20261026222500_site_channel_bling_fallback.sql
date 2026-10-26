@@ -81,10 +81,10 @@ begin
   select decrypted_secret
     into v_token
   from vault.decrypted_secrets
-  where name='bling_queue_cron_token'
+  where name='enrichment_cron_token'
   limit 1;
 
-  -- Safe no-op until the operational secret is provisioned.
+  -- Safe no-op if the existing internal scheduler token is unavailable.
   if nullif(v_token,'') is null then
     return null;
   end if;
