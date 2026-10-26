@@ -189,6 +189,27 @@ function inlineCatalogFragment(html: string, variants: string[]) {
   return null;
 }
 
+function findExactDetailLink(html: string, base: string, domains: string[], variants: string[]) {
+  const anchors = links(html, base, domains).filter((item) => detailPath(item.url));
+  let best: { url: URL; score: number } | null = null;
+
+  for (const anchor of anchors) {
+    const label = normalize(anchor.label);
+    const path = normalize(decodeURIComponent(anchor.url.pathname));
+    for (const variant of variants) {
+      const labelExact = label.includes(variant);
+      const pathExact = path.includes(variant);
+      if (!labelExact && !pathExact) continue;
+
+      // Prefer links whose visible card text includes the exact reference/code,
+      // then URLs whose product slug contains the same code.
+      const score = (labelExact ? 200 : 0) + (pathExact ? 120 : 0);
+      if (!best || score > best.score) best = { url: anchor.url, score };
+    }
+  }
+  return best?.url ?? null;
+}
+
 function findNearbyDetailLink(html: string, base: string, domains: string[], variants: string[]) {
   const anchors = links(html, base, domains).filter((item) => detailPath(item.url));
   if (!anchors.length) return null;
@@ -233,15 +254,31 @@ async function findOfficialPage(entry: URL, domains: string[], code: string, bra
 
     if (matchedCode) {
       if (detailPath(current)) return { url: current, html, matchedCode };
-      const inline = inlineCatalogFragment(html, [matchedCode]);
-      if (inline) return { url: current, html: inline.html, matchedCode: inline.matchedCode };
-      const title = meta(html, "og:title") ?? html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "";
-      if (normalize(text(title)).includes(matchedCode)) return { url: current, html, matchedCode };
+
+      // Search/listing pages may contain several products. Resolve the exact
+      // product detail page BEFORE accepting an inline card, otherwise generic
+      // page metadata can leak into the candidate title.
+      const exact = findExactDetailLink(html, current.href, domains, [matchedCode]);
+      if (exact) {
+        const productHtml = await safeHtml(exact, domains);
+        if (normalize(text(productHtml)).includes(matchedCode)) {
+          return { url: exact, html: productHtml, matchedCode };
+        }
+      }
+
       const nearby = findNearbyDetailLink(html, current.href, domains, [matchedCode]);
       if (nearby) {
         const productHtml = await safeHtml(nearby, domains);
-        if (normalize(text(productHtml)).includes(matchedCode)) return { url: nearby, html: productHtml, matchedCode };
+        if (normalize(text(productHtml)).includes(matchedCode)) {
+          return { url: nearby, html: productHtml, matchedCode };
+        }
       }
+
+      const inline = inlineCatalogFragment(html, [matchedCode]);
+      if (inline) return { url: current, html: inline.html, matchedCode: inline.matchedCode };
+
+      const title = meta(html, "og:title") ?? html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "";
+      if (normalize(text(title)).includes(matchedCode)) return { url: current, html, matchedCode };
     }
 
     const pageLinks = links(html, current.href, domains);
