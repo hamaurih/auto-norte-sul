@@ -263,7 +263,9 @@ function Checkout() {
   }, [resumeOrderId, user]);
 
   const selectedPickup = pickupLocations.find((location) => location.id === pickupBranchId) ?? null;
-  const b2bApproved = commercialProfile?.approved ?? isB2BApproved;
+  // Do not expose B2B payment terms until the server-side commercial profile is loaded.
+  // The legacy session flag is only a visual fallback elsewhere, never an authorization source here.
+  const b2bApproved = Boolean(commercialProfile?.approved);
   const effectiveSubtotal = b2bApproved
     ? items.reduce((sum, item) => sum + (b2bPrices[item.productId]?.effective ?? item.unitPrice) * item.quantity, 0)
     : subtotal;
