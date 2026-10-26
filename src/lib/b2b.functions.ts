@@ -331,7 +331,7 @@ export const reviewB2BRegistration = createServerFn({ method: "POST" })
     if (!registration) throw new Error("Solicitação B2B não encontrada.");
 
     if (data.decision === "reject") {
-      await Promise.all([
+      const [registrationUpdate, profileUpdate, customerUpdate] = await Promise.all([
         (supabaseAdmin as any).from("b2b_registrations").update({
           status: "reprovado", admin_notes: data.adminNotes || null,
           reviewed_by: context.userId, reviewed_at: new Date().toISOString(),
@@ -342,11 +342,15 @@ export const reviewB2BRegistration = createServerFn({ method: "POST" })
           .update({ customer_group: "b2c", b2b_status: "rejected", updated_at: new Date().toISOString() })
           .eq("tenant_id", context.tenantId).eq("user_id", registration.user_id),
       ]);
+      const firstError = registrationUpdate.error ?? profileUpdate.error ?? customerUpdate.error;
+      if (firstError) throw new Error(firstError.message);
+
       const customer = await customerForUser(context.tenantId, registration.user_id);
       if (customer?.id) {
-        await (supabaseAdmin as any).from("b2b_customer_price_tables")
+        const { error: disableError } = await (supabaseAdmin as any).from("b2b_customer_price_tables")
           .update({ active: false, updated_by: context.userId })
           .eq("tenant_id", context.tenantId).eq("customer_id", customer.id);
+        if (disableError) throw new Error(disableError.message);
       }
       return { ok: true, status: "reprovado" as const };
     }
