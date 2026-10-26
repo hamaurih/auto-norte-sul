@@ -98,8 +98,7 @@ begin
     raise exception 'inactive tenant';
   end if;
 
-  -- B2B is tenant-scoped. Prefer the commercial customer record and retain
-  -- profile fallback for legacy approved accounts during migration.
+  -- B2B entitlement is strictly tenant-scoped.
   select coalesce(
     (
       select customer.customer_group in ('revendedor','oficina','distribuidor')
@@ -109,12 +108,6 @@ begin
         and customer.user_id = current_user_id
         and customer.active
       limit 1
-    ),
-    (
-      select profile.customer_group in ('revendedor','oficina','distribuidor')
-        and profile.b2b_status = 'approved'
-      from public.profiles profile
-      where profile.id = current_user_id
     ),
     false
   )
@@ -138,7 +131,6 @@ begin
          where customer.tenant_id = current_tenant_id
            and customer.user_id = current_user_id
          limit 1),
-        (select profile.customer_group from public.profiles profile where profile.id = current_user_id),
         'b2c'
       )
     else 'b2c' end,
