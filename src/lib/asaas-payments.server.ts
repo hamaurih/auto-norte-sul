@@ -230,5 +230,6 @@ export async function processAsaasWebhook(admin: AdminClient, rawBody: string, h
   const { error: updateError } = await admin.from("payment_intents").update({ provider_metadata: { asaas_payment_id: paymentId, asaas_last_event: payload?.event ?? null, asaas_status: remote?.status ?? null }, updated_at: new Date().toISOString() }).eq("id", intent.id).eq("tenant_id", intent.tenant_id);
   if (updateError) throw new Error(updateError.message);
   const { data, error: applyError } = await admin.rpc("internal_apply_payment_webhook", { p_provider_id: c.providerId, p_provider_event_id: eventId.slice(0,255), p_event_type: String(payload?.event ?? "PAYMENT_UPDATED").slice(0,120), p_external_payment_id: paymentId, p_normalized_status: status, p_payload_sha256: await hash(rawBody), p_signature_verified: true });
-  if (applyError) throw new Error(applyError.message);\n  return { ignored: false, normalizedStatus: status, result: data, tenantId: intent.tenant_id, orderId: intent.order_id };
+  if (applyError) throw new Error(applyError.message);
+  return { ignored: false, normalizedStatus: status, result: data, tenantId: intent.tenant_id, orderId: intent.order_id };
 }
