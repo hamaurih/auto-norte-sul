@@ -17,7 +17,7 @@ import { tdb } from "@/integrations/supabase/tenant-db";
 
 const MAX_TENANTS_PER_TICK = 5;
 const ENQUEUE_LIMIT = 25;
-const CLAIM_LIMIT = 2;
+const CLAIM_LIMIT = 3;
 const ENGINE_TIMEOUT_MS = 235_000;
 const COPY_TIMEOUT_MS = 90_000;
 const MAX_DETAILS = 20;
