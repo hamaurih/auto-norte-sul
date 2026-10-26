@@ -297,7 +297,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path=''
-as $
+as $$
 declare
   v_invalid integer:=0;
   v_queued integer:=0;
@@ -374,7 +374,7 @@ begin
     'published',v_published
   );
 end;
-$;
+$$;
 
 create or replace function private.publish_recovered_product(p_tenant_id uuid,p_product_id uuid)
 returns jsonb
