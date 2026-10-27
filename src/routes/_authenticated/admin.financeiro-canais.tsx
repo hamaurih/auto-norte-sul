@@ -60,6 +60,8 @@ function ChannelFinance() {
   }, { revenue: 0, cogs: 0, channelCost: 0, directExpenses: 0, margin: 0, cashIn: 0, cashOut: 0, open: 0 }), [channels]);
 
   const unverified = accounts.filter((a) => !a.opening_balance_verified_at && !String(a.system_code ?? "").startsWith("clearing:"));
+  const pendingReconciliation = channels.reduce((sum, row) => sum + Number(row.pending_reconciliation ?? 0), 0);
+  const closingReady = pendingReconciliation === 0 && unverified.length === 0;
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
@@ -73,11 +75,16 @@ function ChannelFinance() {
             Receita reconhecida, CMV, custos do canal, despesas diretas, recebido e a receber. Histórico Bling anterior a 21/10/2026 fica fora desta visão.
           </p>
         </div>
-        <div className="flex gap-2 rounded-2xl border bg-white p-2">
+        <div className="flex flex-wrap items-center gap-2"><Link to="/admin/conciliacao-financeira" className="rounded-xl border bg-white px-3 py-2 text-sm font-bold">Conciliação</Link><div className="flex gap-2 rounded-2xl border bg-white p-2">
           <label className="text-xs font-bold text-slate-500">De<input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="ml-2 rounded-lg border px-2 py-1.5 text-sm text-slate-900" /></label>
           <label className="text-xs font-bold text-slate-500">Até<input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="ml-2 rounded-lg border px-2 py-1.5 text-sm text-slate-900" /></label>
-        </div>
+        </div></div>
       </header>
+
+      <div className={`rounded-2xl border p-4 ${closingReady ? "border-emerald-200 bg-emerald-50 text-emerald-950" : "border-amber-200 bg-amber-50 text-amber-950"}`}>
+        <b>{closingReady ? "Fechamento operacional pronto." : "Fechamento ainda provisório."}</b>
+        <p className="mt-1 text-sm">{pendingReconciliation} movimento(s) pendente(s) de conciliação · {unverified.length} conta(s) com saldo inicial não homologado.</p>
+      </div>
 
       {Number(summary.unverified_opening_accounts ?? 0) > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
