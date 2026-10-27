@@ -200,6 +200,97 @@ export async function createAsaasPayment(admin: AdminClient, tenantId: string, i
   if (updated.error) throw new Error(updated.error.message); return updated.data;
 }
 
+
+export async function refundAsaasPayment(
+  admin: AdminClient,
+  tenantId: string,
+  intentId: string,
+  reason: string,
+) {
+  const c = await context(admin, tenantId);
+  const { data: intent, error } = await admin
+    .from("payment_intents")
+    .select("id,order_id,provider_id,method,amount,status,external_id,provider_metadata")
+    .eq("tenant_id", tenantId)
+    .eq("id", intentId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!intent) throw new Error("Pagamento não encontrado.");
+  if (intent.provider_id !== c.providerId) throw new Error("O pagamento não pertence ao Asaas ativo.");
+  if (!intent.external_id) throw new Error("Pagamento sem identificador externo para estorno.");
+  if (!["paid", "partially_refunded"].includes(String(intent.status))) {
+    throw new Error("Somente pagamentos confirmados podem ser estornados.");
+  }
+
+  const description = String(reason || "Estorno administrativo").trim().slice(0, 255);
+  const paymentId = encodeURIComponent(String(intent.external_id));
+
+  if (intent.method === "boleto") {
+    const result = await request(c, `/payments/${paymentId}/bankSlip/refund`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    const { error: updateError } = await admin
+      .from("payment_intents")
+      .update({
+        provider_metadata: {
+          ...(intent.provider_metadata ?? {}),
+          refund_requested_at: new Date().toISOString(),
+          refund_reason: description,
+          bank_slip_refund_request_url: result?.requestUrl ?? null,
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("tenant_id", tenantId)
+      .eq("id", intent.id);
+    if (updateError) throw new Error(updateError.message);
+    return {
+      ok: true,
+      intentId: intent.id,
+      orderId: intent.order_id,
+      method: intent.method,
+      status: "refund_requested",
+      requestUrl: result?.requestUrl ?? null,
+    };
+  }
+
+  if (!["pix", "cartao"].includes(String(intent.method))) {
+    throw new Error("Este meio de pagamento ainda não possui estorno automático.");
+  }
+
+  const result = await request(c, `/payments/${paymentId}/refund`, {
+    method: "POST",
+    body: JSON.stringify({ description }),
+  }, 45_000);
+
+  const normalized = normalize(result?.status) ?? "partially_refunded";
+  const nextStatus = normalized === "refunded" ? "refunded" : "partially_refunded";
+  const { error: updateError } = await admin
+    .from("payment_intents")
+    .update({
+      status: nextStatus,
+      provider_metadata: {
+        ...(intent.provider_metadata ?? {}),
+        refund_requested_at: new Date().toISOString(),
+        refund_reason: description,
+        refund_response_status: result?.status ?? null,
+      },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("tenant_id", tenantId)
+    .eq("id", intent.id);
+  if (updateError) throw new Error(updateError.message);
+
+  return {
+    ok: true,
+    intentId: intent.id,
+    orderId: intent.order_id,
+    method: intent.method,
+    status: nextStatus,
+    requestUrl: null,
+  };
+}
+
 function normalize(status: unknown): string | null { switch (String(status ?? "").toUpperCase()) { case "PENDING": case "AWAITING_RISK_ANALYSIS": return "pending"; case "RECEIVED": case "CONFIRMED": return "paid"; case "OVERDUE": return "expired"; case "REFUNDED": return "refunded"; case "REFUND_REQUESTED": return "partially_refunded"; case "DELETED": case "CANCELED": return "cancelled"; default: return null; } }
 async function hash(value: string) { const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)); return Array.from(new Uint8Array(d), b => b.toString(16).padStart(2,"0")).join(""); }
 
