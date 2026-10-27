@@ -47,6 +47,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v3.0.1
         with:
+          # Pinned: avoids GitHub release API rate limits and makes CI reproducible.
           version: 2.122.0
 
       - name: Start isolated local Supabase
