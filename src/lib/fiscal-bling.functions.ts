@@ -91,7 +91,7 @@ async function fiscalContext(tenantId: string, orderId: string) {
 
 async function syncOrderFiscalInternal(input: {
   tenantId: string;
-  userId: string;
+  userId: string | null;
   orderId: string;
   token?: string;
 }) {
@@ -323,3 +323,48 @@ export const syncPendingFiscalFromBling = createServerFn({ method: "POST" })
       results,
     };
   });
+
+
+export async function syncBlingFiscalTraceWorker(limitPerTenant = 20) {
+  const db = supabaseAdmin as any;
+  const { data: configs, error: cfgError } = await db.from("bling_config")
+    .select("tenant_id")
+    .eq("active",true);
+  if (cfgError) throw new Error(cfgError.message);
+
+  const report = { tenants:0, checked:0, synced:0, waiting:0, failed:0, errors:[] as string[] };
+  for (const cfg of configs ?? []) {
+    report.tenants += 1;
+    try {
+      const token = await getBlingAccessToken(cfg.tenant_id);
+      const { data: orders, error } = await db.from("orders")
+        .select("id")
+        .eq("tenant_id",cfg.tenant_id)
+        .not("bling_id","is",null)
+        .in("status",["pago","faturado","enviado","entregue"])
+        .order("updated_at",{ascending:false})
+        .limit(limitPerTenant);
+      if (error) throw new Error(error.message);
+      for (const order of orders ?? []) {
+        report.checked += 1;
+        try {
+          const result:any = await syncOrderFiscalInternal({
+            tenantId:cfg.tenant_id,
+            userId:null,
+            orderId:order.id,
+            token,
+          });
+          if (result.state === "synced") report.synced += 1;
+          else report.waiting += 1;
+        } catch (error:any) {
+          report.failed += 1;
+          report.errors.push(String(error?.message ?? error).slice(0,220));
+        }
+      }
+    } catch (error:any) {
+      report.failed += 1;
+      report.errors.push("tenant " + cfg.tenant_id + ": " + String(error?.message ?? error).slice(0,180));
+    }
+  }
+  return report;
+}
