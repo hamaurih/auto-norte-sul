@@ -150,13 +150,29 @@ async function syncOrderFiscalInternal(input: {
     };
   }
 
-  const { data: existing, error: existingError } = await db.from("fiscal_documents")
-    .select("id")
+  const { data: existingByProvider, error: existingError } = await db.from("fiscal_documents")
+    .select("id,status,provider,provider_reference")
     .eq("tenant_id",input.tenantId)
     .eq("provider","bling")
     .eq("provider_reference",invoiceId)
     .maybeSingle();
   if (existingError) throw new Error(existingError.message);
+
+  let existing = existingByProvider;
+  if (!existing) {
+    const { data: activeOrderDoc, error: activeError } = await db.from("fiscal_documents")
+      .select("id,status,provider,provider_reference")
+      .eq("tenant_id",input.tenantId)
+      .eq("order_id",order.id)
+      .eq("model","55")
+      .neq("status","cancelled")
+      .maybeSingle();
+    if (activeError) throw new Error(activeError.message);
+    if (activeOrderDoc && ["authorized","processing","contingency"].includes(String(activeOrderDoc.status)) && activeOrderDoc.provider !== "bling") {
+      throw new Error("CONFLITO_FISCAL: já existe documento ativo de outro provedor para este pedido.");
+    }
+    existing = activeOrderDoc;
+  }
 
   const snapshot = {
     blingInvoiceId: invoiceId,
