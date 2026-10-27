@@ -245,6 +245,12 @@ export const adminModules: AdminModule[] = [
         icon: Truck,
       },
       {
+        to: "/admin/cotacoes-compra",
+        label: "Cotações de compra",
+        description: "Comparar fornecedores e gerar pedido",
+        icon: ClipboardList,
+      },
+      {
         to: "/admin/pedidos-compra",
         label: "Pedidos de compra",
         description: "Emissão e aprovação",
