@@ -72,7 +72,7 @@ async function blingGet(path: string, token: string) {
 
 async function fiscalContext(tenantId: string, orderId: string) {
   const db = supabaseAdmin as any;
-  const [{ data: order, error: orderError }, { data: settings, error: settingsError }] = await Promise.all([
+  const [{ data: order, error: orderError }, { data: settings, error: settingsError }, { data: receipt, error: receiptError }] = await Promise.all([
     db.from("orders")
       .select("id,tenant_id,status,total,customer_name,customer_document,customer_email,customer_phone,bling_id,bling_invoice_id,bling_invoice_status")
       .eq("tenant_id",tenantId).eq("id",orderId).maybeSingle(),
@@ -82,11 +82,17 @@ async function fiscalContext(tenantId: string, orderId: string) {
       .order("created_at",{ascending:true})
       .limit(1)
       .maybeSingle(),
+    db.from("sales_receipts")
+      .select("id,receipt_code,snapshot_hash")
+      .eq("tenant_id",tenantId)
+      .eq("order_id",orderId)
+      .maybeSingle(),
   ]);
   if (orderError) throw new Error(orderError.message);
   if (!order) throw new Error("Pedido não encontrado.");
   if (settingsError) throw new Error(settingsError.message);
-  return { order, settings };
+  if (receiptError) throw new Error(receiptError.message);
+  return { order, settings, receipt };
 }
 
 async function syncOrderFiscalInternal(input: {
@@ -96,7 +102,7 @@ async function syncOrderFiscalInternal(input: {
   token?: string;
 }) {
   const db = supabaseAdmin as any;
-  const { order, settings } = await fiscalContext(input.tenantId, input.orderId);
+  const { order, settings, receipt } = await fiscalContext(input.tenantId, input.orderId);
 
   if (!order.bling_id) {
     await db.from("orders").update({
@@ -176,6 +182,9 @@ async function syncOrderFiscalInternal(input: {
 
   const snapshot = {
     blingInvoiceId: invoiceId,
+    receiptId: receipt?.id ?? null,
+    receiptCode: receipt?.receipt_code ?? null,
+    receiptSnapshotHash: receipt?.snapshot_hash ?? null,
     rawStatus: externalStatus,
     numero: number,
     serie: series,
@@ -189,6 +198,7 @@ async function syncOrderFiscalInternal(input: {
     tenant_id: input.tenantId,
     branch_id: settings.branch_id,
     order_id: order.id,
+    receipt_id: receipt?.id ?? null,
     model: "55",
     environment: settings.environment ?? "production",
     series,
