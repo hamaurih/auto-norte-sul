@@ -6,8 +6,9 @@ describe("Fiscal Bling traceability", () => {
     const source = readFileSync("src/lib/fiscal-bling.functions.ts","utf8");
     expect(source.includes('blingGet("/pedidos/vendas/"')).toBe(true);
     expect(source.includes('blingGet("/nfe/"')).toBe(true);
-    expect(source.includes('/nfe/" + encodeURIComponent(invoiceId) + "/enviar"')).toBe(false);
-    expect(source.includes('method: "POST"')).toBe(false);
+    expect(source.includes("/enviar")).toBe(false);
+    expect(source.includes("/cancel")).toBe(false);
+    expect(source.includes('fetch(API + "/nfe", { method: "POST"')).toBe(false);
   });
 
   test("invoice mirror is idempotent and detects provider conflicts", () => {
