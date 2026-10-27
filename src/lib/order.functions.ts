@@ -394,7 +394,7 @@ export const getAdminOrderDetail = createServerFn({ method: "GET" })
     if (orderError) throw new Error(orderError.message);
     if (!order) throw new Error("Pedido não encontrado ou sem permissão de acesso.");
 
-    const [itemsResult, paymentsResult, historyResult, pickupBranchResult] = await Promise.all([
+    const [itemsResult, paymentsResult, historyResult, pickupBranchResult, channelResult, posSaleResult] = await Promise.all([
       sb
         .from("order_items")
         .select("id, product_id, sku, name, quantity, unit_price, total, product:products(id, slug, images:product_images(url, alt, is_primary, sort_order))")
@@ -421,17 +421,60 @@ export const getAdminOrderDetail = createServerFn({ method: "GET" })
             .eq("tenant_id", context.tenantId)
             .maybeSingle()
         : Promise.resolve({ data: null, error: null }),
+      order.sales_channel_id
+        ? sb
+            .from("sales_channels")
+            .select("id,code,name")
+            .eq("id", order.sales_channel_id)
+            .eq("tenant_id", context.tenantId)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      (sb as any)
+        .from("pos_sales")
+        .select("id,status,cash_session_id,operator_id,payments:pos_payments(id,method,amount,installments,provider,provider_reference,status,created_at)")
+        .eq("tenant_id", context.tenantId)
+        .eq("order_id", data.orderId)
+        .maybeSingle(),
     ]);
 
-    const error = itemsResult.error ?? paymentsResult.error ?? historyResult.error ?? pickupBranchResult.error;
+    const error = itemsResult.error ?? paymentsResult.error ?? historyResult.error
+      ?? pickupBranchResult.error ?? channelResult.error ?? posSaleResult.error;
     if (error) throw new Error(error.message);
+
+    const gatewayPayments = paymentsResult.data ?? [];
+    const posPayments = ((posSaleResult.data as any)?.payments ?? []).map((payment: any) => ({
+      id: payment.id,
+      method: payment.method,
+      amount: payment.amount,
+      currency: "BRL",
+      status: payment.status === "confirmed" ? "paid" : payment.status,
+      external_id: payment.provider_reference ?? null,
+      checkout_url: null,
+      boleto_url: null,
+      expires_at: null,
+      authorized_at: payment.created_at,
+      paid_at: payment.status === "confirmed" ? payment.created_at : null,
+      cancelled_at: payment.status === "refunded" ? payment.created_at : null,
+      failure_code: null,
+      failure_message: null,
+      created_at: payment.created_at,
+      updated_at: payment.created_at,
+      provider: {
+        code: payment.provider ?? "pdv",
+        display_name: payment.provider ?? "PDV / Balcão",
+      },
+      installments: payment.installments ?? 1,
+      provider_reference: payment.provider_reference ?? null,
+    }));
 
     return {
       order,
       items: itemsResult.data ?? [],
-      payments: paymentsResult.data ?? [],
+      payments: gatewayPayments.length ? gatewayPayments : posPayments,
       history: historyResult.data ?? [],
       pickupBranch: pickupBranchResult.data ?? null,
+      channel: channelResult.data ?? null,
+      posSale: posSaleResult.data ?? null,
     };
   });
 
