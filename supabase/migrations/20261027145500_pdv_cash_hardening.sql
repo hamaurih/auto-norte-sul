@@ -118,7 +118,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path=''
-as $
+as $pdv_customer$
 declare
   v_customer uuid;
 begin
@@ -133,7 +133,7 @@ begin
   end if;
   return new;
 end
-$;
+$pdv_customer$;
 
 drop trigger if exists trg_pos_payment_customer_required on public.pos_payments;
 create trigger trg_pos_payment_customer_required
