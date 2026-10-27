@@ -187,6 +187,15 @@ function SuprimentosPage() {
             Conferência por SKU, recebimento parcial, custo efetivo e estorno auditado.
           </p>
         </Link>
+        <Link
+          to="/admin/devolucoes-fornecedor"
+          className="rounded-3xl border border-amber-200/70 bg-gradient-to-br from-white to-amber-50/60 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md"
+        >
+          <h2 className="font-display text-lg font-bold">Devoluções e divergências</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Devolução ao fornecedor, créditos financeiros e pendências de conferência.
+          </p>
+        </Link>
       </section>
 
 
