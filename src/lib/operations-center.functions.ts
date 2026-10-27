@@ -229,15 +229,21 @@ export const getOmnichannelOperationsCenter = createServerFn({ method: "GET" })
     const relatedError = channelsResult.error ?? paymentsResult.error ?? dispatchResult.error ?? shipmentsResult.error ?? eventsResult.error;
     if (relatedError) throw new Error(relatedError.message);
 
-    const channels = new Map((channelsResult.data ?? []).map((c: any) => [c.id, c]));
+    const channels = new Map<string, { id: string; code: string; name: string }>(
+      (channelsResult.data ?? []).map((c: any) => [String(c.id), { id: String(c.id), code: String(c.code), name: String(c.name) }]),
+    );
     const paymentsByOrder = new Map<string, any[]>();
     for (const p of paymentsResult.data ?? []) {
       const list = paymentsByOrder.get(p.order_id) ?? [];
       list.push(p);
       paymentsByOrder.set(p.order_id, list);
     }
-    const dispatchByOrder = new Map((dispatchResult.data ?? []).map((d: any) => [d.order_id, d]));
-    const shipmentByOrder = new Map((shipmentsResult.data ?? []).map((s: any) => [s.order_id, s]));
+    const dispatchByOrder = new Map<string, any>(
+      (dispatchResult.data ?? []).map((d: any) => [String(d.order_id), d]),
+    );
+    const shipmentByOrder = new Map<string, any>(
+      (shipmentsResult.data ?? []).map((s: any) => [String(s.order_id), s]),
+    );
     const latestEventByOrder = new Map<string, any>();
     for (const e of eventsResult.data ?? []) {
       if (!latestEventByOrder.has(e.order_id)) latestEventByOrder.set(e.order_id, e);
