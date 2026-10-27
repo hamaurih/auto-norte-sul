@@ -6,6 +6,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   BadgeCheck,
+  CheckCircle2,
   History,
   Landmark,
   Link2,
