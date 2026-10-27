@@ -217,7 +217,13 @@ function PurchaseQuotationsPage(){
               {ranked.map((x:any,i:number)=><div key={x.id} className={"rounded-2xl border p-4 "+(i===0?"border-emerald-300 bg-emerald-50/40":"bg-white")}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div><div className="flex items-center gap-2"><b>{x.supplier?.trade_name||x.supplier?.legal_name}</b>{i===0&&<span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700">MENOR CUSTO</span>}</div><div className="mt-1 text-xs text-slate-500">Prazo: {x.delivery_days??"—"} dias · Pagamento: {x.payment_terms||"—"}</div></div>
-                  <div className="text-right"><div className="text-xl font-extrabold">{brl(Number(x.total_amount??0))}</div><div className="text-xs text-slate-500">Itens {brl(Number(x.items_total??0))} + frete {brl(Number(x.freight_amount??0))}</div></div>
+                  <div className="text-right">
+                    <div className="text-xl font-extrabold">{brl(Number(x.total_amount??0))}</div>
+                    <div className="text-xs text-slate-500">
+                      Itens {brl(Number(x.items_total??0))} + frete {brl(Number(x.freight_amount??0))}
+                      {" "}+ outros {brl(Number(x.other_amount??0))} − desconto {brl(Number(x.discount_amount??0))}
+                    </div>
+                  </div>
                 </div>
                 <div className="mt-3 flex justify-end">{detail.data.quotation.status!=="converted"&&<button disabled={convert.isPending} onClick={()=>convert.mutate(x.id)} className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"><CheckCircle2 className="mr-2 inline h-4 w-4"/>Selecionar e gerar pedido</button>}</div>
               </div>)}
