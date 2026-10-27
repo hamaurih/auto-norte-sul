@@ -40,7 +40,8 @@ async function accessToken(tenantId: string) {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
       Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
-      Accept: "application/json",
+      Accept: "1.0",
+      "enable-jwt": "1",
     },
     body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: String(cfg.refresh_token) }).toString(),
   });
@@ -59,7 +60,7 @@ async function accessToken(tenantId: string) {
 
 async function fetchContacts(token: string, page: number) {
   const response = await fetch(`${BLING_API}/contatos?pagina=${page}&limite=${PAGE_SIZE}`, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/json", "enable-jwt": "1" },
   });
   if (response.status === 429) {
     await sleep(1200);
