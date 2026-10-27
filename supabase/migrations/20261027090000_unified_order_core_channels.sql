@@ -286,7 +286,10 @@ begin
     where w.id=p_warehouse_id and w.tenant_id=p_tenant_id and w.active
   ) then raise exception 'INVALID_WAREHOUSE'; end if;
 
-  if p_fulfillment_type='pickup' and p_pickup_branch_id is not null and not exists (
+  if p_fulfillment_type='pickup' and p_pickup_branch_id is null then
+    raise exception 'PICKUP_BRANCH_REQUIRED';
+  end if;
+  if p_fulfillment_type='pickup' and not exists (
     select 1 from public.branches b
     where b.id=p_pickup_branch_id and b.tenant_id=p_tenant_id and b.active
   ) then raise exception 'INVALID_PICKUP_BRANCH'; end if;
@@ -305,6 +308,10 @@ begin
   end if;
 
   -- WhatsApp attempts deterministic customer reuse by document, then phone.
+  if p_channel_code='pdv' and v_effective_customer_id is null then
+    raise exception 'PDV_CONSUMER_FINAL_NOT_CONFIGURED';
+  end if;
+
   if v_effective_customer_id is null and p_channel_code='whatsapp' then
     v_customer_document:=nullif(regexp_replace(coalesce(p_customer->>'document',''),'\D','','g'),'');
     v_customer_phone:=nullif(regexp_replace(coalesce(p_customer->>'phone',''),'\D','','g'),'');
