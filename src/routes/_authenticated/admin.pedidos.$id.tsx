@@ -250,7 +250,7 @@ function OrderDetailPage() {
     );
   }
 
-  const { order, items, payments, history, pickupBranch } = detail.data as any;
+  const { order, items, payments, history, pickupBranch, channel, posSale } = detail.data as any;
   const isPickup = order.fulfillment_type === "pickup";
   const action = nextActionForOrder(order);
   const ActionIcon = action?.icon;
@@ -306,6 +306,9 @@ function OrderDetailPage() {
                 <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-extrabold text-violet-700">
                   {order.is_b2b ? "PEDIDO B2B" : "PEDIDO B2C"}
                 </span>
+                <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-extrabold text-white">
+                  {channel?.name ?? "Origem não identificada"}
+                </span>
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-extrabold ${
                     statusTone[order.status] ?? "bg-slate-100 text-slate-700"
@@ -330,6 +333,7 @@ function OrderDetailPage() {
               <p className="mt-2 text-sm text-muted-foreground">
                 Criado em {formatDate(order.created_at)} · {itemCount} {itemCount === 1 ? "item" : "itens"}
                 {order.bling_number ? ` · Bling #${order.bling_number}` : ""}
+                {posSale?.id ? ` · Venda PDV #${String(posSale.id).slice(0, 8)}` : ""}
               </p>
             </div>
             <div className="rounded-3xl border border-emerald-200 bg-white/80 px-5 py-4 shadow-sm">
@@ -469,6 +473,8 @@ function OrderDetailPage() {
                       <span><strong>Valor:</strong> {brl(Number(payment.amount))}</span>
                       <span><strong>Criado:</strong> {formatDate(payment.created_at)}</span>
                       <span><strong>Pago:</strong> {formatDate(payment.paid_at)}</span>
+                      {payment.installments > 1 && <span><strong>Parcelas:</strong> {payment.installments}x</span>}
+                      {payment.provider_reference && <span className="sm:col-span-2"><strong>NSU / referência:</strong> {payment.provider_reference}</span>}
                     </div>
                     {payment.failure_message && (
                       <p className="mt-3 rounded-xl bg-rose-50 p-3 text-xs text-rose-800">
