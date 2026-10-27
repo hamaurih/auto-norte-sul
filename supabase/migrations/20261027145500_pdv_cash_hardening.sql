@@ -94,6 +94,52 @@ begin
 end
 $$;
 
+-- Integridade dos pagamentos também fica protegida no banco.
+alter table public.pos_payments
+  drop constraint if exists pos_payments_amount_positive;
+alter table public.pos_payments
+  add constraint pos_payments_amount_positive check (amount>0);
+
+alter table public.pos_payments
+  drop constraint if exists pos_payments_installments_range;
+alter table public.pos_payments
+  add constraint pos_payments_installments_range check (installments between 1 and 24);
+
+alter table public.pos_payments
+  drop constraint if exists pos_payments_reference_required;
+alter table public.pos_payments
+  add constraint pos_payments_reference_required check (
+    method not in ('pix','debit_card','credit_card')
+    or nullif(pg_catalog.btrim(coalesce(provider_reference,'')),'') is not null
+  );
+
+create or replace function private.validate_pos_payment_customer()
+returns trigger
+language plpgsql
+security definer
+set search_path=''
+as $
+declare
+  v_customer uuid;
+begin
+  if new.method in ('store_credit','b2b_invoice') then
+    select s.customer_id into v_customer
+    from public.pos_sales s
+    where s.id=new.sale_id and s.tenant_id=new.tenant_id;
+
+    if v_customer is null then
+      raise exception 'CUSTOMER_REQUIRED_FOR_CREDIT_PAYMENT';
+    end if;
+  end if;
+  return new;
+end
+$;
+
+drop trigger if exists trg_pos_payment_customer_required on public.pos_payments;
+create trigger trg_pos_payment_customer_required
+before insert or update of method,sale_id on public.pos_payments
+for each row execute function private.validate_pos_payment_customer();
+
 -- Resumo operacional da sessão, usado pela tela de caixa e pela homologação.
 create or replace function public.get_pos_cash_session_snapshot(p_session_id uuid)
 returns jsonb
