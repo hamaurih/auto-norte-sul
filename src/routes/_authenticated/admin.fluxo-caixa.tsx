@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowDownRight, ArrowUpRight, Landmark, WalletCards } from "lucide-react";
@@ -34,10 +34,11 @@ function CashFlow(){
   const accountBalance=accounts.reduce((s:number,x:any)=>s+Number(x.balance??0),0);
 
   return <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
-    <header>
-      <p className="text-xs font-bold uppercase tracking-[.18em] text-emerald-700">Financeiro</p>
+    <header className="flex flex-wrap items-end justify-between gap-4">
+      <div><p className="text-xs font-bold uppercase tracking-[.18em] text-emerald-700">Financeiro</p>
       <h1 className="mt-1 flex items-center gap-2 font-display text-3xl font-extrabold"><Landmark className="h-7 w-7 text-emerald-600"/> Fluxo de caixa</h1>
-      <p className="mt-1 text-sm text-muted-foreground">{legacy?"Consulta histórica dos movimentos Bling anteriores a 21/10/2026. Não compõem os indicadores operacionais atuais.":"Operação desde 21/10/2026, separada dos lançamentos históricos do Bling. Títulos em aberto são previsões, não caixa realizado."}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{legacy?"Consulta histórica dos movimentos Bling anteriores a 21/10/2026. Não compõem os indicadores operacionais atuais.":"Operação desde 21/10/2026, separada dos lançamentos históricos do Bling. Títulos em aberto são previsões, não caixa realizado."}</p></div>
+      <div className="flex gap-2"><Link to="/admin/conciliacao-financeira" className="rounded-xl border bg-white px-4 py-2.5 text-sm font-bold">Conciliação</Link><Link to="/admin/financeiro-canais" className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white">DRE por canal</Link></div>
     </header>
 
     <div className="flex flex-wrap items-center gap-2 rounded-2xl border bg-white p-3" role="group" aria-label="Período do financeiro"><button type="button" aria-pressed={!legacy} onClick={()=>setScope("current")} className={`rounded-xl px-4 py-2 text-sm font-semibold ${!legacy?"bg-emerald-700 text-white":"bg-slate-100 text-slate-700"}`}>Operação atual · desde 21/10/2026</button><button type="button" aria-pressed={legacy} onClick={()=>setScope("legacy")} className={`rounded-xl px-4 py-2 text-sm font-semibold ${legacy?"bg-slate-800 text-white":"bg-slate-100 text-slate-700"}`}>Histórico Bling · até 20/10/2026</button></div>
