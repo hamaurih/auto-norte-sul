@@ -172,6 +172,13 @@ function SuprimentosPage() {
           <p className="mt-1 text-sm text-muted-foreground">Cadastro completo, contatos, prazo médio e condições.</p>
         </Link>
         <Link
+          to="/admin/cotacoes-compra"
+          className="rounded-3xl border border-amber-200/70 bg-gradient-to-br from-white to-amber-50/60 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md"
+        >
+          <h2 className="font-display text-lg font-bold">Cotações de compra</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Compare preço, prazo, pagamento e custo total antes de comprar.</p>
+        </Link>
+        <Link
           to="/admin/pedidos-compra"
           className="rounded-3xl border border-amber-200/70 bg-gradient-to-br from-white to-amber-50/60 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md"
         >
