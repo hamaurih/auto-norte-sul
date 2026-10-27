@@ -44,6 +44,11 @@ import {
   getOrderFiscalTrace,
   syncOrderFiscalFromBling,
 } from "@/lib/fiscal-bling.functions";
+import { createFiscalDraft } from "@/lib/fiscal.functions";
+import {
+  getOrderReceipt,
+  setReceiptFiscalDecision,
+} from "@/lib/sales-receipts.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/pedidos/$id")({
   head: () => ({ meta: [{ title: "Detalhe do pedido · Admin" }] }),
@@ -182,6 +187,9 @@ function OrderDetailPage() {
   const completeDispatchFn = useServerFn(completeOrderDispatch);
   const fiscalTraceFn = useServerFn(getOrderFiscalTrace);
   const fiscalSyncFn = useServerFn(syncOrderFiscalFromBling);
+  const receiptFn = useServerFn(getOrderReceipt);
+  const receiptDecisionFn = useServerFn(setReceiptFiscalDecision);
+  const fiscalDraftFn = useServerFn(createFiscalDraft);
   const queryClient = useQueryClient();
   const [note, setNote] = useState("");
   const [scanCode, setScanCode] = useState("");
@@ -199,6 +207,34 @@ function OrderDetailPage() {
   const fiscalTrace = useQuery({
     queryKey: ["order-fiscal-trace", id],
     queryFn: () => fiscalTraceFn({ data: { orderId: id } }),
+  });
+
+  const receiptQuery = useQuery({
+    queryKey: ["order-receipt", id],
+    queryFn: () => receiptFn({ data: { orderId: id } }),
+  });
+
+  const receiptDecision = useMutation({
+    mutationFn: (input: { receiptId: string; decision: "defer" | "request_invoice"; reason?: string }) =>
+      receiptDecisionFn({ data: input }),
+    onSuccess: async (_, variables) => {
+      toast.success(variables.decision === "request_invoice" ? "Emissão fiscal solicitada pelo responsável." : "Decisão fiscal registrada: não emitir agora.");
+      await queryClient.invalidateQueries({ queryKey: ["order-receipt", id] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const fiscalDraft = useMutation({
+    mutationFn: (receiptId: string) => fiscalDraftFn({ data: { receiptId, model: "55" } }),
+    onSuccess: async () => {
+      toast.success("Rascunho de NF-e criado a partir do recibo imutável.");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["order-receipt", id] }),
+        queryClient.invalidateQueries({ queryKey: ["order-fiscal-trace", id] }),
+        queryClient.invalidateQueries({ queryKey: ["fiscal-overview"] }),
+      ]);
+    },
+    onError: (error: Error) => toast.error(error.message),
   });
 
   const fiscalSync = useMutation({
@@ -446,6 +482,16 @@ function OrderDetailPage() {
           </div>
         </section>
       )}
+
+      <ReceiptFiscalDecisionCard
+        data={receiptQuery.data as any}
+        loading={receiptQuery.isLoading}
+        deciding={receiptDecision.isPending}
+        preparing={fiscalDraft.isPending}
+        onDefer={(receiptId, reason) => receiptDecision.mutate({ receiptId, decision: "defer", reason })}
+        onRequest={(receiptId, reason) => receiptDecision.mutate({ receiptId, decision: "request_invoice", reason })}
+        onPrepare={(receiptId) => fiscalDraft.mutate(receiptId)}
+      />
 
       <FiscalTraceCard
         trace={fiscalTrace.data as any}
@@ -962,6 +1008,135 @@ function DispatchConferenceCard({
         <p role="alert" className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm text-rose-800">
           {(error as Error).message}
         </p>
+      )}
+    </section>
+  );
+}
+
+function ReceiptFiscalDecisionCard({
+  data,
+  loading,
+  deciding,
+  preparing,
+  onDefer,
+  onRequest,
+  onPrepare,
+}: {
+  data: any;
+  loading: boolean;
+  deciding: boolean;
+  preparing: boolean;
+  onDefer: (receiptId: string, reason?: string) => void;
+  onRequest: (receiptId: string, reason?: string) => void;
+  onPrepare: (receiptId: string) => void;
+}) {
+  const receipt = data?.receipt;
+  const latest = data?.latestDecision;
+  const documents = data?.documents ?? [];
+  const activeDocument = documents.find((d: any) => !["cancelled"].includes(String(d.status)));
+
+  const decisionLabel =
+    latest?.decision === "request_invoice"
+      ? "Emissão solicitada"
+      : latest?.decision === "defer"
+        ? "Não emitir agora"
+        : "Sem decisão fiscal";
+
+  return (
+    <section className="rounded-3xl border border-emerald-200/70 bg-gradient-to-r from-emerald-50 via-white to-teal-50 p-5 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide text-emerald-700">
+            <ReceiptText className="h-4 w-4" /> Recibo da venda
+          </div>
+          <h2 className="mt-1 font-display text-xl font-extrabold">Origem imutável do fiscal</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            A NF-e só pode ser preparada a partir deste recibo e após decisão explícita do vendedor ou gestor.
+          </p>
+        </div>
+        {receipt && (
+          <div className="rounded-2xl border bg-white px-4 py-3 text-right">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Recibo</p>
+            <p className="font-mono text-sm font-extrabold">{receipt.receipt_code}</p>
+          </div>
+        )}
+      </div>
+
+      {loading ? (
+        <p className="mt-4 text-sm text-muted-foreground">Carregando recibo…</p>
+      ) : !receipt ? (
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          O recibo imutável ainda não foi materializado para esta venda.
+        </div>
+      ) : (
+        <>
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            <div className="rounded-2xl border bg-white p-3">
+              <p className="text-[10px] font-bold uppercase text-muted-foreground">Emitido em</p>
+              <p className="mt-1 font-semibold">{formatDate(receipt.issued_at)}</p>
+            </div>
+            <div className="rounded-2xl border bg-white p-3">
+              <p className="text-[10px] font-bold uppercase text-muted-foreground">Total congelado</p>
+              <p className="mt-1 font-semibold">{brl(Number(receipt.sale_snapshot?.total ?? 0))}</p>
+            </div>
+            <div className="rounded-2xl border bg-white p-3">
+              <p className="text-[10px] font-bold uppercase text-muted-foreground">Itens</p>
+              <p className="mt-1 font-semibold">{receipt.items_snapshot?.length ?? 0}</p>
+            </div>
+            <div className="rounded-2xl border bg-white p-3">
+              <p className="text-[10px] font-bold uppercase text-muted-foreground">Decisão fiscal</p>
+              <p className="mt-1 font-semibold">{decisionLabel}</p>
+            </div>
+          </div>
+
+          <div className="mt-3 rounded-2xl border bg-white p-3">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Integridade do recibo</p>
+            <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">{receipt.snapshot_hash}</p>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={deciding || Boolean(activeDocument)}
+              onClick={() => {
+                const reason = window.prompt("Motivo (opcional)", latest?.reason ?? "");
+                if (reason === null) return;
+                onDefer(receipt.id, reason.trim() || undefined);
+              }}
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold disabled:opacity-50"
+            >
+              Não emitir agora
+            </button>
+            <button
+              type="button"
+              disabled={deciding || Boolean(activeDocument)}
+              onClick={() => {
+                const reason = window.prompt("Observação da solicitação (opcional)", "");
+                if (reason === null) return;
+                if (!window.confirm("Solicitar emissão de NF-e usando exatamente os dados congelados deste recibo?")) return;
+                onRequest(receipt.id, reason.trim() || undefined);
+              }}
+              className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+            >
+              Solicitar emissão
+            </button>
+            {latest?.decision === "request_invoice" && !activeDocument && (
+              <button
+                type="button"
+                disabled={preparing}
+                onClick={() => onPrepare(receipt.id)}
+                className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+              >
+                {preparing ? "Preparando…" : "Preparar NF-e"}
+              </button>
+            )}
+            {activeDocument && (
+              <span className="inline-flex items-center rounded-xl bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700">
+                Documento fiscal vinculado: {activeDocument.status}
+              </span>
+            )}
+          </div>
+        </>
       )}
     </section>
   );
