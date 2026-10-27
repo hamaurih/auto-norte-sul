@@ -786,11 +786,25 @@ function DispatchConferenceCard({
                     done ? "border-emerald-200 bg-emerald-50/80" : "border-white/80 bg-white/75"
                   }`}
                 >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-extrabold">{item.name}</p>
-                    <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
-                      {item.internal_code ? `Interno: ${item.internal_code} · ` : ""}SKU {item.sku}
-                    </p>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-xl border bg-white">
+                      {item.image?.url ? (
+                        <img
+                          src={item.image.url}
+                          alt={item.image.alt || item.name}
+                          className="h-full w-full object-contain p-1"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <Box className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-extrabold">{item.name}</p>
+                      <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
+                        {item.internal_code ? `Interno: ${item.internal_code} · ` : ""}SKU {item.sku}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
                     <span
