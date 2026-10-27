@@ -83,3 +83,5 @@ $$;
 
 revoke all on function private.post_operational_cash_movement(uuid,uuid,uuid,text,text,numeric,date,text,text,uuid,text,text)
 from public,anon,authenticated;
+
+-- Audit note: automatic receipts persist the clearing/cash account on the title.
