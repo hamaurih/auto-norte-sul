@@ -17,12 +17,14 @@ async function requirePaymentApprover(sb: any, userId: string, tenantId: string)
 }
 export const getFinancialSetup = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const sb = tdb(context.supabase); await requireFinanceAdmin(sb, context.userId, context.tenantId);
-  const [centers, categories] = await Promise.all([
+  const [centers, categories, accounts, channels] = await Promise.all([
     sb.from("cost_centers").select("id,name,active,created_at").eq("tenant_id", context.tenantId).order("name"),
     sb.from("expense_categories").select("id,name,default_kind,active,created_at").eq("tenant_id", context.tenantId).order("name"),
+    (sb as any).from("financial_accounts").select("id,name,account_type,institution_name,account_identifier,opening_balance,system_code,opening_balance_as_of,opening_balance_verified_at,active").eq("tenant_id",context.tenantId).order("name"),
+    sb.from("sales_channels").select("id,code,name,active").eq("tenant_id",context.tenantId).eq("active",true).order("name"),
   ]);
-  if (centers.error) throw new Error(centers.error.message); if (categories.error) throw new Error(categories.error.message);
-  return { centers: centers.data ?? [], categories: categories.data ?? [] };
+  for(const result of [centers,categories,accounts,channels]) if(result.error) throw new Error(result.error.message);
+  return { centers: centers.data ?? [], categories: categories.data ?? [], accounts: accounts.data ?? [], channels: channels.data ?? [] };
 });
 export const saveCostCenter = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((v) => z.object({ id:z.string().uuid().optional(), name:z.string().trim().min(2).max(100), active:z.boolean().default(true) }).parse(v)).handler(async ({data,context}) => {
   const sb=tdb(context.supabase); await requireFinanceAdmin(sb,context.userId,context.tenantId);
@@ -38,24 +40,25 @@ export const saveExpenseCategory = createServerFn({ method: "POST" }).middleware
 });
 export const getPayables = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
  const sb=tdb(context.supabase); const roles=await financeRoles(sb,context.userId,context.tenantId); await requireFinanceAdmin(sb,context.userId,context.tenantId);
- const [expenses,categories,centers,attachments,accounts]=await Promise.all([
-  sb.from("expenses").select("id,description,kind,status,amount,paid_amount,last_paid_at,payment_account_id,competence_date,due_date,paid_at,supplier_name,document_number,notes,recurring,recurrence,source_type,source_id,installment_group_id,installment_number,installment_total,approval_status,approved_at,approval_note,category:expense_categories(name),cost_center:cost_centers(name)").eq("tenant_id",context.tenantId).order("due_date",{ascending:true}).limit(500),
+ const [expenses,categories,centers,attachments,accounts,channels]=await Promise.all([
+  (sb as any).from("expenses").select("id,description,kind,status,amount,paid_amount,last_paid_at,payment_account_id,competence_date,due_date,paid_at,supplier_name,document_number,notes,recurring,recurrence,source_type,source_id,sales_channel_id,installment_group_id,installment_number,installment_total,approval_status,approved_at,approval_note,category:expense_categories(name),cost_center:cost_centers(name),sales_channel:sales_channels(code,name)").eq("tenant_id",context.tenantId).order("due_date",{ascending:true}).limit(500),
   sb.from("expense_categories").select("id,name,default_kind").eq("tenant_id",context.tenantId).eq("active",true).order("name"),
   sb.from("cost_centers").select("id,name").eq("tenant_id",context.tenantId).eq("active",true).order("name"),
   (sb as any).from("financial_attachments").select("id,expense_id,kind,file_name,content_type,byte_size,storage_path,created_at").eq("tenant_id",context.tenantId).order("created_at",{ascending:false}),
   (sb as any).from("financial_accounts").select("id,name,account_type,institution_name,account_identifier").eq("tenant_id",context.tenantId).eq("active",true).order("name"),
+  sb.from("sales_channels").select("id,code,name").eq("tenant_id",context.tenantId).eq("active",true).order("name"),
  ]);
- for(const result of [expenses,categories,centers,attachments,accounts]) if(result.error) throw new Error(result.error.message);
- return { expenses:expenses.data??[], categories:categories.data??[], centers:centers.data??[], attachments:attachments.data??[], accounts:accounts.data??[], canApprove:roles.some((role: string)=>["owner","admin"].includes(role)) };
+ for(const result of [expenses,categories,centers,attachments,accounts,channels]) if(result.error) throw new Error(result.error.message);
+ return { expenses:expenses.data??[], categories:categories.data??[], centers:centers.data??[], attachments:attachments.data??[], accounts:accounts.data??[], channels:channels.data??[], canApprove:roles.some((role: string)=>["owner","admin"].includes(role)) };
 });
-const payableSchema=z.object({id:z.string().uuid().optional(),category_id:z.string().uuid(),cost_center_id:z.string().uuid(),description:z.string().trim().min(2).max(300),amount:z.number().positive().max(999999999),competence_date:z.string().date(),due_date:z.string().date(),supplier_name:z.string().trim().max(180).optional(),document_number:z.string().trim().max(100).optional(),notes:z.string().trim().max(2000).optional(),recurring:z.boolean().default(false),recurrence:z.enum(["monthly","weekly","yearly"]).optional(),installments:z.number().int().min(1).max(120).default(1)});
+const payableSchema=z.object({id:z.string().uuid().optional(),category_id:z.string().uuid(),cost_center_id:z.string().uuid(),sales_channel_id:z.union([z.string().uuid(),z.literal(""),z.null()]).optional(),description:z.string().trim().min(2).max(300),amount:z.number().positive().max(999999999),competence_date:z.string().date(),due_date:z.string().date(),supplier_name:z.string().trim().max(180).optional(),document_number:z.string().trim().max(100).optional(),notes:z.string().trim().max(2000).optional(),recurring:z.boolean().default(false),recurrence:z.enum(["monthly","weekly","yearly"]).optional(),installments:z.number().int().min(1).max(120).default(1)});
 const addMonths=(date:string,n:number)=>{const d=new Date(date+"T12:00:00");const day=d.getDate();d.setMonth(d.getMonth()+n);if(d.getDate()<day)d.setDate(0);return d.toISOString().slice(0,10);};
 export const savePayable=createServerFn({method:"POST"}).middleware([requireSupabaseAuth]).inputValidator(v=>payableSchema.parse(v)).handler(async({data,context})=>{
  const sb=tdb(context.supabase);await requireFinanceAdmin(sb,context.userId,context.tenantId);const now=new Date().toISOString();
  if(data.id&&data.installments!==1) throw new Error("O parcelamento só pode ser definido ao criar o título");
  const {data:category,error:categoryError}=await sb.from("expense_categories").select("default_kind").eq("tenant_id",context.tenantId).eq("id",data.category_id).eq("active",true).maybeSingle();
  if(categoryError)throw new Error(categoryError.message);if(!category)throw new Error("Categoria financeira inválida ou inativa");
- const base={tenant_id:context.tenantId,category_id:data.category_id,cost_center_id:data.cost_center_id,description:data.description,kind:category.default_kind,status:"open",competence_date:data.competence_date,supplier_name:data.supplier_name||null,document_number:data.document_number||null,notes:data.notes||null,recurring:data.recurring,recurrence:data.recurring?(data.recurrence??"monthly"):null,updated_by:context.userId,updated_at:now};
+ const base={tenant_id:context.tenantId,category_id:data.category_id,cost_center_id:data.cost_center_id,sales_channel_id:data.sales_channel_id||null,description:data.description,kind:category.default_kind,status:"open",competence_date:data.competence_date,supplier_name:data.supplier_name||null,document_number:data.document_number||null,notes:data.notes||null,recurring:data.recurring,recurrence:data.recurring?(data.recurrence??"monthly"):null,updated_by:context.userId,updated_at:now};
  if(data.id){const {error}=await (sb.from("expenses") as any).update({...base,amount:data.amount,due_date:data.due_date}).eq("id",data.id).eq("tenant_id",context.tenantId).eq("status","open");if(error)throw new Error(error.message);return{ok:true,created:1};}
  const totalCents=Math.round(data.amount*100), count=data.installments, group=count>1?crypto.randomUUID():null, floor=Math.floor(totalCents/count);
  const rows=Array.from({length:count},(_,i)=>({...base,amount:(floor+(i===count-1?totalCents-floor*count:0))/100,due_date:addMonths(data.due_date,i),competence_date:addMonths(data.competence_date,i),approval_status:"pending",installment_group_id:group,installment_number:group?i+1:null,installment_total:group?count:null,created_by:context.userId}));
@@ -74,7 +77,7 @@ const receivableSchema=z.object({id:z.string().uuid().optional(),customer_id:z.s
 export const getReceivables=createServerFn({method:"GET"}).middleware([requireSupabaseAuth]).handler(async({context})=>{
  const sb=tdb(context.supabase);await requireFinanceAdmin(sb,context.userId,context.tenantId);
  const [receivables,expenses,accounts]=await Promise.all([
-  (sb as any).from("financial_receivables").select("id,source_type,source_id,customer_name,description,amount,received_amount,last_received_at,receipt_account_id,due_date,payment_method,payment_reference,payment_url,status,received_at,notes,created_at").eq("tenant_id",context.tenantId).order("due_date",{ascending:true}).limit(1000),
+  (sb as any).from("financial_receivables").select("id,source_type,source_id,order_id,sales_channel_id,customer_name,description,amount,received_amount,last_received_at,receipt_account_id,due_date,payment_method,payment_reference,payment_url,status,received_at,notes,created_at,sales_channel:sales_channels(code,name)").eq("tenant_id",context.tenantId).order("due_date",{ascending:true}).limit(1000),
   sb.from("expenses").select("id,description,amount,paid_amount,due_date,status,paid_at").eq("tenant_id",context.tenantId).order("due_date",{ascending:true}).limit(1000),
   (sb as any).from("financial_accounts").select("id,name,account_type,institution_name,account_identifier").eq("tenant_id",context.tenantId).eq("active",true).order("name"),
  ]);
@@ -99,8 +102,8 @@ export const getCashFlow=createServerFn({method:"GET"}).middleware([requireSupab
  const [summary,transactions,receivables,expenses]=await Promise.all([
   (supabaseAdmin as any).rpc("financial_cash_summary_cutover",{p_tenant_id:context.tenantId,p_scope:data.scope}),
   data.scope==="legacy"
-   ? (sb as any).from("financial_transactions").select("id,account_id,transaction_date,direction,amount,description,category,reconciliation_status,source_type,external_reference").eq("tenant_id",context.tenantId).eq("source_type","bling_cash_banks").order("transaction_date",{ascending:false}).limit(1000)
-   : (sb as any).from("financial_transactions").select("id,account_id,transaction_date,direction,amount,description,category,reconciliation_status,source_type,external_reference").eq("tenant_id",context.tenantId).gte("transaction_date","2026-10-21").neq("source_type","bling_cash_banks").order("transaction_date",{ascending:false}).limit(1000),
+   ? (sb as any).from("financial_transactions").select("id,account_id,transaction_date,direction,amount,description,category,reconciliation_status,source_type,external_reference,order_id,sales_channel_id,payment_method,sales_channel:sales_channels(code,name)").eq("tenant_id",context.tenantId).eq("source_type","bling_cash_banks").order("transaction_date",{ascending:false}).limit(1000)
+   : (sb as any).from("financial_transactions").select("id,account_id,transaction_date,direction,amount,description,category,reconciliation_status,source_type,external_reference,order_id,sales_channel_id,payment_method,sales_channel:sales_channels(code,name)").eq("tenant_id",context.tenantId).gte("transaction_date","2026-10-21").neq("source_type","bling_cash_banks").order("transaction_date",{ascending:false}).limit(1000),
   (sb as any).from("financial_receivables").select("id,customer_name,description,amount,received_amount,due_date,status,source_type").eq("tenant_id",context.tenantId).eq("status","open").order("due_date",{ascending:true}).limit(1000),
   sb.from("expenses").select("id,description,amount,paid_amount,due_date,status,source_type").eq("tenant_id",context.tenantId).eq("status","open").order("due_date",{ascending:true}).limit(1000),
  ]);
@@ -110,23 +113,62 @@ export const getCashFlow=createServerFn({method:"GET"}).middleware([requireSupab
 const sourceStatus=(value:string|undefined)=>["paid","approved","confirmed","completed","received"].includes((value??"").toLowerCase())?"received":"open";
 export const syncReceivables=createServerFn({method:"POST"}).middleware([requireSupabaseAuth]).handler(async({context})=>{
  const sb=tdb(context.supabase);await requireFinanceAdmin(sb,context.userId,context.tenantId);const now=new Date().toISOString();
- const [intents,payments,allSiteOrders,b2bOrders]=await Promise.all([
+ const [intents,payments,allSiteOrders,b2bOrders,existingOperational]=await Promise.all([
   sb.from("payment_intents").select("id,order_id,method,amount,status,paid_at,external_id,boleto_url,created_at,order:orders(customer_id,customer_name,created_at)").eq("tenant_id",context.tenantId).not("status","in",'("cancelled","failed","refunded")'),
   (sb as any).from("pos_payments").select("id,sale_id,method,amount,status,provider_reference,created_at,sale:pos_sales(customer_id,status,created_at,order_id)").eq("tenant_id",context.tenantId).not("status","in",'("cancelled","void","refunded")'),
   sb.from("orders").select("id,customer_id,customer_name,total,payment_method,created_at").eq("tenant_id",context.tenantId),
   sb.from("sales_orders").select("id,customer_id,lead_name,total,status,created_at,customer:customers(name)").eq("tenant_id",context.tenantId).is("order_id",null).not("status","in",'("cancelled","canceled","rejected")'),
+  (sb as any).from("financial_receivables").select("order_id").eq("tenant_id",context.tenantId).neq("source_type","bling_backup").not("order_id","is",null),
  ]);
- for(const result of [intents,payments,allSiteOrders,b2bOrders])if(result.error)throw new Error(result.error.message);
+ for(const result of [intents,payments,allSiteOrders,b2bOrders,existingOperational])if(result.error)throw new Error(result.error.message);
+ const existingOrderIds=new Set((existingOperational.data??[]).map((x:any)=>x.order_id).filter(Boolean));
  const intentOrderIds=new Set((intents.data??[]).map((x:any)=>x.order_id));
  const posOrderIds=new Set((payments.data??[]).map((x:any)=>x.sale?.order_id).filter(Boolean));
  const rows:any[]=[];
- for(const x of intents.data??[]){const o:any=x.order;rows.push({tenant_id:context.tenantId,source_type:"payment_intent",source_id:x.id,customer_id:o?.customer_id??null,customer_name:o?.customer_name??"Cliente do site",description:"Pedido do site",amount:x.amount,due_date:(x.created_at??now).slice(0,10),payment_method:x.method,payment_reference:x.external_id??null,payment_url:x.boleto_url??null,status:sourceStatus(x.status),received_at:sourceStatus(x.status)==="received"?(x.paid_at??now):null,updated_by:context.userId,updated_at:now,created_by:context.userId});}
- for(const x of payments.data??[]){const sale:any=x.sale;if((sale?.status??"").toLowerCase().includes("cancel"))continue;rows.push({tenant_id:context.tenantId,source_type:"pos_payment",source_id:x.id,customer_id:sale?.customer_id??null,customer_name:"Cliente PDV",description:"Venda no PDV",amount:x.amount,due_date:(x.created_at??now).slice(0,10),payment_method:x.method,payment_reference:x.provider_reference??null,status:sourceStatus(x.status),received_at:sourceStatus(x.status)==="received"?(x.created_at??now):null,updated_by:context.userId,updated_at:now,created_by:context.userId});}
+ for(const x of intents.data??[]){if(existingOrderIds.has(x.order_id))continue;const o:any=x.order;rows.push({tenant_id:context.tenantId,source_type:"payment_intent",source_id:x.id,order_id:x.order_id,customer_id:o?.customer_id??null,customer_name:o?.customer_name??"Cliente do site",description:"Pedido do site",amount:x.amount,due_date:(x.created_at??now).slice(0,10),payment_method:x.method,payment_reference:x.external_id??null,payment_url:x.boleto_url??null,status:sourceStatus(x.status),received_at:sourceStatus(x.status)==="received"?(x.paid_at??now):null,updated_by:context.userId,updated_at:now,created_by:context.userId});}
+ for(const x of payments.data??[]){const sale:any=x.sale;if((sale?.status??"").toLowerCase().includes("cancel")||existingOrderIds.has(sale?.order_id))continue;rows.push({tenant_id:context.tenantId,source_type:"pos_payment",source_id:x.id,order_id:sale?.order_id??null,customer_id:sale?.customer_id??null,customer_name:"Cliente PDV",description:"Venda no PDV",amount:x.amount,due_date:(x.created_at??now).slice(0,10),payment_method:x.method,payment_reference:x.provider_reference??null,status:sourceStatus(x.status),received_at:sourceStatus(x.status)==="received"?(x.created_at??now):null,updated_by:context.userId,updated_at:now,created_by:context.userId});}
  for(const x of allSiteOrders.data??[]){
-   if(intentOrderIds.has(x.id)||posOrderIds.has(x.id))continue;
+   if(intentOrderIds.has(x.id)||posOrderIds.has(x.id)||existingOrderIds.has(x.id))continue;
    rows.push({tenant_id:context.tenantId,source_type:"core_order",source_id:x.id,customer_id:x.customer_id??null,customer_name:x.customer_name,description:"Pedido omnichannel sem cobrança vinculada",amount:x.total,due_date:(x.created_at??now).slice(0,10),payment_method:x.payment_method??null,status:"open",received_at:null,updated_by:context.userId,updated_at:now,created_by:context.userId});
  }
  for(const x of b2bOrders.data??[]){const c:any=x.customer;rows.push({tenant_id:context.tenantId,source_type:"b2b_order",source_id:x.id,customer_id:x.customer_id??null,customer_name:c?.name??x.lead_name??"Cliente B2B",description:"Pedido B2B",amount:x.total,due_date:(x.created_at??now).slice(0,10),payment_method:"a combinar",status:"open",received_at:null,updated_by:context.userId,updated_at:now,created_by:context.userId});}
  if(rows.length){const {error}=await (sb as any).from("financial_receivables").upsert(rows,{onConflict:"tenant_id,source_type,source_id"});if(error)throw new Error(error.message);}
  return {ok:true,synced:rows.length};
+});
+
+export const verifyFinancialOpeningBalance=createServerFn({method:"POST"})
+.middleware([requireSupabaseAuth])
+.inputValidator(v=>z.object({accountId:z.string().uuid(),balance:z.number().min(0).max(999999999),asOf:z.string().date()}).parse(v))
+.handler(async({data,context})=>{
+ const sb=tdb(context.supabase);await requireFinanceAdmin(sb,context.userId,context.tenantId);
+ const {data:account,error}=await (sb as any).from("financial_accounts").select("id,system_code").eq("tenant_id",context.tenantId).eq("id",data.accountId).eq("active",true).maybeSingle();
+ if(error)throw new Error(error.message);if(!account)throw new Error("Conta financeira não encontrada");
+ if(String(account.system_code??"").startsWith("clearing:"))throw new Error("Conta de clearing não exige saldo bancário de abertura");
+ const {error:updateError}=await (sb as any).from("financial_accounts").update({
+   opening_balance:data.balance,
+   opening_balance_as_of:data.asOf,
+   opening_balance_verified_at:new Date().toISOString(),
+   opening_balance_verified_by:context.userId,
+   updated_at:new Date().toISOString(),
+ }).eq("tenant_id",context.tenantId).eq("id",data.accountId);
+ if(updateError)throw new Error(updateError.message);
+ return {ok:true};
+});
+
+export const getChannelFinanceSummary=createServerFn({method:"GET"})
+.middleware([requireSupabaseAuth])
+.inputValidator(v=>z.object({startDate:z.string().date(),endDate:z.string().date()}).parse(v))
+.handler(async({data,context})=>{
+ const sb=tdb(context.supabase);await requireFinanceAdmin(sb,context.userId,context.tenantId);
+ const {data:summary,error}=await (supabaseAdmin as any).rpc("financial_channel_summary",{
+   p_tenant_id:context.tenantId,
+   p_start_date:data.startDate,
+   p_end_date:data.endDate,
+ });
+ if(error)throw new Error(error.message);
+ const {data:accounts,error:accountsError}=await (sb as any).from("financial_accounts")
+   .select("id,name,account_type,institution_name,opening_balance,system_code,opening_balance_as_of,opening_balance_verified_at")
+   .eq("tenant_id",context.tenantId).eq("active",true).order("name");
+ if(accountsError)throw new Error(accountsError.message);
+ return {summary:summary??{},accounts:accounts??[]};
 });
