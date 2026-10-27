@@ -393,6 +393,7 @@ declare
   v_provider_code text;
   v_account_code text;
   v_due_date date;
+  v_order_status text;
 begin
   -- Legacy/pre-cutover site activity remains outside the new operational ledger.
   if new.created_at::date < date '2026-10-21' then return new; end if;
@@ -401,11 +402,19 @@ begin
   from public.payment_providers pp
   where pp.id=new.provider_id;
 
+  select o.status::text into v_order_status
+  from public.orders o
+  where o.tenant_id=new.tenant_id and o.id=new.order_id;
+
   v_status := case
     when lower(new.status) in ('paid','received','confirmed','completed') then 'received'
     when lower(new.status) in ('cancelled','canceled','expired','failed','refunded') then 'cancelled'
     else 'open'
   end;
+
+  if v_order_status='cancelado' then
+    v_status := 'cancelled';
+  end if;
 
   v_due_date := coalesce(new.expires_at::date,new.created_at::date);
 
