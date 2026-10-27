@@ -203,6 +203,7 @@ declare
   v_channel_id uuid;
   v_order_id uuid;
   v_customer public.customers%rowtype;
+  v_effective_customer_id uuid:=p_customer_id;
   v_product public.products%rowtype;
   v_stock public.product_stock%rowtype;
   v_item jsonb;
@@ -290,10 +291,59 @@ begin
     where b.id=p_pickup_branch_id and b.tenant_id=p_tenant_id and b.active
   ) then raise exception 'INVALID_PICKUP_BRANCH'; end if;
 
-  if p_customer_id is not null then
+  -- Resolve the commercial customer without confusing operator and buyer.
+  -- PDV anonymous sales reuse the active "Consumidor Final" already linked to Bling.
+  if v_effective_customer_id is null and p_channel_code='pdv' then
+    select c.id into v_effective_customer_id
+    from public.customers c
+    where c.tenant_id=p_tenant_id
+      and c.active
+      and lower(btrim(c.name))='consumidor final'
+      and c.bling_id is not null
+    order by c.created_at
+    limit 1;
+  end if;
+
+  -- WhatsApp attempts deterministic customer reuse by document, then phone.
+  if v_effective_customer_id is null and p_channel_code='whatsapp' then
+    v_customer_document:=nullif(regexp_replace(coalesce(p_customer->>'document',''),'\D','','g'),'');
+    v_customer_phone:=nullif(regexp_replace(coalesce(p_customer->>'phone',''),'\D','','g'),'');
+    if v_customer_document is not null then
+      select c.id into v_effective_customer_id
+      from public.customers c
+      where c.tenant_id=p_tenant_id and c.active and c.document=v_customer_document
+      order by c.updated_at desc
+      limit 1;
+    end if;
+    if v_effective_customer_id is null and v_customer_phone is not null then
+      select c.id into v_effective_customer_id
+      from public.customers c
+      where c.tenant_id=p_tenant_id and c.active
+        and regexp_replace(coalesce(c.phone,''),'\D','','g')=v_customer_phone
+      order by c.updated_at desc
+      limit 1;
+    end if;
+    if v_effective_customer_id is null then
+      insert into public.customers(
+        tenant_id,name,email,phone,document,customer_group,b2b_status,active,source,source_payload
+      )
+      values(
+        p_tenant_id,
+        coalesce(nullif(btrim(p_customer->>'name'),''),'Cliente WhatsApp'),
+        nullif(lower(btrim(coalesce(p_customer->>'email',''))),''),
+        nullif(btrim(coalesce(p_customer->>'phone','')),''),
+        v_customer_document,
+        'b2c','none',true,'whatsapp',
+        jsonb_build_object('created_by','order_core','source_reference',p_source_reference)
+      )
+      returning id into v_effective_customer_id;
+    end if;
+  end if;
+
+  if v_effective_customer_id is not null then
     select * into v_customer
     from public.customers c
-    where c.id=p_customer_id and c.tenant_id=p_tenant_id and c.active
+    where c.id=v_effective_customer_id and c.tenant_id=p_tenant_id and c.active
     for share;
     if not found then raise exception 'INVALID_CUSTOMER'; end if;
 
@@ -323,7 +373,7 @@ begin
     from (select 1) seed
     left join public.b2b_customer_price_tables a
       on a.tenant_id=p_tenant_id
-     and a.customer_id=p_customer_id
+     and a.customer_id=v_effective_customer_id
      and a.active
     left join public.b2b_price_table_settings s
       on s.tenant_id=p_tenant_id and s.active
@@ -343,7 +393,7 @@ begin
       fulfillment_type,pickup_branch_id,pickup_status
     )
     values(
-      p_tenant_id,v_customer_user_id,p_actor_user_id,p_customer_id,
+      p_tenant_id,v_customer_user_id,p_actor_user_id,v_effective_customer_id,
       'aguardando_pagamento',v_is_b2b,
       case when v_is_b2b then v_price_table end,
       case when v_is_b2b then v_b2b_discount else 0 end,
@@ -489,6 +539,9 @@ $$;
 revoke all on function private.create_channel_order_core(
   uuid,uuid,text,uuid,uuid,jsonb,uuid,jsonb,text,numeric,text,jsonb,text,uuid
 ) from public,anon,authenticated;
+grant execute on function private.create_channel_order_core(
+  uuid,uuid,text,uuid,uuid,jsonb,uuid,jsonb,text,numeric,text,jsonb,text,uuid
+) to service_role;
 
 -- 6) PDV now creates an ERP order first, then records the cash-register extension.
 create or replace function private.finalize_pos_sale(
@@ -564,12 +617,12 @@ begin
   end loop;
 
   if v_payment_count=1 then
-    select case p->>'method'
+    select case e.value->>'method'
       when 'b2b_invoice' then 'faturado_b2b'
-      else p->>'method'
+      else e.value->>'method'
     end
     into v_order_payment_method
-    from jsonb_array_elements(p_payments) p
+    from jsonb_array_elements(p_payments) as e(value)
     limit 1;
   else
     v_order_payment_method:='mixed';
@@ -804,15 +857,18 @@ declare
   v_channel_code text;
   v_status public.order_status;
 begin
-  select o.*,sc.code
-  into v_order,v_channel_code
+  select o.* into v_order
   from public.orders o
-  join public.sales_channels sc
-    on sc.id=o.sales_channel_id and sc.tenant_id=o.tenant_id
   where o.id=p_order_id
   for update;
 
-  if not found or v_channel_code<>'whatsapp' then
+  if not found then raise exception 'WHATSAPP_ORDER_NOT_FOUND'; end if;
+
+  select sc.code into v_channel_code
+  from public.sales_channels sc
+  where sc.id=v_order.sales_channel_id and sc.tenant_id=v_order.tenant_id;
+
+  if v_channel_code is distinct from 'whatsapp' then
     raise exception 'WHATSAPP_ORDER_NOT_FOUND';
   end if;
 
@@ -1092,3 +1148,5 @@ $$;
 
 revoke all on function private.transition_order(uuid,text,uuid)
 from public,anon,authenticated;
+grant execute on function private.transition_order(uuid,text,uuid)
+to service_role;
