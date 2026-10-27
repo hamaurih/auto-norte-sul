@@ -27,6 +27,7 @@ function PedidoAssistido() {
   const [discountPct, setDiscountPct] = useState(0);
   const [upliftPct, setUpliftPct] = useState(0);
   const [creditToUse, setCreditToUse] = useState(0);
+  const [channel, setChannel] = useState<"whatsapp" | "vendedor">("whatsapp");
   const [lead, setLead]      = useState({
     lead_name: "", lead_email: "", lead_phone: "", lead_cnpj: "", notes: "",
   });
@@ -66,6 +67,7 @@ function PedidoAssistido() {
           uplift_pct: status === "enviado" ? upliftPct : 0,
           credit_to_use: status === "enviado" ? creditToUse : 0,
           status,
+          channel,
         },
       }),
     onSuccess: (_, status) => {
@@ -75,6 +77,7 @@ function PedidoAssistido() {
       setDiscountPct(0);
       setUpliftPct(0);
       setCreditToUse(0);
+      setChannel("whatsapp");
       void creditQuery.refetch();
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
@@ -122,6 +125,32 @@ function PedidoAssistido() {
           </span>
         )}
       </div>
+
+      <section className="rounded-lg border border-border bg-card p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-extrabold uppercase">Canal da venda</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Define a origem no ERP e no BI. Não altera a tabela de preço do cliente.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {([
+              ["whatsapp", "WhatsApp"],
+              ["vendedor", "Venda assistida"],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setChannel(value)}
+                className={`rounded-lg border px-3 py-2 text-xs font-bold ${channel === value ? "border-primary bg-primary/10 text-primary" : "border-border"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {creditQuery.data?.isSalesRep && creditQuery.data.enabled && (
         <section className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-4 space-y-3">
