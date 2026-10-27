@@ -322,5 +322,41 @@ export async function processAsaasWebhook(admin: AdminClient, rawBody: string, h
   if (updateError) throw new Error(updateError.message);
   const { data, error: applyError } = await admin.rpc("internal_apply_payment_webhook", { p_provider_id: c.providerId, p_provider_event_id: eventId.slice(0,255), p_event_type: String(payload?.event ?? "PAYMENT_UPDATED").slice(0,120), p_external_payment_id: paymentId, p_normalized_status: status, p_payload_sha256: await hash(rawBody), p_signature_verified: true });
   if (applyError) throw new Error(applyError.message);
+
+  if (status === "refunded") {
+    const { data: currentOrder, error: orderLookupError } = await admin
+      .from("orders")
+      .select("id,status,fulfillment_type,pickup_status,notes")
+      .eq("tenant_id", intent.tenant_id)
+      .eq("id", intent.order_id)
+      .maybeSingle();
+    if (orderLookupError) throw new Error(orderLookupError.message);
+    if (currentOrder?.status === "pago") {
+      const { error: cancelError } = await admin
+        .from("orders")
+        .update({
+          status: "cancelado",
+          pickup_status: currentOrder.fulfillment_type === "pickup" ? "cancelled" : currentOrder.pickup_status,
+          notes: [currentOrder.notes, "Pagamento estornado pelo provedor. Estoque não retornado automaticamente."]
+            .filter(Boolean)
+            .join("\n"),
+        })
+        .eq("tenant_id", intent.tenant_id)
+        .eq("id", intent.order_id)
+        .eq("status", "pago");
+      if (cancelError) throw new Error(cancelError.message);
+
+      const { error: historyError } = await admin.from("order_status_events").insert({
+        tenant_id: intent.tenant_id,
+        order_id: intent.order_id,
+        from_status: "pago",
+        to_status: "cancelado",
+        actor_user_id: null,
+        note: "Estorno financeiro confirmado pelo webhook Asaas. Estoque não retornado automaticamente.",
+      });
+      if (historyError) throw new Error(historyError.message);
+    }
+  }
+
   return { ignored: false, normalizedStatus: status, result: data, tenantId: intent.tenant_id, orderId: intent.order_id };
 }
