@@ -230,9 +230,10 @@ export const runFiscalHomologation = createServerFn({method:"POST"}).middleware(
   });
 
 export const createFiscalDraft = createServerFn({method:"POST"}).middleware([requireSupabaseAuth])
-  .inputValidator((input:{orderId:string;model:"55"|"65"})=>input)
+  .inputValidator((input:{receiptId:string;model:"55"|"65"})=>input)
   .handler(async({data,context}):Promise<FiscalDraftResult>=>{
-    const sb=tdb(context.supabase);await requireSupplyRole(sb,context.userId,context.tenantId,SUPPLY_APPROVE_ROLES);
-    const{data:result,error}=await sb.rpc("create_fiscal_draft_from_order",{p_order_id:data.orderId,p_model:data.model});
+    const sb=tdb(context.supabase);
+    await requireTenantRole(sb,context.userId,context.tenantId,["owner","admin","manager","sales"]);
+    const{data:result,error}=await sb.rpc("create_fiscal_draft_from_receipt",{p_receipt_id:data.receiptId,p_model:data.model});
     if(error)throw new Error(error.message);return result as unknown as FiscalDraftResult;
   });
