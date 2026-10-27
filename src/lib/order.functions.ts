@@ -386,7 +386,7 @@ export const getAdminOrderDetail = createServerFn({ method: "GET" })
     const sb = context.supabase as any;
     const { data: order, error: orderError } = await sb
       .from("orders")
-      .select("*")
+      .select("*, sales_channel:sales_channels(code,name)")
       .eq("id", data.orderId)
       .eq("tenant_id", context.tenantId)
       .maybeSingle();
