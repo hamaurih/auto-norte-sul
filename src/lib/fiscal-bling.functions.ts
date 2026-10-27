@@ -6,7 +6,8 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getBlingAccessToken } from "@/lib/bling-sales-export.server";
 
 const API = "https://api.bling.com.br/Api/v3";
-const ALLOWED_ROLES = ["owner","admin","manager","sales","stock"] as const;
+const READ_ROLES = ["owner","admin","manager","sales","stock"] as const;
+const SYNC_ROLES = ["owner","admin","manager","sales"] as const;
 
 function pick(obj: any, paths: string[]) {
   for (const path of paths) {
@@ -20,6 +21,12 @@ function pick(obj: any, paths: string[]) {
 function toPositiveInt(value: unknown) {
   const n = Number(value);
   return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+function isoOrNull(value: unknown) {
+  if (!value) return null;
+  const date = new Date(String(value));
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
 
 function rawStatus(note: any) {
@@ -56,7 +63,10 @@ async function blingGet(path: string, token: string) {
     signal: AbortSignal.timeout(20_000),
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error("Bling HTTP " + res.status + " em " + path);
+  if (!res.ok) {
+    const detail = String(body?.error?.message ?? body?.message ?? "").slice(0,160);
+    throw new Error("Bling HTTP " + res.status + " em " + path + (detail ? ": " + detail : ""));
+  }
   return body?.data ?? body;
 }
 
@@ -79,11 +89,175 @@ async function fiscalContext(tenantId: string, orderId: string) {
   return { order, settings };
 }
 
+async function syncOrderFiscalInternal(input: {
+  tenantId: string;
+  userId: string;
+  orderId: string;
+  token?: string;
+}) {
+  const db = supabaseAdmin as any;
+  const { order, settings } = await fiscalContext(input.tenantId, input.orderId);
+
+  if (!order.bling_id) {
+    await db.from("orders").update({
+      bling_invoice_status: "aguardando_sincronizacao_pedido",
+      updated_at: new Date().toISOString(),
+    }).eq("tenant_id",input.tenantId).eq("id",order.id);
+    return { ok:true, state:"waiting_order_sync", document:null };
+  }
+
+  const token = input.token ?? await getBlingAccessToken(input.tenantId);
+  const remoteOrder = await blingGet("/pedidos/vendas/" + encodeURIComponent(String(order.bling_id)), token);
+  const invoiceId = String(extractInvoiceId(remoteOrder) ?? order.bling_invoice_id ?? "").trim();
+
+  if (!invoiceId) {
+    await db.from("orders").update({
+      bling_invoice_status: "aguardando_emissao",
+      updated_at: new Date().toISOString(),
+    }).eq("tenant_id",input.tenantId).eq("id",order.id);
+    return { ok:true, state:"waiting_invoice", document:null };
+  }
+
+  const note = await blingGet("/nfe/" + encodeURIComponent(invoiceId), token);
+  const number = toPositiveInt(pick(note,["numero","numeroNota","number"]));
+  const series = toPositiveInt(pick(note,["serie","series"])) ?? 1;
+  const accessKey = String(pick(note,["chaveAcesso","chave","accessKey"]) ?? "").trim() || null;
+  const protocol = String(pick(note,["protocolo","numeroProtocolo","protocol"]) ?? "").trim() || null;
+  const status = normalizedStatus(note);
+  const externalStatus = rawStatus(note);
+  const issuedAt = isoOrNull(pick(note,["dataEmissao","emissao","issuedAt"]));
+  const authorizedAt = isoOrNull(pick(note,["dataOperacao","dataAutorizacao","authorizedAt"]));
+  const linkDanfe = String(pick(note,["linkDanfe","linkPDF","urlDanfe"]) ?? "").trim() || null;
+  const linkXml = String(pick(note,["linkXml","urlXml"]) ?? "").trim() || null;
+
+  const orderUpdate:any = {
+    bling_invoice_id: invoiceId,
+    bling_invoice_status: externalStatus ?? status,
+    bling_invoice_generated_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  if (status === "authorized") orderUpdate.bling_invoice_authorized_at = authorizedAt ?? new Date().toISOString();
+
+  if (!number || !settings?.branch_id) {
+    await db.from("orders").update(orderUpdate)
+      .eq("tenant_id",input.tenantId).eq("id",order.id);
+    return {
+      ok:true,
+      state: !number ? "invoice_found_pending_number" : "invoice_found_fiscal_settings_missing",
+      invoiceId,
+      status,
+      document:null,
+    };
+  }
+
+  const { data: existing, error: existingError } = await db.from("fiscal_documents")
+    .select("id")
+    .eq("tenant_id",input.tenantId)
+    .eq("provider","bling")
+    .eq("provider_reference",invoiceId)
+    .maybeSingle();
+  if (existingError) throw new Error(existingError.message);
+
+  const snapshot = {
+    blingInvoiceId: invoiceId,
+    rawStatus: externalStatus,
+    numero: number,
+    serie: series,
+    chaveAcesso: accessKey,
+    protocolo: protocol,
+    linkDanfe,
+    linkXml,
+  };
+
+  const row:any = {
+    tenant_id: input.tenantId,
+    branch_id: settings.branch_id,
+    order_id: order.id,
+    model: "55",
+    environment: settings.environment ?? "production",
+    series,
+    number,
+    status,
+    access_key: accessKey,
+    protocol,
+    issued_at: issuedAt,
+    authorized_at: status === "authorized" ? (authorizedAt ?? new Date().toISOString()) : null,
+    cancelled_at: status === "cancelled" ? new Date().toISOString() : null,
+    cancellation_reason: status === "cancelled"
+      ? String(pick(note,["motivoCancelamento","cancelamento.motivo"]) ?? "") || null
+      : null,
+    recipient_name: order.customer_name || "Cliente",
+    recipient_tax_id: order.customer_document ?? null,
+    recipient_email: order.customer_email ?? null,
+    recipient_phone: order.customer_phone ?? null,
+    recipient_address: {},
+    totals: { total: Number(order.total ?? 0) },
+    tax_totals: {},
+    provider: "bling",
+    provider_reference: invoiceId,
+    document_url: linkDanfe,
+    xml_url: linkXml,
+    last_synced_at: new Date().toISOString(),
+    external_payload: snapshot,
+    last_error_code: null,
+    last_error_message: null,
+    updated_by: input.userId,
+    updated_at: new Date().toISOString(),
+  };
+
+  let documentId = existing?.id ?? null;
+  if (documentId) {
+    const { error } = await db.from("fiscal_documents").update(row)
+      .eq("tenant_id",input.tenantId).eq("id",documentId);
+    if (error) throw new Error(error.message);
+  } else {
+    const { data: created, error } = await db.from("fiscal_documents").insert({
+      ...row,
+      idempotency_key: crypto.randomUUID(),
+      created_by: input.userId,
+    }).select("id").single();
+    if (error) throw new Error(error.message);
+    documentId = created.id;
+  }
+
+  await db.from("orders").update(orderUpdate)
+    .eq("tenant_id",input.tenantId).eq("id",order.id);
+
+  const { data: tenant } = await db.from("tenants")
+    .select("organization_id").eq("id",input.tenantId).maybeSingle();
+  if (tenant?.organization_id) {
+    await db.from("audit_events").insert({
+      organization_id: tenant.organization_id,
+      tenant_id: input.tenantId,
+      actor_user_id: input.userId,
+      action: "fiscal.bling_synced",
+      resource_type: "order",
+      resource_id: order.id,
+      after_data: { invoiceId, status, number, series, accessKey: accessKey ? "present" : null },
+      metadata: { provider:"bling", fiscalDocumentId:documentId },
+    });
+  }
+
+  return {
+    ok:true,
+    state:"synced",
+    documentId,
+    invoiceId,
+    status,
+    number,
+    series,
+    accessKey,
+    protocol,
+    documentUrl:linkDanfe,
+    xmlUrl:linkXml,
+  };
+}
+
 export const getOrderFiscalTrace = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ orderId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    await requireTenantRole(context.supabase as any, context.userId, context.tenantId, [...ALLOWED_ROLES]);
+    await requireTenantRole(context.supabase as any, context.userId, context.tenantId, [...READ_ROLES]);
     const db = supabaseAdmin as any;
     const [{ data: order, error: orderError }, { data: docs, error: docsError }] = await Promise.all([
       db.from("orders")
@@ -104,155 +278,12 @@ export const syncOrderFiscalFromBling = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ orderId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    await requireTenantRole(context.supabase as any, context.userId, context.tenantId, ["owner","admin","manager","sales"]);
-    const db = supabaseAdmin as any;
-    const { order, settings } = await fiscalContext(context.tenantId, data.orderId);
-
-    if (!order.bling_id) {
-      await db.from("orders").update({
-        bling_invoice_status: "aguardando_sincronizacao_pedido",
-        updated_at: new Date().toISOString(),
-      }).eq("tenant_id",context.tenantId).eq("id",order.id);
-      return { ok:true, state:"waiting_order_sync", document:null };
-    }
-
-    const token = await getBlingAccessToken(context.tenantId);
-    const remoteOrder = await blingGet("/pedidos/vendas/" + encodeURIComponent(String(order.bling_id)), token);
-    const invoiceId = String(extractInvoiceId(remoteOrder) ?? order.bling_invoice_id ?? "").trim();
-
-    if (!invoiceId) {
-      await db.from("orders").update({
-        bling_invoice_id: null,
-        bling_invoice_status: "aguardando_emissao",
-        updated_at: new Date().toISOString(),
-      }).eq("tenant_id",context.tenantId).eq("id",order.id);
-      return { ok:true, state:"waiting_invoice", document:null };
-    }
-
-    const note = await blingGet("/nfe/" + encodeURIComponent(invoiceId), token);
-    const number = toPositiveInt(pick(note,["numero","numeroNota","number"]));
-    const series = toPositiveInt(pick(note,["serie","series"])) ?? 1;
-    const accessKey = String(pick(note,["chaveAcesso","chave","accessKey"]) ?? "").trim() || null;
-    const protocol = String(pick(note,["protocolo","numeroProtocolo","protocol"]) ?? "").trim() || null;
-    const status = normalizedStatus(note);
-    const externalStatus = rawStatus(note);
-    const issuedAt = pick(note,["dataEmissao","emissao","issuedAt"]);
-    const authorizedAt = pick(note,["dataOperacao","dataAutorizacao","authorizedAt"]);
-    const linkDanfe = String(pick(note,["linkDanfe","linkPDF","urlDanfe"]) ?? "").trim() || null;
-    const linkXml = String(pick(note,["linkXml","urlXml"]) ?? "").trim() || null;
-
-    if (!number) {
-      await db.from("orders").update({
-        bling_invoice_id: invoiceId,
-        bling_invoice_status: externalStatus ?? status,
-        bling_invoice_generated_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }).eq("tenant_id",context.tenantId).eq("id",order.id);
-      return { ok:true, state:"invoice_found_pending_number", invoiceId, document:null };
-    }
-
-    if (!settings?.branch_id) {
-      await db.from("orders").update({
-        bling_invoice_id: invoiceId,
-        bling_invoice_status: externalStatus ?? status,
-        bling_invoice_generated_at: new Date().toISOString(),
-        bling_invoice_authorized_at: status === "authorized" ? new Date().toISOString() : null,
-        updated_at: new Date().toISOString(),
-      }).eq("tenant_id",context.tenantId).eq("id",order.id);
-      return { ok:true, state:"invoice_found_fiscal_settings_missing", invoiceId, document:null };
-    }
-
-    const { data: existing, error: existingError } = await db.from("fiscal_documents")
-      .select("id")
-      .eq("tenant_id",context.tenantId)
-      .eq("provider","bling")
-      .eq("provider_reference",invoiceId)
-      .maybeSingle();
-    if (existingError) throw new Error(existingError.message);
-
-    const snapshot = {
-      blingInvoiceId: invoiceId,
-      rawStatus: externalStatus,
-      numero: number,
-      serie: series,
-      chaveAcesso: accessKey,
-      protocolo: protocol,
-      linkDanfe,
-      linkXml,
-    };
-
-    const row = {
-      tenant_id: context.tenantId,
-      branch_id: settings.branch_id,
-      order_id: order.id,
-      model: "55",
-      environment: settings.environment ?? "production",
-      series,
-      number,
-      status,
-      access_key: accessKey,
-      protocol,
-      issued_at: issuedAt ? new Date(issuedAt).toISOString() : null,
-      authorized_at: status === "authorized" ? (authorizedAt ? new Date(authorizedAt).toISOString() : new Date().toISOString()) : null,
-      cancelled_at: status === "cancelled" ? new Date().toISOString() : null,
-      cancellation_reason: status === "cancelled" ? String(pick(note,["motivoCancelamento","cancelamento.motivo"]) ?? "") || null : null,
-      recipient_name: order.customer_name || "Cliente",
-      recipient_tax_id: order.customer_document ?? null,
-      recipient_email: order.customer_email ?? null,
-      recipient_phone: order.customer_phone ?? null,
-      recipient_address: {},
-      totals: { total: Number(order.total ?? 0) },
-      tax_totals: {},
-      provider: "bling",
-      provider_reference: invoiceId,
-      document_url: linkDanfe,
-      xml_url: linkXml,
-      last_synced_at: new Date().toISOString(),
-      external_payload: snapshot,
-      last_error_code: null,
-      last_error_message: null,
-      updated_by: context.userId,
-      updated_at: new Date().toISOString(),
-    };
-
-    let documentId = existing?.id ?? null;
-    if (documentId) {
-      const { error } = await db.from("fiscal_documents").update(row)
-        .eq("tenant_id",context.tenantId).eq("id",documentId);
-      if (error) throw new Error(error.message);
-    } else {
-      const { data: created, error } = await db.from("fiscal_documents").insert({
-        ...row,
-        idempotency_key: crypto.randomUUID(),
-        created_by: context.userId,
-      }).select("id").single();
-      if (error) throw new Error(error.message);
-      documentId = created.id;
-    }
-
-    await db.from("orders").update({
-      bling_invoice_id: invoiceId,
-      bling_invoice_status: externalStatus ?? status,
-      bling_invoice_generated_at: new Date().toISOString(),
-      bling_invoice_authorized_at: status === "authorized" ? (authorizedAt ? new Date(authorizedAt).toISOString() : new Date().toISOString()) : null,
-      updated_at: new Date().toISOString(),
-    }).eq("tenant_id",context.tenantId).eq("id",order.id);
-
-    const { data: tenant } = await db.from("tenants").select("organization_id").eq("id",context.tenantId).maybeSingle();
-    if (tenant?.organization_id) {
-      await db.from("audit_events").insert({
-        organization_id: tenant.organization_id,
-        tenant_id: context.tenantId,
-        actor_user_id: context.userId,
-        action: "fiscal.bling_synced",
-        resource_type: "order",
-        resource_id: order.id,
-        after_data: { invoiceId, status, number, series, accessKey: accessKey ? "present" : null },
-        metadata: { provider:"bling", fiscalDocumentId:documentId },
-      });
-    }
-
-    return { ok:true, state:"synced", documentId, invoiceId, status, number, series, accessKey, protocol, documentUrl:linkDanfe };
+    await requireTenantRole(context.supabase as any, context.userId, context.tenantId, [...SYNC_ROLES]);
+    return syncOrderFiscalInternal({
+      tenantId: context.tenantId,
+      userId: context.userId,
+      orderId: data.orderId,
+    });
   });
 
 export const syncPendingFiscalFromBling = createServerFn({ method: "POST" })
@@ -270,14 +301,25 @@ export const syncPendingFiscalFromBling = createServerFn({ method: "POST" })
       .limit(data.limit);
     if (error) throw new Error(error.message);
 
+    const token = await getBlingAccessToken(context.tenantId);
     const results:any[]=[];
     for (const order of orders ?? []) {
       try {
-        const result = await syncOrderFiscalFromBling({ data:{ orderId:order.id } } as any);
-        results.push({ orderId:order.id, ok:true, result });
+        const result = await syncOrderFiscalInternal({
+          tenantId:context.tenantId,
+          userId:context.userId,
+          orderId:order.id,
+          token,
+        });
+        results.push({ orderId:order.id, ok:true, state:result.state });
       } catch (error:any) {
         results.push({ orderId:order.id, ok:false, error:String(error?.message ?? error).slice(0,240) });
       }
     }
-    return { checked:results.length, success:results.filter(r=>r.ok).length, failed:results.filter(r=>!r.ok).length, results };
+    return {
+      checked:results.length,
+      success:results.filter(r=>r.ok).length,
+      failed:results.filter(r=>!r.ok).length,
+      results,
+    };
   });
