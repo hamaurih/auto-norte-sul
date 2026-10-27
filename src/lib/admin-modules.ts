@@ -318,6 +318,13 @@ export const adminModules: AdminModule[] = [
         icon: BarChart3,
         adminOnly: true,
       },
+      {
+        to: "/admin/financeiro-canais",
+        label: "DRE por canal",
+        description: "Site, PDV, WhatsApp e venda assistida",
+        icon: BadgeDollarSign,
+        adminOnly: true,
+      },
     ],
   },
   {
