@@ -26,7 +26,7 @@ export const getSalesSummary = createServerFn({ method: "GET" })
         .gte("created_at", since)
         .order("created_at", { ascending: false })
         .limit(2000),
-      sb.from("pos_sales")
+      (sb as any).from("pos_sales")
         .select("id,order_id,status,total,created_at,customer:customers(name),items:pos_sale_items(quantity,line_total,product:products(name,sku))")
         .eq("tenant_id", context.tenantId)
         .is("order_id", null)
