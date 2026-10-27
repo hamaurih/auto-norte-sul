@@ -37,7 +37,7 @@ export const getFiscalOverview = createServerFn({ method: "GET" }).middleware([r
     const sb=tdb(context.supabase); const membership=await requireSupplyRole(sb,context.userId,context.tenantId,SUPPLY_READ_ROLES);
     const [settings,documents,branches,paidOrders,profiles,products,jobs]=await Promise.all([
       sb.from("fiscal_settings").select("*").eq("tenant_id",context.tenantId).order("created_at").limit(10),
-      sb.from("fiscal_documents").select("id,order_id,model,environment,series,number,status,access_key,protocol,issued_at,authorized_at,created_at,recipient_name,totals")
+      sb.from("fiscal_documents").select("id,order_id,model,environment,series,number,status,access_key,protocol,issued_at,authorized_at,created_at,recipient_name,totals,provider,provider_reference,document_url,xml_url,last_synced_at,last_error_code,last_error_message")
         .eq("tenant_id",context.tenantId).order("created_at",{ascending:false}).limit(100),
       sb.from("branches").select("id,name,code,city,state,is_main,active").eq("tenant_id",context.tenantId).eq("active",true).order("is_main",{ascending:false}),
       sb.from("orders").select("id,status,total,customer_name,customer_document,created_at")
