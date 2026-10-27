@@ -323,6 +323,9 @@ function OrderDetailPage() {
                   {isPickup ? <Store className="h-3.5 w-3.5" /> : <Truck className="h-3.5 w-3.5" />}
                   {isPickup ? "RETIRADA NA LOJA" : "ENTREGA"}
                 </span>
+                <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-extrabold text-white">
+                  CANAL {(order.sales_channel?.name ?? "Padrão").toUpperCase()}
+                </span>
               </div>
               <h1 className="mt-3 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
                 Pedido #{order.id.slice(0, 8)}
