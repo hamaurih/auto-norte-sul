@@ -422,9 +422,9 @@ as $$
 begin
   if new.status='enviado'
      and new.order_id is null
-     and (tg_op='INSERT'
-          or old.status is distinct from new.status
-          or old.source_channel_code is distinct from new.source_channel_code) then
+     and (old.status is distinct from new.status
+          or old.source_channel_code is distinct from new.source_channel_code
+          or new.updated_at is distinct from old.updated_at) then
     perform private.ensure_assisted_sale_core_order(new.id);
   end if;
   return new;
@@ -436,7 +436,7 @@ from public,anon,authenticated;
 
 drop trigger if exists trg_sales_order_materialize_core on public.sales_orders;
 create trigger trg_sales_order_materialize_core
-after insert or update of status,source_channel_code
+after update of status,source_channel_code,updated_at
 on public.sales_orders
 for each row
 execute function private.on_sales_order_materialize_core();
