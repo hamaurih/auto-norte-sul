@@ -133,7 +133,19 @@ async function processJob(job: Job) {
   if (error || !order) return finish(job, "failed", "Pedido ausente ou inacessível");
 
   // Vendas canceladas NÃO podem ser exportadas; o ERP permanece fonte oficial.
-  if (order.status === "cancelado") return finish(job, "done");
+  if (order.status === "cancelado") {
+    const { error: cancelledStateError } = await db.from("orders").update({
+      bling_sync_status: "cancelled",
+      bling_sync_error: null,
+      bling_last_sync_at: new Date().toISOString(),
+    }).eq("tenant_id", job.tenant_id).eq("id", order.id);
+
+    return finish(
+      job,
+      cancelledStateError ? "failed" : "done",
+      cancelledStateError ? "Falha ao registrar cancelamento local da integração Bling" : undefined,
+    );
+  }
   if (job.event_type !== "paid" || !["pago", "faturado", "enviado", "entregue"].includes(order.status)) {
     return finish(job, "done");
   }
