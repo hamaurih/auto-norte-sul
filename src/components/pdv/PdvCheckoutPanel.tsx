@@ -302,7 +302,7 @@ export function PdvCheckoutPanel({
               key={i}
               type="button"
               className="flex w-full justify-between rounded border px-2 py-1 hover:bg-destructive/5"
-              onClick={() => setPayments((rows) => rows.filter((_, index) => index !== i)}
+              onClick={() => setPayments((rows) => rows.filter((_, index) => index !== i))}
             >
               <span>
                 {paymentLabels[p.method]}
