@@ -63,6 +63,7 @@ export type AssistOrderInput = {
   uplift_pct: number;
   credit_to_use: number;
   status: "rascunho" | "enviado";
+  channel: "whatsapp" | "vendedor";
   idempotency_key?: string;
 };
 
@@ -80,6 +81,7 @@ const assistOrderSchema = z.object({
   uplift_pct: z.number().min(0).max(100).default(0),
   credit_to_use: z.number().min(0).max(999999999).default(0),
   status: z.enum(["rascunho", "enviado"]),
+  channel: z.enum(["whatsapp", "vendedor"]).default("whatsapp"),
   idempotency_key: z.string().uuid().optional(),
 }).refine(
   (value) => !(value.uplift_pct > 0 && value.discount_pct > 0),
@@ -259,7 +261,31 @@ export const createAssistOrder = createServerFn({ method: "POST" })
     );
     if (error) throw new Error(error.message);
     if (!orderId) throw new Error("O pedido não retornou um identificador");
-    return { ok: true, id: orderId as string };
+
+    const { error: channelError } = await (supabaseAdmin as any)
+      .from("sales_orders")
+      .update({
+        source_channel_code: data.channel,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("tenant_id", context.tenantId)
+      .eq("id", orderId);
+    if (channelError) throw new Error(channelError.message);
+
+    const { data: linkedOrder, error: linkedOrderError } = await (supabaseAdmin as any)
+      .from("sales_orders")
+      .select("order_id")
+      .eq("tenant_id", context.tenantId)
+      .eq("id", orderId)
+      .maybeSingle();
+    if (linkedOrderError) throw new Error(linkedOrderError.message);
+
+    return {
+      ok: true,
+      id: orderId as string,
+      orderId: linkedOrder?.order_id ?? null,
+      channel: data.channel,
+    };
   });
 
 // ─── Listagem de pedidos do vendedor ────────────────────────────────────────

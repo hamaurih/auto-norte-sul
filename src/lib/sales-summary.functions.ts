@@ -10,23 +10,64 @@ type Origin = "site" | "ia" | "balcao";
 type Sale = { id: string; origin: Origin; createdAt: string; total: number; status: string; customer: string; items: Array<{ name: string; sku?: string; quantity: number; total: number }> };
 const active = (status: unknown) => !CLOSED.has(String(status ?? "").toLowerCase());
 
-/** Tenant-scoped read model: site checkout, sales IA and POS are consolidated
- * only for reporting; source records and financial values are never altered. */
+/** Tenant-scoped omnichannel read model.
+ * public.orders is the canonical sale record. pos_sales/sales_orders are read
+ * only as a legacy fallback when they do not yet have a linked core order. */
 export const getSalesSummary = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { days?: number } = {}) => ({ days: Math.min(365, Math.max(1, Math.trunc(input.days ?? 30))) }))
   .handler(async ({ data, context }) => {
     const sb = tdb(context.supabase); await requireTenantSalesRole(sb, context.userId, context.tenantId);
     const since = new Date(Date.now() - data.days * 86_400_000).toISOString();
-    const [siteResult, posResult, iaResult] = await Promise.all([
-      sb.from("orders").select("id,status,total,customer_name,created_at,order_items(name,sku,quantity,total)").eq("tenant_id", context.tenantId).gte("created_at", since).order("created_at", { ascending: false }).limit(2000),
-      sb.from("pos_sales").select("id,status,total,created_at,customer:customers(name),items:pos_sale_items(quantity,line_total,product:products(name,sku))").eq("tenant_id", context.tenantId).gte("created_at", since).order("created_at", { ascending: false }).limit(2000),
-      sb.from("sales_orders").select("id,status,total,lead_name,created_at,items").eq("tenant_id", context.tenantId).gte("created_at", since).order("created_at", { ascending: false }).limit(2000),
+    const [coreResult, posLegacyResult, assistedLegacyResult] = await Promise.all([
+      sb.from("orders")
+        .select("id,status,total,customer_name,created_at,sales_channel:sales_channels(code,name),order_items(name,sku,quantity,total)")
+        .eq("tenant_id", context.tenantId)
+        .gte("created_at", since)
+        .order("created_at", { ascending: false })
+        .limit(2000),
+      (sb as any).from("pos_sales")
+        .select("id,order_id,status,total,created_at,customer:customers(name),items:pos_sale_items(quantity,line_total,product:products(name,sku))")
+        .eq("tenant_id", context.tenantId)
+        .is("order_id", null)
+        .gte("created_at", since)
+        .order("created_at", { ascending: false })
+        .limit(2000),
+      sb.from("sales_orders")
+        .select("id,order_id,status,total,lead_name,created_at,items")
+        .eq("tenant_id", context.tenantId)
+        .is("order_id", null)
+        .gte("created_at", since)
+        .order("created_at", { ascending: false })
+        .limit(2000),
     ]);
-    for (const result of [siteResult, posResult, iaResult]) if (result.error) throw new Error(result.error.message);
-    const site: Sale[] = (siteResult.data ?? []).filter((r: any) => active(r.status)).map((r: any) => ({ id:r.id,origin:"site",createdAt:r.created_at,total:money(r.total),status:r.status,customer:r.customer_name||"Cliente do site",items:(r.order_items??[]).map((i:any)=>({name:i.name||"Produto",sku:i.sku,quantity:Number(i.quantity??0),total:money(i.total)})) }));
-    const balcao: Sale[] = (posResult.data ?? []).filter((r: any) => active(r.status)).map((r: any) => ({ id:r.id,origin:"balcao",createdAt:r.created_at,total:money(r.total),status:r.status,customer:r.customer?.name||"Cliente de balcão",items:(r.items??[]).map((i:any)=>({name:i.product?.name||"Produto",sku:i.product?.sku,quantity:Number(i.quantity??0),total:money(i.line_total)})) }));
-    const ia: Sale[] = (iaResult.data ?? []).filter((r: any) => active(r.status)).map((r: any) => ({ id:r.id,origin:"ia",createdAt:r.created_at,total:money(r.total),status:r.status,customer:r.lead_name||"Cliente atendido pela IA",items:Array.isArray(r.items)?r.items.map((i:any)=>({name:i.name||i.product_name||"Produto",sku:i.sku,quantity:Number(i.quantity??0),total:money(i.total??Number(i.quantity??0)*Number(i.unit_price??0))})):[] }));
+    for (const result of [coreResult, posLegacyResult, assistedLegacyResult]) if (result.error) throw new Error(result.error.message);
+
+    const core: Sale[] = (coreResult.data ?? [])
+      .filter((r: any) => active(r.status))
+      .map((r: any) => {
+        const code = String(r.sales_channel?.code ?? "site");
+        const origin: Origin = code === "pdv" ? "balcao" : (code === "whatsapp" || code === "vendedor") ? "ia" : "site";
+        return {
+          id:r.id,
+          origin,
+          createdAt:r.created_at,
+          total:money(r.total),
+          status:r.status,
+          customer:r.customer_name || (origin === "balcao" ? "Cliente de balcão" : origin === "ia" ? "Cliente WhatsApp" : "Cliente do site"),
+          items:(r.order_items??[]).map((i:any)=>({name:i.name||"Produto",sku:i.sku,quantity:Number(i.quantity??0),total:money(i.total)})),
+        };
+      });
+
+    const site: Sale[] = core.filter((r) => r.origin === "site");
+    const balcao: Sale[] = [
+      ...core.filter((r) => r.origin === "balcao"),
+      ...(posLegacyResult.data ?? []).filter((r: any) => active(r.status)).map((r: any) => ({ id:r.id,origin:"balcao" as const,createdAt:r.created_at,total:money(r.total),status:r.status,customer:r.customer?.name||"Cliente de balcão",items:(r.items??[]).map((i:any)=>({name:i.product?.name||"Produto",sku:i.product?.sku,quantity:Number(i.quantity??0),total:money(i.line_total)})) })),
+    ];
+    const ia: Sale[] = [
+      ...core.filter((r) => r.origin === "ia"),
+      ...(assistedLegacyResult.data ?? []).filter((r: any) => active(r.status)).map((r: any) => ({ id:r.id,origin:"ia" as const,createdAt:r.created_at,total:money(r.total),status:r.status,customer:r.lead_name||"Cliente WhatsApp",items:Array.isArray(r.items)?r.items.map((i:any)=>({name:i.name||i.product_name||"Produto",sku:i.sku,quantity:Number(i.quantity??0),total:money(i.total??Number(i.quantity??0)*Number(i.unit_price??0))})):[] })),
+    ];
     const all=[...site,...balcao,...ia].sort((a,b)=>+new Date(b.createdAt)-+new Date(a.createdAt));
     const origin=(key:Origin)=>{const rows=all.filter(r=>r.origin===key);return{orders:rows.length,gross:rows.reduce((n,r)=>n+r.total,0)}};
     const products=new Map<string,{name:string;sku?:string;quantity:number;revenue:number}>();
