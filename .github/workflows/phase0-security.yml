@@ -54,6 +54,7 @@ jobs:
         run: |
           supabase stop --no-backup || true
           docker ps -aq --filter "name=supabase_" | xargs -r docker rm -f || true
+          docker ps --format '{{.ID}} {{.Ports}}' | awk '/5432[0-9]\/tcp/ {print $1}' | xargs -r docker rm -f || true
 
       - name: Start isolated local Supabase
         run: supabase start
