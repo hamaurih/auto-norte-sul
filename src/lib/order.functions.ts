@@ -364,6 +364,97 @@ export const confirmOrderPayment = createServerFn({ method: "POST" })
     return { status };
   });
 
+export const refundAdminOrderPayment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({
+      orderId: z.string().uuid(),
+      paymentIntentId: z.string().uuid(),
+      reason: z.string().trim().min(3).max(500),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: membership, error: membershipError } = await (supabaseAdmin as any)
+      .from("tenant_memberships")
+      .select("role")
+      .eq("tenant_id", context.tenantId)
+      .eq("user_id", context.userId)
+      .eq("active", true);
+    if (membershipError) throw new Error(membershipError.message);
+    if (!(membership ?? []).some((m: any) => ["owner","admin","manager","finance"].includes(m.role))) {
+      throw new Error("Usuário sem permissão para estornar pagamentos.");
+    }
+
+    const { data: order, error: orderError } = await (supabaseAdmin as any)
+      .from("orders")
+      .select("id,status,fulfillment_type,pickup_status,notes")
+      .eq("tenant_id", context.tenantId)
+      .eq("id", data.orderId)
+      .maybeSingle();
+    if (orderError) throw new Error(orderError.message);
+    if (!order) throw new Error("Pedido não encontrado.");
+    if (order.status !== "pago") {
+      throw new Error("O estorno automático só é liberado antes do faturamento ou envio.");
+    }
+
+    const { data: payment, error: paymentError } = await (supabaseAdmin as any)
+      .from("payment_intents")
+      .select("id,order_id,status,method,provider:payment_providers(code)")
+      .eq("tenant_id", context.tenantId)
+      .eq("id", data.paymentIntentId)
+      .eq("order_id", data.orderId)
+      .maybeSingle();
+    if (paymentError) throw new Error(paymentError.message);
+    if (!payment) throw new Error("Pagamento do pedido não encontrado.");
+    if (payment.provider?.code !== "asaas") {
+      throw new Error("Este pagamento não foi processado pelo Asaas.");
+    }
+    if (!["paid","partially_refunded"].includes(String(payment.status))) {
+      throw new Error("Este pagamento não está elegível para estorno.");
+    }
+
+    const { refundAsaasPayment } = await import("@/lib/asaas-payments.server");
+    const result = await refundAsaasPayment(
+      supabaseAdmin as any,
+      context.tenantId,
+      data.paymentIntentId,
+      data.reason,
+    );
+
+    if (result.status === "refunded") {
+      const now = new Date().toISOString();
+      const { error: cancelError } = await (supabaseAdmin as any)
+        .from("orders")
+        .update({
+          status: "cancelado",
+          pickup_status: order.fulfillment_type === "pickup" ? "cancelled" : order.pickup_status,
+          notes: [order.notes, `Pagamento estornado. Motivo: ${data.reason}. Estoque não retornado automaticamente.`]
+            .filter(Boolean)
+            .join("\n"),
+        })
+        .eq("tenant_id", context.tenantId)
+        .eq("id", data.orderId)
+        .eq("status", "pago");
+      if (cancelError) throw new Error(cancelError.message);
+
+      const { error: historyError } = await (supabaseAdmin as any)
+        .from("order_status_events")
+        .insert({
+          tenant_id: context.tenantId,
+          order_id: data.orderId,
+          from_status: "pago",
+          to_status: "cancelado",
+          actor_user_id: context.userId,
+          note: `Estorno financeiro confirmado via Asaas. Motivo: ${data.reason}. Estoque não retornado automaticamente.`,
+          created_at: now,
+        });
+      if (historyError) throw new Error(historyError.message);
+    }
+
+    return result;
+  });
+
 export type OrderOperation =
   | "confirm_payment"
   | "cancel"
