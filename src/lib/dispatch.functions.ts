@@ -60,7 +60,7 @@ export const getOrderDispatch = createServerFn({ method: "GET" })
         ? sb.from("order_items").select("id, name, sku").eq("tenant_id", context.tenantId).in("id", orderItemIds)
         : Promise.resolve({ data: [], error: null }),
       productIds.length
-        ? sb.from("products").select("id, internal_code, manufacturer_code, gtin").eq("tenant_id", context.tenantId).in("id", productIds)
+        ? sb.from("products").select("id, internal_code, manufacturer_code, gtin, images:product_images(url, alt, is_primary, sort_order)").eq("tenant_id", context.tenantId).in("id", productIds)
         : Promise.resolve({ data: [], error: null }),
     ]);
 
@@ -79,6 +79,12 @@ export const getOrderDispatch = createServerFn({ method: "GET" })
         internal_code: productById.get(item.product_id)?.internal_code ?? null,
         manufacturer_code: productById.get(item.product_id)?.manufacturer_code ?? null,
         gtin: productById.get(item.product_id)?.gtin ?? null,
+        image: (() => {
+          const images = productById.get(item.product_id)?.images ?? [];
+          return [...images].sort((a: any, b: any) =>
+            Number(b.is_primary) - Number(a.is_primary) || Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0)
+          )[0] ?? null;
+        })(),
       })),
     };
   });
