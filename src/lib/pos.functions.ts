@@ -228,6 +228,28 @@ export const finalizePosSale = createServerFn({ method: "POST" })
     return { saleId: saleId as string };
   });
 
+export const getCashSessionSnapshot = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { sessionId: string }) => input)
+  .handler(async ({ data, context }) => {
+    const { data: row, error } = await tdb(context.supabase).rpc("get_pos_cash_session_snapshot", {
+      p_session_id: data.sessionId,
+    });
+    if (error) throw new Error(error.message);
+    return row as {
+      session_id: string;
+      status: string;
+      opening_amount: number;
+      cash_sales: number;
+      supplies: number;
+      withdrawals: number;
+      expected_cash: number;
+      payment_breakdown: Record<string, number>;
+      opened_at: string;
+      closed_at: string | null;
+    };
+  });
+
 export const recordCashMovement = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { sessionId: string; type: PosCashMovementType; amount: number; reason: string }) => input)

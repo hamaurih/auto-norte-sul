@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { ArrowDownToLine, ArrowUpFromLine, LockKeyhole } from "lucide-react";
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { closeCashSession, recordCashMovement, type PosCashMovementType } from "@/lib/pos.functions";
+import { closeCashSession, getCashSessionSnapshot, recordCashMovement, type PosCashMovementType } from "@/lib/pos.functions";
 
 export function PdvCashControls({
   sessionId, busy, onBusyChange, onClosed,
@@ -18,6 +19,12 @@ export function PdvCashControls({
 }) {
   const moveCash = useServerFn(recordCashMovement);
   const closeCash = useServerFn(closeCashSession);
+  const snapshotFn = useServerFn(getCashSessionSnapshot);
+  const snapshotQuery = useQuery({
+    queryKey: ["pdv-cash-snapshot", sessionId],
+    queryFn: () => snapshotFn({ data: { sessionId } }),
+    enabled: Boolean(sessionId),
+  });
   const [type, setType] = useState<PosCashMovementType>("withdrawal");
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
@@ -39,10 +46,14 @@ export function PdvCashControls({
     try {
       await moveCash({ data: { sessionId, type, amount: parsed, reason: reason.trim() } });
       toast.success(type === "supply" ? "Suprimento registrado" : "Sangria registrada");
+      await snapshotQuery.refetch();
       setAmount("");
       setReason("");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao registrar movimento");
+      const message = error instanceof Error ? error.message : "Falha ao registrar movimento";
+      toast.error(message.includes("INSUFFICIENT_CASH_DRAWER")
+        ? "Sangria maior que o dinheiro disponível no caixa."
+        : message);
     } finally {
       onBusyChange(false);
     }
@@ -71,6 +82,14 @@ export function PdvCashControls({
 
   return (
     <div className="space-y-3 border-t pt-3">
+      {snapshotQuery.data && (
+        <div className="grid grid-cols-2 gap-2 rounded-lg border bg-background p-2 text-xs">
+          <div><span className="text-muted-foreground">Dinheiro projetado</span><div className="font-bold">R$ {Number(snapshotQuery.data.expected_cash ?? 0).toFixed(2).replace(".", ",")}</div></div>
+          <div><span className="text-muted-foreground">Vendas em dinheiro</span><div className="font-bold">R$ {Number(snapshotQuery.data.cash_sales ?? 0).toFixed(2).replace(".", ",")}</div></div>
+          <div><span className="text-muted-foreground">Suprimentos</span><div>R$ {Number(snapshotQuery.data.supplies ?? 0).toFixed(2).replace(".", ",")}</div></div>
+          <div><span className="text-muted-foreground">Sangrias</span><div>R$ {Number(snapshotQuery.data.withdrawals ?? 0).toFixed(2).replace(".", ",")}</div></div>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase text-muted-foreground">Controle de caixa</p>
         <Button type="button" size="sm" variant="ghost" onClick={() => setShowClose((value) => !value)}>
