@@ -11,6 +11,10 @@
     {
       "path": "/api/public/cron/bling-sales-export",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/public/cron/bling-fiscal-sync",
+      "schedule": "15 * * * *"
     }
   ]
 }

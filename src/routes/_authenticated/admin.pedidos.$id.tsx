@@ -16,6 +16,7 @@ import {
   PackageCheck,
   Phone,
   ReceiptText,
+  RefreshCcw,
   ScanLine,
   Send,
   ShoppingBag,
@@ -39,6 +40,10 @@ import {
   updateAdminOrderOperation,
   type OrderOperation,
 } from "@/lib/order.functions";
+import {
+  getOrderFiscalTrace,
+  syncOrderFiscalFromBling,
+} from "@/lib/fiscal-bling.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/pedidos/$id")({
   head: () => ({ meta: [{ title: "Detalhe do pedido · Admin" }] }),
@@ -175,6 +180,8 @@ function OrderDetailPage() {
   const startDispatchFn = useServerFn(startOrderDispatch);
   const scanDispatchFn = useServerFn(scanOrderDispatch);
   const completeDispatchFn = useServerFn(completeOrderDispatch);
+  const fiscalTraceFn = useServerFn(getOrderFiscalTrace);
+  const fiscalSyncFn = useServerFn(syncOrderFiscalFromBling);
   const queryClient = useQueryClient();
   const [note, setNote] = useState("");
   const [scanCode, setScanCode] = useState("");
@@ -187,6 +194,32 @@ function OrderDetailPage() {
   const dispatchDetail = useQuery({
     queryKey: ["order-dispatch", id],
     queryFn: () => dispatchDetailFn({ data: { orderId: id } }),
+  });
+
+  const fiscalTrace = useQuery({
+    queryKey: ["order-fiscal-trace", id],
+    queryFn: () => fiscalTraceFn({ data: { orderId: id } }),
+  });
+
+  const fiscalSync = useMutation({
+    mutationFn: () => fiscalSyncFn({ data: { orderId: id } }),
+    onSuccess: async (result: any) => {
+      const message =
+        result?.state === "synced"
+          ? "Fiscal sincronizado com o Bling."
+          : result?.state === "waiting_invoice"
+            ? "Pedido está no Bling, mas ainda sem NF-e vinculada."
+            : result?.state === "waiting_order_sync"
+              ? "O pedido ainda precisa ser sincronizado com o Bling."
+              : "Situação fiscal atualizada.";
+      toast.success(message);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["order-fiscal-trace", id] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-order-detail", id] }),
+        queryClient.invalidateQueries({ queryKey: ["fiscal-overview"] }),
+      ]);
+    },
+    onError: (error: Error) => toast.error(error.message),
   });
 
   const operation = useMutation({
@@ -413,6 +446,13 @@ function OrderDetailPage() {
           </div>
         </section>
       )}
+
+      <FiscalTraceCard
+        trace={fiscalTrace.data as any}
+        loading={fiscalTrace.isLoading}
+        syncing={fiscalSync.isPending}
+        onSync={() => fiscalSync.mutate()}
+      />
 
       <DispatchConferenceCard
         detail={dispatchDetail}
@@ -922,6 +962,93 @@ function DispatchConferenceCard({
         <p role="alert" className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm text-rose-800">
           {(error as Error).message}
         </p>
+      )}
+    </section>
+  );
+}
+
+function FiscalTraceCard({
+  trace,
+  loading,
+  syncing,
+  onSync,
+}: {
+  trace: any;
+  loading: boolean;
+  syncing: boolean;
+  onSync: () => void;
+}) {
+  const order = trace?.order;
+  const documents = trace?.documents ?? [];
+  const document = documents[0];
+
+  return (
+    <section className="rounded-3xl border border-indigo-200/70 bg-gradient-to-r from-indigo-50 via-white to-blue-50 p-5 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide text-indigo-700">
+            <FileCheck2 className="h-4 w-4" /> Fiscal / Bling
+          </div>
+          <h2 className="mt-1 font-display text-xl font-extrabold">Rastreabilidade fiscal</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Pedido ERP → pedido Bling → NF-e → autorização SEFAZ.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onSync}
+          disabled={loading || syncing}
+          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-indigo-200 bg-white px-3 text-xs font-extrabold text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+        >
+          <RefreshCcw className={"h-4 w-4 " + (syncing ? "animate-spin" : "")} />
+          {syncing ? "Atualizando…" : "Atualizar do Bling"}
+        </button>
+      </div>
+
+      {loading ? (
+        <p className="mt-4 text-sm text-muted-foreground">Consultando situação fiscal…</p>
+      ) : (
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl border bg-white p-3">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Pedido Bling</p>
+            <p className="mt-1 font-semibold">{order?.bling_id ? "#" + order.bling_id : "Ainda não vinculado"}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{order?.bling_sync_status ?? "sem status"}</p>
+          </div>
+          <div className="rounded-2xl border bg-white p-3">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">NF-e</p>
+            <p className="mt-1 font-semibold">
+              {document ? "Série " + document.series + " · Nº " + document.number : order?.bling_invoice_id ? "#" + order.bling_invoice_id : "Aguardando emissão"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {document?.status ?? order?.bling_invoice_status ?? "Sem documento fiscal"}
+            </p>
+          </div>
+          <div className="rounded-2xl border bg-white p-3">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">SEFAZ</p>
+            <p className="mt-1 font-semibold">{document?.protocol || "Sem protocolo"}</p>
+            <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
+              {document?.access_key || "Chave ainda não disponível"}
+            </p>
+          </div>
+          <div className="rounded-2xl border bg-white p-3">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Documento</p>
+            {document?.document_url ? (
+              <a
+                href={document.document_url}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 inline-flex items-center gap-1 font-semibold text-indigo-700 hover:underline"
+              >
+                Abrir DANFE <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            ) : (
+              <p className="mt-1 font-semibold text-muted-foreground">DANFE indisponível</p>
+            )}
+            <p className="mt-1 text-xs text-muted-foreground">
+              Última sincronização: {formatDate(document?.last_synced_at)}
+            </p>
+          </div>
+        </div>
       )}
     </section>
   );

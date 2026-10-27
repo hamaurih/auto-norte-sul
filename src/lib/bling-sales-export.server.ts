@@ -5,7 +5,7 @@ const API = "https://api.bling.com.br/Api/v3";
 const db = supabaseAdmin as any;
 type Job = { job_id: string; tenant_id: string; order_id: string; event_type: string; attempts: number };
 
-async function accessToken(tenantId: string) {
+export async function getBlingAccessToken(tenantId: string) {
   const { data: cfg, error } = await db.from("bling_config")
     .select("id,active,tenant_id,client_id,client_secret_encrypted,access_token,refresh_token,expires_at")
     .eq("tenant_id", tenantId).eq("active", true).maybeSingle();
@@ -154,7 +154,7 @@ async function processJob(job: Job) {
   // Nunca gerar um segundo pedido se a primeira tentativa já foi reconhecida no Bling.
   // O número de referência do ERP será consultado antes de qualquer POST.
 
-  const token = await accessToken(job.tenant_id);
+  const token = await getBlingAccessToken(job.tenant_id);
   const { data: customer, error: customerError } = await db.from("customers")
     .select("id,bling_id,name,email,phone,document")
     .eq("tenant_id", job.tenant_id).eq("id", order.customer_id).maybeSingle();
