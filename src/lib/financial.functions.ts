@@ -112,15 +112,20 @@ export const syncReceivables=createServerFn({method:"POST"}).middleware([require
  const sb=tdb(context.supabase);await requireFinanceAdmin(sb,context.userId,context.tenantId);const now=new Date().toISOString();
  const [intents,payments,allSiteOrders,b2bOrders]=await Promise.all([
   sb.from("payment_intents").select("id,order_id,method,amount,status,paid_at,external_id,boleto_url,created_at,order:orders(customer_id,customer_name,created_at)").eq("tenant_id",context.tenantId).not("status","in",'("cancelled","failed","refunded")'),
-  sb.from("pos_payments").select("id,sale_id,method,amount,status,provider_reference,created_at,sale:pos_sales(customer_id,status,created_at)").eq("tenant_id",context.tenantId).not("status","in",'("cancelled","void","refunded")'),
+  (sb as any).from("pos_payments").select("id,sale_id,method,amount,status,provider_reference,created_at,sale:pos_sales(customer_id,status,created_at,order_id)").eq("tenant_id",context.tenantId).not("status","in",'("cancelled","void","refunded")'),
   sb.from("orders").select("id,customer_id,customer_name,total,payment_method,created_at").eq("tenant_id",context.tenantId),
   sb.from("sales_orders").select("id,customer_id,lead_name,total,status,created_at,customer:customers(name)").eq("tenant_id",context.tenantId).is("order_id",null).not("status","in",'("cancelled","canceled","rejected")'),
  ]);
  for(const result of [intents,payments,allSiteOrders,b2bOrders])if(result.error)throw new Error(result.error.message);
- const intentOrderIds=new Set((intents.data??[]).map((x:any)=>x.order_id));const rows:any[]=[];
+ const intentOrderIds=new Set((intents.data??[]).map((x:any)=>x.order_id));
+ const posOrderIds=new Set((payments.data??[]).map((x:any)=>x.sale?.order_id).filter(Boolean));
+ const rows:any[]=[];
  for(const x of intents.data??[]){const o:any=x.order;rows.push({tenant_id:context.tenantId,source_type:"payment_intent",source_id:x.id,customer_id:o?.customer_id??null,customer_name:o?.customer_name??"Cliente do site",description:"Pedido do site",amount:x.amount,due_date:(x.created_at??now).slice(0,10),payment_method:x.method,payment_reference:x.external_id??null,payment_url:x.boleto_url??null,status:sourceStatus(x.status),received_at:sourceStatus(x.status)==="received"?(x.paid_at??now):null,updated_by:context.userId,updated_at:now,created_by:context.userId});}
  for(const x of payments.data??[]){const sale:any=x.sale;if((sale?.status??"").toLowerCase().includes("cancel"))continue;rows.push({tenant_id:context.tenantId,source_type:"pos_payment",source_id:x.id,customer_id:sale?.customer_id??null,customer_name:"Cliente PDV",description:"Venda no PDV",amount:x.amount,due_date:(x.created_at??now).slice(0,10),payment_method:x.method,payment_reference:x.provider_reference??null,status:sourceStatus(x.status),received_at:sourceStatus(x.status)==="received"?(x.created_at??now):null,updated_by:context.userId,updated_at:now,created_by:context.userId});}
- for(const x of allSiteOrders.data??[]){if(intentOrderIds.has(x.id))continue;rows.push({tenant_id:context.tenantId,source_type:"site_order",source_id:x.id,customer_id:x.customer_id??null,customer_name:x.customer_name,description:"Pedido do site sem cobrança vinculada",amount:x.total,due_date:(x.created_at??now).slice(0,10),payment_method:x.payment_method??null,status:"open",received_at:null,updated_by:context.userId,updated_at:now,created_by:context.userId});}
+ for(const x of allSiteOrders.data??[]){
+   if(intentOrderIds.has(x.id)||posOrderIds.has(x.id))continue;
+   rows.push({tenant_id:context.tenantId,source_type:"core_order",source_id:x.id,customer_id:x.customer_id??null,customer_name:x.customer_name,description:"Pedido omnichannel sem cobrança vinculada",amount:x.total,due_date:(x.created_at??now).slice(0,10),payment_method:x.payment_method??null,status:"open",received_at:null,updated_by:context.userId,updated_at:now,created_by:context.userId});
+ }
  for(const x of b2bOrders.data??[]){const c:any=x.customer;rows.push({tenant_id:context.tenantId,source_type:"b2b_order",source_id:x.id,customer_id:x.customer_id??null,customer_name:c?.name??x.lead_name??"Cliente B2B",description:"Pedido B2B",amount:x.total,due_date:(x.created_at??now).slice(0,10),payment_method:"a combinar",status:"open",received_at:null,updated_by:context.userId,updated_at:now,created_by:context.userId});}
  if(rows.length){const {error}=await (sb as any).from("financial_receivables").upsert(rows,{onConflict:"tenant_id,source_type,source_id"});if(error)throw new Error(error.message);}
  return {ok:true,synced:rows.length};
