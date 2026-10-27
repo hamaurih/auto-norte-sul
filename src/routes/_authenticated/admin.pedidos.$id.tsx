@@ -25,6 +25,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { brl } from "@/lib/format";
 import {
   completeOrderDispatch,
@@ -34,6 +35,7 @@ import {
 } from "@/lib/dispatch.functions";
 import {
   getAdminOrderDetail,
+  refundAdminOrderPayment,
   updateAdminOrderOperation,
   type OrderOperation,
 } from "@/lib/order.functions";
@@ -168,6 +170,7 @@ function OrderDetailPage() {
   const { id } = Route.useParams();
   const detailFn = useServerFn(getAdminOrderDetail);
   const operationFn = useServerFn(updateAdminOrderOperation);
+  const refundFn = useServerFn(refundAdminOrderPayment);
   const dispatchDetailFn = useServerFn(getOrderDispatch);
   const startDispatchFn = useServerFn(startOrderDispatch);
   const scanDispatchFn = useServerFn(scanOrderDispatch);
@@ -197,6 +200,38 @@ function OrderDetailPage() {
       ]);
     },
   });
+
+  const refundPayment = useMutation({
+    mutationFn: ({ paymentIntentId, reason }: { paymentIntentId: string; reason: string }) =>
+      refundFn({ data: { orderId: id, paymentIntentId, reason } }),
+    onSuccess: async (result: any) => {
+      if (result?.requestUrl) {
+        toast.success("Solicitação de estorno do boleto iniciada. O cliente precisa concluir os dados bancários.");
+        window.open(result.requestUrl, "_blank", "noopener,noreferrer");
+      } else if (result?.status === "refunded") {
+        toast.success("Pagamento estornado e pedido cancelado.");
+      } else {
+        toast.success("Estorno solicitado ao Asaas. O pedido será atualizado após a confirmação do provedor.");
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin-order-detail", id] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-orders"] }),
+      ]);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  function requestRefund(payment: any) {
+    const reason = window.prompt(
+      "Motivo do estorno",
+      "Produto indisponível / vencido antes da separação",
+    );
+    if (!reason || reason.trim().length < 3) return;
+    if (!window.confirm(
+      "Confirma o estorno financeiro deste pagamento? O estoque NÃO será recolocado automaticamente.",
+    )) return;
+    refundPayment.mutate({ paymentIntentId: payment.id, reason: reason.trim() });
+  }
 
   const startDispatch = useMutation({
     mutationFn: () => startDispatchFn({ data: { orderId: id } }),
@@ -488,6 +523,19 @@ function OrderDetailPage() {
                         Abrir cobrança <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                       </a>
                     )}
+                    {order.status === "pago" &&
+                      payment.status === "paid" &&
+                      payment.provider?.code === "asaas" && (
+                        <button
+                          type="button"
+                          onClick={() => requestRefund(payment)}
+                          disabled={refundPayment.isPending}
+                          className="mt-3 ml-2 inline-flex min-h-11 items-center gap-2 rounded-xl border border-rose-200 bg-white px-3 text-xs font-extrabold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                        >
+                          <XCircle className="h-4 w-4" />
+                          {refundPayment.isPending ? "Estornando…" : "Estornar pagamento"}
+                        </button>
+                      )}
                   </article>
                 ))}
               </div>
