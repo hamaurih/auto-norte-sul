@@ -263,6 +263,12 @@ export const adminModules: AdminModule[] = [
         icon: PackageCheck,
       },
       {
+        to: "/admin/devolucoes-fornecedor",
+        label: "Devoluções e divergências",
+        description: "Retorno ao fornecedor e créditos",
+        icon: ArrowLeftRight,
+      },
+      {
         to: "/admin/nfe-importacao",
         label: "Importar XML NF-e",
         description: "Conferência da nota de compra",

@@ -106,9 +106,9 @@ jobs:
           cp /tmp/norte-sul-all-migrations/20260829143000_phase0_security_containment.sql supabase/migrations/20260829143000_phase0_security_containment.sql
 
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v3.0.1
         with:
-          version: latest
+          version: 2.122.0
 
       - name: Start isolated local Supabase
         run: supabase start
