@@ -12,7 +12,13 @@ import {
 
 type Item = { id: string; name: string; quantity: number; unitPrice: number };
 type Warehouse = { id: string; branch_id: string; name: string; code: string };
-type Payment = { method: PosPaymentMethod; amount: number; installments: number };
+type Payment = {
+  method: PosPaymentMethod;
+  amount: number;
+  installments: number;
+  provider?: string;
+  provider_reference?: string;
+};
 
 const paymentLabels: Record<PosPaymentMethod, string> = {
   cash: "Dinheiro", pix: "Pix", debit_card: "Débito", credit_card: "Crédito",
@@ -31,6 +37,8 @@ export function PdvCheckoutPanel({
   const [method, setMethod] = useState<PosPaymentMethod>("cash");
   const [amount, setAmount] = useState("");
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [reference, setReference] = useState("");
+  const [installments, setInstallments] = useState(1);
   const [busy, setBusy] = useState(false);
 
   const paid = payments.reduce((sum, p) => sum + p.amount, 0);
@@ -79,8 +87,23 @@ export function PdvCheckoutPanel({
       toast.error("Informe um valor válido");
       return;
     }
-    setPayments((rows) => [...rows, { method, amount: Math.round(value * 100) / 100, installments: 1 }]);
+
+    const electronic = ["pix", "debit_card", "credit_card"].includes(method);
+    const providerReference = reference.trim();
+    if (electronic && !providerReference) {
+      toast.error("Informe o NSU/ID da transação eletrônica.");
+      return;
+    }
+
+    setPayments((rows) => [...rows, {
+      method,
+      amount: Math.round(value * 100) / 100,
+      installments: method === "credit_card" ? installments : 1,
+      provider_reference: providerReference || undefined,
+    }]);
     setAmount("");
+    setReference("");
+    setInstallments(1);
   }
 
   async function finalize() {
@@ -92,7 +115,9 @@ export function PdvCheckoutPanel({
         items: items.map((item) => ({ product_id: item.id, quantity: item.quantity })),
         payments, discountAmount: 0,
       } });
-      toast.success(`Venda concluída #${result.saleId.slice(0, 8)}`);
+      toast.success(
+        `Venda PDV #${result.saleId.slice(0, 8)}${result.orderId ? ` · Pedido ERP #${result.orderId.slice(0, 8)}` : ""}`,
+      );
       setPayments([]);
       onCompleted(result.saleId);
     } catch (error) {
@@ -120,17 +145,53 @@ export function PdvCheckoutPanel({
         <span className="font-semibold text-green-700">● {terminalCode} aberto</span>
         <span>Falta: R$ {remaining.toFixed(2).replace(".", ",")}</span>
       </div>
-      <div className="grid grid-cols-[1fr_110px_auto] gap-2">
-        <Select value={method} onValueChange={(v) => setMethod(v as PosPaymentMethod)}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>{Object.entries(paymentLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
-        </Select>
-        <Input inputMode="decimal" placeholder={remaining.toFixed(2)} value={amount} onChange={(e) => setAmount(e.target.value)} />
-        <Button type="button" variant="outline" onClick={addPayment} disabled={remaining <= 0}>Adicionar</Button>
+      <div className="grid gap-2">
+        <div className="grid grid-cols-[1fr_110px_auto] gap-2">
+          <Select value={method} onValueChange={(v) => {
+            setMethod(v as PosPaymentMethod);
+            setReference("");
+            setInstallments(1);
+          }}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>{Object.entries(paymentLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
+          </Select>
+          <Input inputMode="decimal" placeholder={remaining.toFixed(2)} value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <Button type="button" variant="outline" onClick={addPayment} disabled={remaining <= 0}>Adicionar</Button>
+        </div>
+
+        {["pix", "debit_card", "credit_card"].includes(method) && (
+          <div className="grid gap-2 sm:grid-cols-[1fr_150px]">
+            <div>
+              <Label htmlFor="payment-reference">NSU / ID da transação</Label>
+              <Input
+                id="payment-reference"
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                placeholder="Obrigatório para pagamento eletrônico"
+              />
+            </div>
+            {method === "credit_card" ? (
+              <div>
+                <Label>Parcelas</Label>
+                <Select value={String(installments)} onValueChange={(value) => setInstallments(Number(value))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[1,2,3,4,5,6].map((count) => <SelectItem key={count} value={String(count)}>{count}x</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : <div />}
+          </div>
+        )}
       </div>
       {payments.length > 0 && <div className="space-y-1 text-xs">{payments.map((p, i) => (
         <button key={i} type="button" className="flex w-full justify-between rounded border px-2 py-1 hover:bg-destructive/5" onClick={() => setPayments((rows) => rows.filter((_, index) => index !== i))}>
-          <span>{paymentLabels[p.method]}</span><span>R$ {p.amount.toFixed(2).replace(".", ",")} · remover</span>
+          <span>
+            {paymentLabels[p.method]}
+            {p.installments > 1 ? ` · ${p.installments}x` : ""}
+            {p.provider_reference ? ` · ${p.provider_reference}` : ""}
+          </span>
+          <span>R$ {p.amount.toFixed(2).replace(".", ",")} · remover</span>
         </button>
       ))}</div>}
       <Button className="w-full" size="lg" disabled={busy || items.length === 0 || Math.abs(paid - total) > 0.001} onClick={finalize}>

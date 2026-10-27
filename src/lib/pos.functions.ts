@@ -219,13 +219,33 @@ export const finalizePosSale = createServerFn({ method: "POST" })
     discountAmount?: number; customerId?: string;
   }) => input)
   .handler(async ({ data, context }) => {
-    const { data: saleId, error } = await tdb(context.supabase).rpc("finalize_pos_sale", {
+    const sb = tdb(context.supabase) as any;
+    const { data: saleId, error } = await sb.rpc("finalize_pos_sale", {
       p_tenant_id: context.tenantId, p_cash_session_id: data.cashSessionId,
       p_idempotency_key: data.idempotencyKey, p_items: data.items, p_payments: data.payments,
       p_discount_amount: data.discountAmount ?? 0, p_customer_id: data.customerId ?? null,
     });
     if (error) throw new Error(error.message);
-    return { saleId: saleId as string };
+
+    const { data: sale, error: saleError } = await sb
+      .from("pos_sales")
+      .select("order_id")
+      .eq("tenant_id", context.tenantId)
+      .eq("id", saleId)
+      .maybeSingle();
+    if (saleError) throw new Error(saleError.message);
+
+    const orderId = sale?.order_id ? String(sale.order_id) : null;
+    if (orderId) {
+      try {
+        const { processBlingPaidSaleNow } = await import("@/lib/bling-sales-export.server");
+        await processBlingPaidSaleNow(context.tenantId, orderId);
+      } catch (blingError) {
+        console.error("[PDV Bling immediate sync]", blingError);
+      }
+    }
+
+    return { saleId: saleId as string, orderId };
   });
 
 export const recordCashMovement = createServerFn({ method: "POST" })

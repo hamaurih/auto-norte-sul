@@ -49,7 +49,8 @@ function OrdersList() {
   const [query, setQuery] = useState("");
   const [page,setPage]=useState(0);
   const [statusFilter, setStatusFilter] = useState("");
-  const [channelFilter, setChannelFilter] = useState<"" | "b2b" | "b2c">("");
+  const [sourceFilter, setSourceFilter] = useState<"" | "site" | "pdv" | "whatsapp" | "default">("");
+  const [profileFilter, setProfileFilter] = useState<"" | "b2b" | "b2c">("");
   const [financialFilter, setFinancialFilter] = useState<"" | "paid" | "pending" | "cancelled">("");
   const [fiscalFilter,setFiscalFilter]=useState("");
   const [fulfillmentFilter,setFulfillmentFilter]=useState("");
@@ -59,11 +60,11 @@ function OrdersList() {
     queryFn: async () => {
       const { data: orders, error: ordersError } = await (supabase as any)
         .from("orders")
-        .select("id, customer_name, customer_email, status, total, created_at, is_b2b, bling_number, bling_invoice_status, bling_sync_status, fulfillment_type, pickup_status, payment_method")
+        .select("id, customer_name, customer_email, status, total, created_at, is_b2b, bling_number, bling_invoice_status, bling_sync_status, fulfillment_type, pickup_status, payment_method, channel:sales_channels(code,name)")
         .order("created_at", { ascending: false })
         .range(page*100,page*100+99);
       if (ordersError) throw ordersError;
-      const typedOrders=(orders??[]) as Array<{id:string;status:string;customer_name:string|null;customer_email:string|null;total:number;created_at:string;is_b2b:boolean;bling_number:string|null;bling_invoice_status:string|null;bling_sync_status:string|null;fulfillment_type:string|null;pickup_status:string|null;payment_method:string|null}>;
+      const typedOrders=(orders??[]) as Array<{id:string;status:string;customer_name:string|null;customer_email:string|null;total:number;created_at:string;is_b2b:boolean;bling_number:string|null;bling_invoice_status:string|null;bling_sync_status:string|null;fulfillment_type:string|null;pickup_status:string|null;payment_method:string|null;channel:{code:string;name:string}|null}>;
       const orderIds = typedOrders.map((order) => order.id);
       if (!orderIds.length) return [];
       const { data: intents, error: intentsError } = await supabase
@@ -99,18 +100,20 @@ function OrdersList() {
         (order.customer_email ?? "").toLocaleLowerCase("pt-BR").includes(normalizedQuery) ||
         String(order.bling_number ?? "").toLocaleLowerCase("pt-BR").includes(normalizedQuery);
       const matchesStatus = !statusFilter || order.status === statusFilter;
-      const matchesChannel =
-        !channelFilter ||
-        (channelFilter === "b2b" ? order.is_b2b : !order.is_b2b);
+      const channelCode = order.channel?.code ?? "default";
+      const matchesSource = !sourceFilter || channelCode === sourceFilter;
+      const matchesProfile =
+        !profileFilter ||
+        (profileFilter === "b2b" ? order.is_b2b : !order.is_b2b);
+      const matchesSiteMode = !siteOnly || channelCode === "site";
       const matchesFinancial = !financialFilter || order.financialStatus === financialFilter;
       const matchesFiscal=!fiscalFilter || (fiscalFilter==="pending" ? !order.bling_invoice_status || !["authorized","autorizada","autorizado"].includes(String(order.bling_invoice_status).toLowerCase()) : ["authorized","autorizada","autorizado"].includes(String(order.bling_invoice_status).toLowerCase()));
       const matchesFulfillment=!fulfillmentFilter || order.fulfillment_type===fulfillmentFilter;
-      return matchesSearch && matchesStatus && matchesChannel && matchesFinancial && matchesFiscal && matchesFulfillment;
+      return matchesSearch && matchesStatus && matchesSource && matchesProfile && matchesSiteMode && matchesFinancial && matchesFiscal && matchesFulfillment;
     });
-  }, [channelFilter, data, financialFilter, fiscalFilter, fulfillmentFilter, query, statusFilter]);
+  }, [data, financialFilter, fiscalFilter, fulfillmentFilter, profileFilter, query, siteOnly, sourceFilter, statusFilter]);
 
-  // Orders originate from the storefront order table; POS and WhatsApp are stored separately.
-  // Site-only mode adds a dedicated operational label without altering shared ERP data.
+  // Site, PDV and WhatsApp now share the same orders table and differ only by sales_channel.
   // Receita é somente aquilo que efetivamente foi pago. Valores pendentes e
   // cancelados são mostrados separadamente para não inflar o saldo.
   const paidOrders = data.filter((order) => order.financialStatus === "paid");
@@ -122,7 +125,7 @@ function OrdersList() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      {siteOnly && <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4"><p className="text-sm font-black text-blue-950">Canal SITE · Pedidos online</p><p className="text-sm text-blue-800">Esta lista consulta os pedidos do checkout. Vendas do PDV e WhatsApp ficam nos próprios canais e no consolidado do ERP.</p><Link to="/admin/resumo-vendas" className="mt-2 inline-block text-sm font-semibold underline">Voltar ao consolidado</Link></div>}
+      {siteOnly && <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4"><p className="text-sm font-black text-blue-950">Canal SITE · Pedidos online</p><p className="text-sm text-blue-800">Esta é uma visão filtrada do mesmo Order Core usado por Site, PDV e WhatsApp.</p><Link to="/admin/resumo-vendas" className="mt-2 inline-block text-sm font-semibold underline">Voltar ao consolidado</Link></div>}
       <header className="admin-page-hero">
         <div className="relative z-10 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -159,7 +162,7 @@ function OrdersList() {
         <b>Saldo de vendas:</b> {brl(paidValue)}. Este valor considera apenas pedidos com pagamento confirmado.
       </p>
 
-      <section className="admin-filter-bar grid gap-3 lg:grid-cols-[minmax(240px,1fr)_170px_130px_150px_145px_135px]">
+      <section className="admin-filter-bar grid gap-3 xl:grid-cols-[minmax(220px,1fr)_160px_150px_120px_150px_145px_135px]">
         <label className="relative">
           <span className="sr-only">Buscar pedido</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
@@ -178,9 +181,19 @@ function OrdersList() {
           </select>
         </label>
         <label>
-          <span className="sr-only">Filtrar por canal</span>
-          <select value={channelFilter} onChange={(event) => setChannelFilter(event.target.value as "" | "b2b" | "b2c")} className="w-full">
-            <option value="">Todos os canais</option>
+          <span className="sr-only">Filtrar por origem</span>
+          <select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value as "" | "site" | "pdv" | "whatsapp" | "default")} className="w-full">
+            <option value="">Todas as origens</option>
+            <option value="site">Site / E-commerce</option>
+            <option value="pdv">PDV / Balcão</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="default">Outros / legado</option>
+          </select>
+        </label>
+        <label>
+          <span className="sr-only">Filtrar por perfil comercial</span>
+          <select value={profileFilter} onChange={(event) => setProfileFilter(event.target.value as "" | "b2b" | "b2c")} className="w-full">
+            <option value="">B2B + B2C</option>
             <option value="b2b">B2B</option>
             <option value="b2c">B2C</option>
           </select>
@@ -237,7 +250,7 @@ function OrdersList() {
                   <td className="p-3"><FinancialBadge status={order.financialStatus} /></td>
                   <td className="p-3">
                     <span className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${order.is_b2b ? "bg-violet-100 text-violet-700" : "bg-blue-100 text-blue-700"}`}>
-                      SITE · {order.is_b2b ? "B2B" : "B2C"}
+                      {(order.channel?.name ?? "Origem não identificada")} · {order.is_b2b ? "B2B" : "B2C"}
                     </span>
                   </td>
                   <td className="p-3 text-xs"><div className="font-bold uppercase">{order.payment_method??"—"}</div><div className="mt-1 text-muted-foreground">{order.fulfillment_type==="pickup"?"Retirada em loja":order.fulfillment_type==="delivery"?"Entrega":"Não definido"}</div></td>
