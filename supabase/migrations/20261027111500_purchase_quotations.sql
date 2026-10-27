@@ -40,7 +40,7 @@ create table if not exists public.supplier_quotes (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid not null references public.tenants(id) on delete cascade,
   quotation_id uuid not null references public.purchase_quotations(id) on delete cascade,
-  supplier_id uuid not null references public.suppliers(id),
+  supplier_id uuid not null,
   status text not null default 'draft'
     check (status in ('draft','submitted','selected','rejected')),
   payment_terms text,
@@ -57,7 +57,9 @@ create table if not exists public.supplier_quotes (
   updated_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint supplier_quotes_unique_supplier unique (quotation_id,supplier_id)
+  constraint supplier_quotes_unique_supplier unique (quotation_id,supplier_id),
+  constraint supplier_quotes_supplier_tenant_fkey
+    foreign key (supplier_id,tenant_id) references public.suppliers(id,tenant_id)
 );
 
 create table if not exists public.supplier_quote_items (
@@ -115,11 +117,21 @@ for select to authenticated using (exists(
   select 1 from public.tenant_memberships m where m.tenant_id=purchase_quotation_items.tenant_id
   and m.user_id=(select auth.uid()) and m.active
 ));
-create policy purchase_quotation_items_write on public.purchase_quotation_items
-for all to authenticated using (exists(
+create policy purchase_quotation_items_insert on public.purchase_quotation_items
+for insert to authenticated with check (exists(
+  select 1 from public.tenant_memberships m where m.tenant_id=purchase_quotation_items.tenant_id
+  and m.user_id=(select auth.uid()) and m.active and m.role in ('owner','admin','manager','stock')
+));
+create policy purchase_quotation_items_update on public.purchase_quotation_items
+for update to authenticated using (exists(
   select 1 from public.tenant_memberships m where m.tenant_id=purchase_quotation_items.tenant_id
   and m.user_id=(select auth.uid()) and m.active and m.role in ('owner','admin','manager','stock')
 )) with check (exists(
+  select 1 from public.tenant_memberships m where m.tenant_id=purchase_quotation_items.tenant_id
+  and m.user_id=(select auth.uid()) and m.active and m.role in ('owner','admin','manager','stock')
+));
+create policy purchase_quotation_items_delete on public.purchase_quotation_items
+for delete to authenticated using (exists(
   select 1 from public.tenant_memberships m where m.tenant_id=purchase_quotation_items.tenant_id
   and m.user_id=(select auth.uid()) and m.active and m.role in ('owner','admin','manager','stock')
 ));
@@ -129,11 +141,21 @@ for select to authenticated using (exists(
   select 1 from public.tenant_memberships m where m.tenant_id=supplier_quotes.tenant_id
   and m.user_id=(select auth.uid()) and m.active
 ));
-create policy supplier_quotes_write on public.supplier_quotes
-for all to authenticated using (exists(
+create policy supplier_quotes_insert on public.supplier_quotes
+for insert to authenticated with check (exists(
+  select 1 from public.tenant_memberships m where m.tenant_id=supplier_quotes.tenant_id
+  and m.user_id=(select auth.uid()) and m.active and m.role in ('owner','admin','manager','stock')
+));
+create policy supplier_quotes_update on public.supplier_quotes
+for update to authenticated using (exists(
   select 1 from public.tenant_memberships m where m.tenant_id=supplier_quotes.tenant_id
   and m.user_id=(select auth.uid()) and m.active and m.role in ('owner','admin','manager','stock')
 )) with check (exists(
+  select 1 from public.tenant_memberships m where m.tenant_id=supplier_quotes.tenant_id
+  and m.user_id=(select auth.uid()) and m.active and m.role in ('owner','admin','manager','stock')
+));
+create policy supplier_quotes_delete on public.supplier_quotes
+for delete to authenticated using (exists(
   select 1 from public.tenant_memberships m where m.tenant_id=supplier_quotes.tenant_id
   and m.user_id=(select auth.uid()) and m.active and m.role in ('owner','admin','manager','stock')
 ));
@@ -143,11 +165,21 @@ for select to authenticated using (exists(
   select 1 from public.tenant_memberships m where m.tenant_id=supplier_quote_items.tenant_id
   and m.user_id=(select auth.uid()) and m.active
 ));
-create policy supplier_quote_items_write on public.supplier_quote_items
-for all to authenticated using (exists(
+create policy supplier_quote_items_insert on public.supplier_quote_items
+for insert to authenticated with check (exists(
+  select 1 from public.tenant_memberships m where m.tenant_id=supplier_quote_items.tenant_id
+  and m.user_id=(select auth.uid()) and m.active and m.role in ('owner','admin','manager','stock')
+));
+create policy supplier_quote_items_update on public.supplier_quote_items
+for update to authenticated using (exists(
   select 1 from public.tenant_memberships m where m.tenant_id=supplier_quote_items.tenant_id
   and m.user_id=(select auth.uid()) and m.active and m.role in ('owner','admin','manager','stock')
 )) with check (exists(
+  select 1 from public.tenant_memberships m where m.tenant_id=supplier_quote_items.tenant_id
+  and m.user_id=(select auth.uid()) and m.active and m.role in ('owner','admin','manager','stock')
+));
+create policy supplier_quote_items_delete on public.supplier_quote_items
+for delete to authenticated using (exists(
   select 1 from public.tenant_memberships m where m.tenant_id=supplier_quote_items.tenant_id
   and m.user_id=(select auth.uid()) and m.active and m.role in ('owner','admin','manager','stock')
 ));
