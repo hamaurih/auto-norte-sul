@@ -20,9 +20,9 @@ jobs:
         run: bun test tests/
       - name: Vitest
         run: bunx vitest run --config vitest.config.ts
-      - name: Playwright browser dependencies
+      - name: Install Playwright Chromium
         timeout-minutes: 6
-        run: bunx playwright install --with-deps chromium
+        run: bunx playwright install chromium
       - name: Playwright E2E
         run: bunx playwright test
       - name: Upload Playwright report
