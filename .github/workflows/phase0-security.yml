@@ -50,6 +50,11 @@ jobs:
           # Pinned: avoids GitHub release API rate limits and makes CI reproducible.
           version: 2.122.0
 
+      - name: Clean stale local Supabase containers
+        run: |
+          supabase stop --no-backup || true
+          docker ps -aq --filter "name=supabase_" | xargs -r docker rm -f || true
+
       - name: Start isolated local Supabase
         run: supabase start
 
