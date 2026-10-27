@@ -230,10 +230,18 @@ export const runFiscalHomologation = createServerFn({method:"POST"}).middleware(
   });
 
 export const createFiscalDraft = createServerFn({method:"POST"}).middleware([requireSupabaseAuth])
-  .inputValidator((input:{receiptId:string;model:"55"|"65"})=>input)
+  .inputValidator((input:{receiptId?:string;orderId?:string;model:"55"|"65"})=>input)
   .handler(async({data,context}):Promise<FiscalDraftResult>=>{
     const sb=tdb(context.supabase);
     await requireTenantRole(sb,context.userId,context.tenantId,["owner","admin","manager","sales"]);
-    const{data:result,error}=await sb.rpc("create_fiscal_draft_from_receipt",{p_receipt_id:data.receiptId,p_model:data.model});
+    let receiptId=data.receiptId;
+    if(!receiptId&&data.orderId){
+      const{data:receipt,error:receiptError}=await sb.from("sales_receipts").select("id")
+        .eq("tenant_id",context.tenantId).eq("order_id",data.orderId).maybeSingle();
+      if(receiptError)throw new Error(receiptError.message);
+      receiptId=receipt?.id;
+    }
+    if(!receiptId)throw new Error("Recibo imutável da venda não encontrado.");
+    const{data:result,error}=await sb.rpc("create_fiscal_draft_from_receipt",{p_receipt_id:receiptId,p_model:data.model});
     if(error)throw new Error(error.message);return result as unknown as FiscalDraftResult;
   });
