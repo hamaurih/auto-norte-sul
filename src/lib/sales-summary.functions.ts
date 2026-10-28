@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/tenant-auth";
 import { tdb } from "@/integrations/supabase/tenant-db";
-import { requireTenantSalesRole } from "@/lib/auth-guards";
+import { requireAnyTenantRole } from "@/lib/auth-guards";
 
 const CLOSED = new Set(["cancelado", "cancelled", "estornado", "refunded", "rascunho", "draft"]);
 const PAID_SITE = new Set(["paid", "pago", "processing", "shipped", "delivered", "faturado", "enviado", "entregue"]);
@@ -17,7 +17,7 @@ export const getSalesSummary = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { days?: number } = {}) => ({ days: Math.min(365, Math.max(1, Math.trunc(input.days ?? 30))) }))
   .handler(async ({ data, context }) => {
-    const sb = tdb(context.supabase); await requireTenantSalesRole(sb, context.userId, context.tenantId);
+    const sb = tdb(context.supabase); await requireAnyTenantRole(sb, context.userId, context.tenantId);
     const since = new Date(Date.now() - data.days * 86_400_000).toISOString();
     const [coreResult, posLegacyResult, assistedLegacyResult] = await Promise.all([
       sb.from("orders")
@@ -41,7 +41,9 @@ export const getSalesSummary = createServerFn({ method: "GET" })
         .order("created_at", { ascending: false })
         .limit(2000),
     ]);
-    for (const result of [coreResult, posLegacyResult, assistedLegacyResult]) if (result.error) throw new Error(result.error.message);
+    if (coreResult.error) throw new Error("Falha na fonte principal de pedidos: " + coreResult.error.message);
+    if (posLegacyResult.error) console.warn("Resumo de vendas: fallback legado do PDV indisponível", posLegacyResult.error.message);
+    if (assistedLegacyResult.error) console.warn("Resumo de vendas: fallback legado de vendas assistidas indisponível", assistedLegacyResult.error.message);
 
     const core: Sale[] = (coreResult.data ?? [])
       .filter((r: any) => active(r.status))
@@ -62,11 +64,11 @@ export const getSalesSummary = createServerFn({ method: "GET" })
     const site: Sale[] = core.filter((r) => r.origin === "site");
     const balcao: Sale[] = [
       ...core.filter((r) => r.origin === "balcao"),
-      ...(posLegacyResult.data ?? []).filter((r: any) => active(r.status)).map((r: any) => ({ id:r.id,origin:"balcao" as const,createdAt:r.created_at,total:money(r.total),status:r.status,customer:r.customer?.name||"Cliente de balcão",items:(r.items??[]).map((i:any)=>({name:i.product?.name||"Produto",sku:i.product?.sku,quantity:Number(i.quantity??0),total:money(i.line_total)})) })),
+      ...(posLegacyResult.error ? [] : (posLegacyResult.data ?? [])).filter((r: any) => active(r.status)).map((r: any) => ({ id:r.id,origin:"balcao" as const,createdAt:r.created_at,total:money(r.total),status:r.status,customer:r.customer?.name||"Cliente de balcão",items:(r.items??[]).map((i:any)=>({name:i.product?.name||"Produto",sku:i.product?.sku,quantity:Number(i.quantity??0),total:money(i.line_total)})) })),
     ];
     const ia: Sale[] = [
       ...core.filter((r) => r.origin === "ia"),
-      ...(assistedLegacyResult.data ?? []).filter((r: any) => active(r.status)).map((r: any) => ({ id:r.id,origin:"ia" as const,createdAt:r.created_at,total:money(r.total),status:r.status,customer:r.lead_name||"Cliente WhatsApp",items:Array.isArray(r.items)?r.items.map((i:any)=>({name:i.name||i.product_name||"Produto",sku:i.sku,quantity:Number(i.quantity??0),total:money(i.total??Number(i.quantity??0)*Number(i.unit_price??0))})):[] })),
+      ...(assistedLegacyResult.error ? [] : (assistedLegacyResult.data ?? [])).filter((r: any) => active(r.status)).map((r: any) => ({ id:r.id,origin:"ia" as const,createdAt:r.created_at,total:money(r.total),status:r.status,customer:r.lead_name||"Cliente WhatsApp",items:Array.isArray(r.items)?r.items.map((i:any)=>({name:i.name||i.product_name||"Produto",sku:i.sku,quantity:Number(i.quantity??0),total:money(i.total??Number(i.quantity??0)*Number(i.unit_price??0))})):[] })),
     ];
     const all=[...site,...balcao,...ia].sort((a,b)=>+new Date(b.createdAt)-+new Date(a.createdAt));
     const origin=(key:Origin)=>{const rows=all.filter(r=>r.origin===key);return{orders:rows.length,gross:rows.reduce((n,r)=>n+r.total,0)}};
@@ -93,7 +95,7 @@ export const getSalesSummary = createServerFn({ method: "GET" })
 export const getSiteSaleAlerts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const sb=tdb(context.supabase);await requireTenantSalesRole(sb,context.userId,context.tenantId);
+    const sb=tdb(context.supabase);await requireAnyTenantRole(sb,context.userId,context.tenantId);
     const {data,error}=await sb.from("orders").select("id,total,customer_name,status,created_at").eq("tenant_id",context.tenantId).in("status",["pago","faturado","enviado","entregue"]).order("updated_at",{ascending:false}).limit(10);
     if(error)throw new Error(error.message);return data??[];
   });
