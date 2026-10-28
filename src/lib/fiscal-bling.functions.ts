@@ -558,10 +558,31 @@ export const issueReceiptNfeViaBling = createServerFn({ method: "POST" })
     if (!commandId) throw new Error("Não foi possível reservar o comando de emissão.");
 
     const token = await getBlingAccessToken(context.tenantId);
+    let createPostStarted = false;
+    let knownInvoiceId = "";
 
     try {
       const remoteOrder = await blingGet("/pedidos/vendas/" + encodeURIComponent(String(order.bling_id)), token);
-      assertReceiptMatchesRemoteOrder(receipt, remoteOrder, order.id);
+      const receiptProductIds = (Array.isArray(receipt.items_snapshot) ? receipt.items_snapshot : [])
+        .map((line:any) => String(line?.product_id ?? ""))
+        .filter(Boolean);
+      let receiptForCheck = receipt;
+      if (receiptProductIds.length) {
+        const { data: mappedProducts, error: mappedError } = await db.from("products")
+          .select("id,bling_id")
+          .eq("tenant_id",context.tenantId)
+          .in("id",receiptProductIds);
+        if (mappedError) throw new Error(mappedError.message);
+        const byId = new Map((mappedProducts ?? []).map((p:any) => [String(p.id), String(p.bling_id ?? "")]));
+        receiptForCheck = {
+          ...receipt,
+          items_snapshot:(receipt.items_snapshot ?? []).map((line:any) => ({
+            ...line,
+            product_bling_id:byId.get(String(line?.product_id ?? "")) || null,
+          })),
+        };
+      }
+      assertReceiptMatchesRemoteOrder(receiptForCheck, remoteOrder, order.id);
 
       const existingInvoiceId = String(extractInvoiceId(remoteOrder) ?? order.bling_invoice_id ?? "").trim();
       let invoiceId = existingInvoiceId;
@@ -578,8 +599,10 @@ export const issueReceiptNfeViaBling = createServerFn({ method: "POST" })
         };
         if (typeof natureza === "string" && natureza.trim()) payload.naturezaOperacao = natureza.trim();
 
+        createPostStarted = true;
         const created = await blingJson("POST","/nfe",token,payload);
         invoiceId = String(pick(created,["id","idNotaFiscal","notaFiscal.id"]) ?? "").trim();
+        knownInvoiceId = invoiceId;
         if (!invoiceId) {
           await db.from("fiscal_emission_commands").update({
             status:"failed",
@@ -692,7 +715,7 @@ export const issueReceiptNfeViaBling = createServerFn({ method: "POST" })
       };
     } catch (error:any) {
       const message = String(error?.message ?? error).slice(0,600);
-      const ambiguousCreate = message.includes("timeout") || message.includes("AbortError");
+      const ambiguousCreate = (createPostStarted && !knownInvoiceId) || message.includes("timeout") || message.includes("AbortError") || error?.name === "AbortError";
       await db.from("fiscal_emission_commands").update({
         status: ambiguousCreate ? "processing" : "failed",
         last_error:message,
