@@ -41,10 +41,12 @@ import {
   type OrderOperation,
 } from "@/lib/order.functions";
 import {
+  downloadReceiptNfeDocument,
   getOrderFiscalTrace,
+  issueReceiptNfeViaBling,
+  refreshReceiptNfeStatus,
   syncOrderFiscalFromBling,
 } from "@/lib/fiscal-bling.functions";
-import { createFiscalDraft } from "@/lib/fiscal.functions";
 import {
   getOrderReceipt,
   setReceiptFiscalDecision,
@@ -189,7 +191,9 @@ function OrderDetailPage() {
   const fiscalSyncFn = useServerFn(syncOrderFiscalFromBling);
   const receiptFn = useServerFn(getOrderReceipt);
   const receiptDecisionFn = useServerFn(setReceiptFiscalDecision);
-  const fiscalDraftFn = useServerFn(createFiscalDraft);
+  const issueNfeFn = useServerFn(issueReceiptNfeViaBling);
+  const refreshNfeFn = useServerFn(refreshReceiptNfeStatus);
+  const downloadNfeFn = useServerFn(downloadReceiptNfeDocument);
   const queryClient = useQueryClient();
   const [note, setNote] = useState("");
   const [scanCode, setScanCode] = useState("");
@@ -224,15 +228,51 @@ function OrderDetailPage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
-  const fiscalDraft = useMutation({
-    mutationFn: (receiptId: string) => fiscalDraftFn({ data: { receiptId, model: "55" } }),
-    onSuccess: async () => {
-      toast.success("Rascunho de NF-e criado a partir do recibo imutável.");
+  const issueNfe = useMutation({
+    mutationFn: (receiptId: string) => issueNfeFn({ data: { receiptId, sendEmail: false } }),
+    onSuccess: async (result: any) => {
+      const state = String(result?.state ?? result?.fiscal?.status ?? "");
+      toast.success(
+        state === "authorized"
+          ? "NF-e autorizada pela SEFAZ e vinculada ao recibo."
+          : state === "rejected"
+            ? "NF-e enviada, mas rejeitada. Verifique o retorno fiscal."
+            : "NF-e enviada ao Bling/SEFAZ. O ERP continuará acompanhando o status.",
+      );
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["order-receipt", id] }),
         queryClient.invalidateQueries({ queryKey: ["order-fiscal-trace", id] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-order-detail", id] }),
         queryClient.invalidateQueries({ queryKey: ["fiscal-overview"] }),
       ]);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const refreshNfe = useMutation({
+    mutationFn: (receiptId: string) => refreshNfeFn({ data: { receiptId } }),
+    onSuccess: async () => {
+      toast.success("Status fiscal atualizado.");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["order-receipt", id] }),
+        queryClient.invalidateQueries({ queryKey: ["order-fiscal-trace", id] }),
+      ]);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const downloadNfe = useMutation({
+    mutationFn: ({ receiptId, format }: { receiptId: string; format: "pdf" | "xml" }) =>
+      downloadNfeFn({ data: { receiptId, format } }),
+    onSuccess: (result: any) => {
+      const bytes = Uint8Array.from(atob(result.contentBase64), (char) => char.charCodeAt(0));
+      const blob = new Blob([bytes], { type: result.contentType });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = result.filename;
+      anchor.click();
+      URL.revokeObjectURL(url);
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -487,10 +527,14 @@ function OrderDetailPage() {
         data={receiptQuery.data as any}
         loading={receiptQuery.isLoading}
         deciding={receiptDecision.isPending}
-        preparing={fiscalDraft.isPending}
+        issuing={issueNfe.isPending}
+        refreshing={refreshNfe.isPending}
+        downloading={downloadNfe.isPending}
         onDefer={(receiptId, reason) => receiptDecision.mutate({ receiptId, decision: "defer", reason })}
         onRequest={(receiptId, reason) => receiptDecision.mutate({ receiptId, decision: "request_invoice", reason })}
-        onPrepare={(receiptId) => fiscalDraft.mutate(receiptId)}
+        onIssue={(receiptId) => issueNfe.mutate(receiptId)}
+        onRefresh={(receiptId) => refreshNfe.mutate(receiptId)}
+        onDownload={(receiptId, format) => downloadNfe.mutate({ receiptId, format })}
       />
 
       <FiscalTraceCard
@@ -1017,23 +1061,32 @@ function ReceiptFiscalDecisionCard({
   data,
   loading,
   deciding,
-  preparing,
+  issuing,
+  refreshing,
+  downloading,
   onDefer,
   onRequest,
-  onPrepare,
+  onIssue,
+  onRefresh,
+  onDownload,
 }: {
   data: any;
   loading: boolean;
   deciding: boolean;
-  preparing: boolean;
+  issuing: boolean;
+  refreshing: boolean;
+  downloading: boolean;
   onDefer: (receiptId: string, reason?: string) => void;
   onRequest: (receiptId: string, reason?: string) => void;
-  onPrepare: (receiptId: string) => void;
+  onIssue: (receiptId: string) => void;
+  onRefresh: (receiptId: string) => void;
+  onDownload: (receiptId: string, format: "pdf" | "xml") => void;
 }) {
   const receipt = data?.receipt;
   const latest = data?.latestDecision;
   const documents = data?.documents ?? [];
   const activeDocument = documents.find((d: any) => !["cancelled"].includes(String(d.status)));
+  const authorizedDocument = documents.find((d: any) => String(d.status) === "authorized");
 
   const decisionLabel =
     latest?.decision === "request_invoice"
@@ -1051,7 +1104,7 @@ function ReceiptFiscalDecisionCard({
           </div>
           <h2 className="mt-1 font-display text-xl font-extrabold">Origem imutável do fiscal</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            A NF-e só pode ser preparada a partir deste recibo e após decisão explícita do vendedor ou gestor.
+            A NF-e só pode ser emitida a partir deste recibo e após decisão explícita do vendedor ou gestor.
           </p>
         </div>
         {receipt && (
@@ -1097,7 +1150,7 @@ function ReceiptFiscalDecisionCard({
           <div className="mt-4 flex flex-wrap gap-2">
             <button
               type="button"
-              disabled={deciding || Boolean(activeDocument)}
+              disabled={deciding || issuing || Boolean(activeDocument)}
               onClick={() => {
                 const reason = window.prompt("Motivo (opcional)", latest?.reason ?? "");
                 if (reason === null) return;
@@ -1109,7 +1162,7 @@ function ReceiptFiscalDecisionCard({
             </button>
             <button
               type="button"
-              disabled={deciding || Boolean(activeDocument)}
+              disabled={deciding || issuing || Boolean(activeDocument)}
               onClick={() => {
                 const reason = window.prompt("Observação da solicitação (opcional)", "");
                 if (reason === null) return;
@@ -1123,16 +1176,49 @@ function ReceiptFiscalDecisionCard({
             {latest?.decision === "request_invoice" && !activeDocument && (
               <button
                 type="button"
-                disabled={preparing}
-                onClick={() => onPrepare(receipt.id)}
+                disabled={issuing}
+                onClick={() => {
+                  if (!window.confirm("Emitir a NF-e agora no Bling e enviar à SEFAZ? Esta ação fiscal não deve ser repetida.")) return;
+                  onIssue(receipt.id);
+                }}
                 className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
               >
-                {preparing ? "Preparando…" : "Preparar NF-e"}
+                {issuing ? "Emitindo NF-e…" : "Emitir NF-e"}
               </button>
             )}
             {activeDocument && (
+              <button
+                type="button"
+                disabled={refreshing}
+                onClick={() => onRefresh(receipt.id)}
+                className="rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-bold text-blue-700 disabled:opacity-50"
+              >
+                {refreshing ? "Atualizando…" : "Atualizar status SEFAZ"}
+              </button>
+            )}
+            {authorizedDocument && (
+              <>
+                <button
+                  type="button"
+                  disabled={downloading}
+                  onClick={() => onDownload(receipt.id, "pdf")}
+                  className="rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-bold text-emerald-700 disabled:opacity-50"
+                >
+                  Baixar DANFE
+                </button>
+                <button
+                  type="button"
+                  disabled={downloading}
+                  onClick={() => onDownload(receipt.id, "xml")}
+                  className="rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-bold text-emerald-700 disabled:opacity-50"
+                >
+                  Baixar XML
+                </button>
+              </>
+            )}
+            {activeDocument && (
               <span className="inline-flex items-center rounded-xl bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700">
-                Documento fiscal vinculado: {activeDocument.status}
+                Documento fiscal: {activeDocument.status}
               </span>
             )}
           </div>
