@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Bell, CheckCheck, MonitorSmartphone } from "lucide-react";
+import { Bell, CheckCheck, ExternalLink, MonitorSmartphone, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import { getSiteSaleAlerts } from "@/lib/sales-summary.functions";
 
-type SaleAlert = { id: string; total: number; customer_name: string | null; status: string; created_at: string };
+type SaleAlert = {
+  id: string;
+  total: number;
+  customer_name: string | null;
+  status: string;
+  created_at: string;
+  payment_method: string | null;
+};
 const storageKey = "norte-sul:site-sale-unread";
 
 const brl = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -29,21 +36,40 @@ function persistUnread(ids: Set<string>) {
 
 function playSaleSound() {
   try {
-    const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    const AudioContextCtor =
+      window.AudioContext ||
+      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextCtor) return;
     const context = new AudioContextCtor();
-    const gain = context.createGain();
-    const oscillator = context.createOscillator();
-    oscillator.type = "sine";
-    oscillator.frequency.setValueAtTime(880, context.currentTime);
-    oscillator.frequency.setValueAtTime(1175, context.currentTime + 0.12);
-    gain.gain.setValueAtTime(0.09, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.42);
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.42);
-    window.setTimeout(() => void context.close(), 600);
+    const master = context.createGain();
+    master.gain.setValueAtTime(0.16, context.currentTime);
+    master.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.95);
+    master.connect(context.destination);
+
+    const notes = [
+      { frequency: 784, start: 0, duration: 0.22 },
+      { frequency: 988, start: 0.18, duration: 0.22 },
+      { frequency: 1319, start: 0.36, duration: 0.48 },
+    ];
+
+    for (const note of notes) {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(note.frequency, context.currentTime + note.start);
+      gain.gain.setValueAtTime(0.0001, context.currentTime + note.start);
+      gain.gain.exponentialRampToValueAtTime(1, context.currentTime + note.start + 0.015);
+      gain.gain.exponentialRampToValueAtTime(
+        0.0001,
+        context.currentTime + note.start + note.duration,
+      );
+      oscillator.connect(gain);
+      gain.connect(master);
+      oscillator.start(context.currentTime + note.start);
+      oscillator.stop(context.currentTime + note.start + note.duration);
+    }
+
+    window.setTimeout(() => void context.close(), 1200);
   } catch {
     // Alguns navegadores só permitem áudio depois de uma interação; o aviso visual permanece.
   }
@@ -87,10 +113,60 @@ export function SiteSaleAlerts() {
 
       for (const sale of fresh.reverse()) {
         playSaleSound();
-        toast.success(`Nova venda confirmada · ${brl(Number(sale.total ?? 0))}`, {
-          description: sale.customer_name || "Pagamento confirmado no site",
-          duration: 10_000,
-        });
+        const payment = String(sale.payment_method || "não informado")
+          .replaceAll("_", " ")
+          .toUpperCase();
+        toast.custom(
+          (toastId) => (
+            <div className="w-[min(28rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-2xl">
+              <div className="flex items-center gap-3 bg-emerald-600 px-4 py-3 text-white">
+                <span className="grid size-9 place-items-center rounded-xl bg-white/15">
+                  <ShoppingBag className="size-5" aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-black uppercase tracking-[0.16em]">
+                    Nova venda realizada
+                  </p>
+                  <p className="mt-0.5 text-2xl font-black">
+                    {brl(Number(sale.total ?? 0))}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2 p-4 text-sm">
+                <p>
+                  <span className="font-semibold text-slate-500">Cliente:</span>{" "}
+                  <strong>{sale.customer_name || "Cliente do site"}</strong>
+                </p>
+                <p>
+                  <span className="font-semibold text-slate-500">Pagamento:</span>{" "}
+                  <strong>{payment}</strong>
+                </p>
+                <p>
+                  <span className="font-semibold text-slate-500">Pedido:</span>{" "}
+                  <strong>#{sale.id.slice(0, 8).toUpperCase()}</strong>
+                </p>
+                <div className="flex gap-2 pt-2">
+                  <a
+                    href={`/admin/pedidos/${sale.id}`}
+                    onClick={() => toast.dismiss(toastId)}
+                    className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-extrabold text-white hover:bg-slate-800"
+                  >
+                    Ver pedido <ExternalLink className="size-4" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => toast.dismiss(toastId)}
+                    className="min-h-10 rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-600 hover:bg-slate-50"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            </div>
+          ),
+          { duration: 15_000 },
+        );
       }
     } catch {
       // Usuários sem permissão comercial não devem receber detalhes de vendas.
