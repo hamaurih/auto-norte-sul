@@ -540,7 +540,7 @@ export const issueReceiptNfeViaBling = createServerFn({ method: "POST" })
         userId:context.userId,
         orderId:order.id,
       });
-      return { ok:true, reused:true, commandId:claimed.command_id, ...synced };
+      return { ...synced, reused:true, commandId:claimed.command_id };
     }
     if (claimed?.reused && ["creating","created","submitting","processing","authorized"].includes(String(claimed?.status))) {
       if (order.bling_invoice_id) {
@@ -549,7 +549,7 @@ export const issueReceiptNfeViaBling = createServerFn({ method: "POST" })
           userId:context.userId,
           orderId:order.id,
         });
-        return { ok:true, reused:true, commandId:claimed.command_id, ...synced };
+        return { ...synced, reused:true, commandId:claimed.command_id };
       }
       throw new Error("EMISSAO_EM_ANDAMENTO: já existe um comando fiscal para este recibo.");
     }
