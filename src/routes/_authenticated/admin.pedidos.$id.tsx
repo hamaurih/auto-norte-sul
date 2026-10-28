@@ -1085,6 +1085,8 @@ function ReceiptFiscalDecisionCard({
   const receipt = data?.receipt;
   const latest = data?.latestDecision;
   const documents = data?.documents ?? [];
+  const command = data?.emissionCommand ?? null;
+  const commandInFlight = command && ["creating","created","submitting","processing"].includes(String(command.status));
   const activeDocument = documents.find((d: any) => !["cancelled"].includes(String(d.status)));
   const authorizedDocument = documents.find((d: any) => String(d.status) === "authorized");
 
@@ -1173,7 +1175,7 @@ function ReceiptFiscalDecisionCard({
             >
               Solicitar emissão
             </button>
-            {latest?.decision === "request_invoice" && !activeDocument && (
+            {latest?.decision === "request_invoice" && !activeDocument && !commandInFlight && (
               <button
                 type="button"
                 disabled={issuing}
@@ -1186,7 +1188,7 @@ function ReceiptFiscalDecisionCard({
                 {issuing ? "Emitindo NF-e…" : "Emitir NF-e"}
               </button>
             )}
-            {activeDocument && (
+            {(activeDocument || commandInFlight) && (
               <button
                 type="button"
                 disabled={refreshing}
@@ -1215,6 +1217,16 @@ function ReceiptFiscalDecisionCard({
                   Baixar XML
                 </button>
               </>
+            )}
+            {commandInFlight && (
+              <span className="inline-flex items-center rounded-xl bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800">
+                Emissão em andamento: {command.status}
+              </span>
+            )}
+            {command?.status === "failed" && (
+              <span className="inline-flex items-center rounded-xl bg-rose-50 px-3 py-2 text-sm font-bold text-rose-700">
+                Falha fiscal: {command.last_error || "verifique o retorno"}
+              </span>
             )}
             {activeDocument && (
               <span className="inline-flex items-center rounded-xl bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700">
