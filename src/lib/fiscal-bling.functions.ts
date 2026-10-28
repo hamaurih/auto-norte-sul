@@ -70,6 +70,112 @@ async function blingGet(path: string, token: string) {
   return body?.data ?? body;
 }
 
+
+async function blingJson(
+  method: "POST" | "PUT" | "PATCH",
+  path: string,
+  token: string,
+  body?: unknown,
+) {
+  const res = await fetch(API + path, {
+    method,
+    headers: {
+      Authorization: "Bearer " + token,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "enable-jwt": "1",
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal: AbortSignal.timeout(25_000),
+  });
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const detail = String(
+      payload?.error?.description ??
+      payload?.error?.message ??
+      payload?.message ??
+      payload?.errors?.[0]?.message ??
+      "",
+    ).slice(0,500);
+    const error = new Error("Bling HTTP " + res.status + " em " + path + (detail ? ": " + detail : ""));
+    (error as any).httpStatus = res.status;
+    (error as any).payload = payload;
+    throw error;
+  }
+  return payload?.data ?? payload;
+}
+
+function money(value: unknown) {
+  const n = Number(value ?? 0);
+  return Number.isFinite(n) ? Number(n.toFixed(2)) : 0;
+}
+
+function extractRemoteOrderTotal(remoteOrder: any) {
+  const direct = pick(remoteOrder, ["total","totalVenda","valorTotal","totalPedido"]);
+  if (direct != null && Number.isFinite(Number(direct))) return money(direct);
+  const products = pick(remoteOrder, ["totalProdutos","valorProdutos"]);
+  const discount = pick(remoteOrder, ["desconto.valor","desconto","valorDesconto"]);
+  const freight = pick(remoteOrder, ["transporte.frete","frete","valorFrete"]);
+  if (products != null) return money(Number(products) - Number(discount ?? 0) + Number(freight ?? 0));
+  return null;
+}
+
+function remoteOrderLines(remoteOrder: any) {
+  const raw = Array.isArray(remoteOrder?.itens) ? remoteOrder.itens : [];
+  return raw.map((item:any) => ({
+    productId: String(pick(item, ["produto.id","idProduto"]) ?? ""),
+    quantity: Number(pick(item, ["quantidade","qtd"]) ?? 0),
+    unitValue: money(pick(item, ["valor","valorUnitario","preco"]) ?? 0),
+  })).filter((item:any) => item.productId && item.quantity > 0);
+}
+
+function assertReceiptMatchesRemoteOrder(receipt: any, remoteOrder: any, orderId: string) {
+  const expectedStoreNumber = "NS-" + orderId;
+  const remoteStoreNumber = String(pick(remoteOrder, ["numeroLoja","numeroPedidoLoja"]) ?? "");
+  if (remoteStoreNumber && remoteStoreNumber !== expectedStoreNumber) {
+    throw new Error("FISCAL_RECEIPT_MISMATCH: pedido Bling não corresponde ao recibo ERP.");
+  }
+
+  const receiptTotal = money(receipt?.sale_snapshot?.total);
+  const remoteTotal = extractRemoteOrderTotal(remoteOrder);
+  if (remoteTotal != null && Math.abs(receiptTotal - remoteTotal) > 0.01) {
+    throw new Error("FISCAL_RECEIPT_MISMATCH: total do pedido Bling diverge do recibo imutável.");
+  }
+
+  const receiptLines = Array.isArray(receipt?.items_snapshot) ? receipt.items_snapshot : [];
+  const remoteLines = remoteOrderLines(remoteOrder);
+  if (remoteLines.length) {
+    if (remoteLines.length !== receiptLines.length) {
+      throw new Error("FISCAL_RECEIPT_MISMATCH: quantidade de itens no Bling diverge do recibo.");
+    }
+    for (const line of receiptLines) {
+      const productId = String(line?.bling_id ?? line?.product_bling_id ?? "");
+      const qty = Number(line?.quantity ?? 0);
+      const unit = money(line?.unit_price);
+      if (!productId) continue;
+      const remote = remoteLines.find((x:any) => x.productId === productId);
+      if (!remote || Math.abs(remote.quantity - qty) > 0.0001 || Math.abs(remote.unitValue - unit) > 0.01) {
+        throw new Error("FISCAL_RECEIPT_MISMATCH: item do Bling diverge do recibo imutável.");
+      }
+    }
+  }
+}
+
+async function auditFiscalCommand(tenantId:string,userId:string|null,action:string,resourceId:string,afterData:any) {
+  const db = supabaseAdmin as any;
+  const { data: tenant } = await db.from("tenants").select("organization_id").eq("id",tenantId).maybeSingle();
+  if (!tenant?.organization_id) return;
+  await db.from("audit_events").insert({
+    organization_id:tenant.organization_id,
+    tenant_id:tenantId,
+    actor_user_id:userId,
+    action,
+    resource_type:"sales_receipt",
+    resource_id:resourceId,
+    after_data:afterData,
+  });
+}
+
 async function fiscalContext(tenantId: string, orderId: string) {
   const db = supabaseAdmin as any;
   const [{ data: order, error: orderError }, { data: settings, error: settingsError }, { data: receipt, error: receiptError }] = await Promise.all([
@@ -394,3 +500,307 @@ export async function syncBlingFiscalTraceWorker(limitPerTenant = 20) {
   }
   return report;
 }
+
+
+export const issueReceiptNfeViaBling = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) => z.object({
+    receiptId: z.string().uuid(),
+    sendEmail: z.boolean().optional().default(false),
+  }).parse(input))
+  .handler(async ({ data, context }) => {
+    await requireTenantRole(context.supabase as any, context.userId, context.tenantId, [...SYNC_ROLES]);
+    const db = supabaseAdmin as any;
+
+    const { data: claimed, error: claimError } = await (context.supabase as any).rpc("claim_bling_nfe_emission", {
+      p_receipt_id: data.receiptId,
+    });
+    if (claimError) throw new Error(claimError.message);
+
+    const { data: receipt, error: receiptError } = await db.from("sales_receipts")
+      .select("id,tenant_id,order_id,receipt_code,snapshot_hash,sale_snapshot,items_snapshot,payments_snapshot")
+      .eq("tenant_id",context.tenantId)
+      .eq("id",data.receiptId)
+      .maybeSingle();
+    if (receiptError) throw new Error(receiptError.message);
+    if (!receipt) throw new Error("Recibo não encontrado.");
+
+    const { data: order, error: orderError } = await db.from("orders")
+      .select("id,status,bling_id,bling_invoice_id,bling_invoice_status")
+      .eq("tenant_id",context.tenantId)
+      .eq("id",receipt.order_id)
+      .maybeSingle();
+    if (orderError) throw new Error(orderError.message);
+    if (!order) throw new Error("Pedido do recibo não encontrado.");
+    if (!order.bling_id) throw new Error("Pedido ainda não possui vínculo com o Bling.");
+
+    if (claimed?.reused && claimed?.remote_invoice_id) {
+      const synced = await syncOrderFiscalInternal({
+        tenantId:context.tenantId,
+        userId:context.userId,
+        orderId:order.id,
+      });
+      return { ...synced, reused:true, commandId:claimed.command_id };
+    }
+    if (claimed?.reused && ["creating","created","submitting","processing","authorized"].includes(String(claimed?.status))) {
+      if (order.bling_invoice_id) {
+        const synced = await syncOrderFiscalInternal({
+          tenantId:context.tenantId,
+          userId:context.userId,
+          orderId:order.id,
+        });
+        return { ...synced, reused:true, commandId:claimed.command_id };
+      }
+      throw new Error("EMISSAO_EM_ANDAMENTO: já existe um comando fiscal para este recibo.");
+    }
+
+    const commandId = String(claimed?.command_id ?? "");
+    if (!commandId) throw new Error("Não foi possível reservar o comando de emissão.");
+
+    const token = await getBlingAccessToken(context.tenantId);
+    let createPostStarted = false;
+    let knownInvoiceId = "";
+
+    try {
+      const remoteOrder = await blingGet("/pedidos/vendas/" + encodeURIComponent(String(order.bling_id)), token);
+      const receiptProductIds = (Array.isArray(receipt.items_snapshot) ? receipt.items_snapshot : [])
+        .map((line:any) => String(line?.product_id ?? ""))
+        .filter(Boolean);
+      let receiptForCheck = receipt;
+      if (receiptProductIds.length) {
+        const { data: mappedProducts, error: mappedError } = await db.from("products")
+          .select("id,bling_id")
+          .eq("tenant_id",context.tenantId)
+          .in("id",receiptProductIds);
+        if (mappedError) throw new Error(mappedError.message);
+        const byId = new Map((mappedProducts ?? []).map((p:any) => [String(p.id), String(p.bling_id ?? "")]));
+        receiptForCheck = {
+          ...receipt,
+          items_snapshot:(receipt.items_snapshot ?? []).map((line:any) => ({
+            ...line,
+            product_bling_id:byId.get(String(line?.product_id ?? "")) || null,
+          })),
+        };
+      }
+      assertReceiptMatchesRemoteOrder(receiptForCheck, remoteOrder, order.id);
+
+      const existingInvoiceId = String(extractInvoiceId(remoteOrder) ?? order.bling_invoice_id ?? "").trim();
+      let invoiceId = existingInvoiceId;
+
+      if (!invoiceId) {
+        const natureza = pick(remoteOrder, [
+          "naturezaOperacao.descricao",
+          "naturezaOperacao.nome",
+          "naturezaOperacao",
+        ]);
+        const payload:any = {
+          pedidoVendaId: Number(order.bling_id),
+          tipo: 1,
+        };
+        if (typeof natureza === "string" && natureza.trim()) payload.naturezaOperacao = natureza.trim();
+
+        createPostStarted = true;
+        const created = await blingJson("POST","/nfe",token,payload);
+        invoiceId = String(pick(created,["id","idNotaFiscal","notaFiscal.id"]) ?? "").trim();
+        knownInvoiceId = invoiceId;
+        if (!invoiceId) {
+          await db.from("fiscal_emission_commands").update({
+            status:"failed",
+            last_error:"Bling criou/recebeu a requisição de NF-e sem devolver identificador.",
+            response_snapshot:{ stage:"create", response:created },
+            finished_at:new Date().toISOString(),
+            updated_at:new Date().toISOString(),
+          }).eq("tenant_id",context.tenantId).eq("id",commandId);
+          throw new Error("Resposta do Bling não trouxe o ID da NF-e. Confira no Bling antes de tentar novamente.");
+        }
+
+        await db.from("fiscal_emission_commands").update({
+          status:"created",
+          remote_invoice_id:invoiceId,
+          response_snapshot:{ stage:"created", response:created },
+          updated_at:new Date().toISOString(),
+        }).eq("tenant_id",context.tenantId).eq("id",commandId);
+
+        await db.from("orders").update({
+          bling_invoice_id:invoiceId,
+          bling_invoice_status:"criada",
+          bling_invoice_generated_at:new Date().toISOString(),
+          updated_at:new Date().toISOString(),
+        }).eq("tenant_id",context.tenantId).eq("id",order.id);
+
+        await auditFiscalCommand(context.tenantId,context.userId,"fiscal.bling_invoice_created",receipt.id,{
+          receiptCode:receipt.receipt_code,
+          snapshotHash:receipt.snapshot_hash,
+          orderId:order.id,
+          blingOrderId:order.bling_id,
+          blingInvoiceId:invoiceId,
+        });
+      } else {
+        await db.from("fiscal_emission_commands").update({
+          status:"created",
+          remote_invoice_id:invoiceId,
+          response_snapshot:{ stage:"reconciled_existing" },
+          updated_at:new Date().toISOString(),
+        }).eq("tenant_id",context.tenantId).eq("id",commandId);
+      }
+
+      await db.from("fiscal_emission_commands").update({
+        status:"submitting",
+        updated_at:new Date().toISOString(),
+      }).eq("tenant_id",context.tenantId).eq("id",commandId);
+
+      const sendPath = "/nfe/" + encodeURIComponent(invoiceId) + "/enviar?enviarEmail=" + (data.sendEmail ? "true" : "false");
+      const submit = await blingJson("POST",sendPath,token);
+
+      await db.from("fiscal_emission_commands").update({
+        status:"processing",
+        submitted_at:new Date().toISOString(),
+        response_snapshot:{ stage:"submitted", response:submit },
+        updated_at:new Date().toISOString(),
+      }).eq("tenant_id",context.tenantId).eq("id",commandId);
+
+      await db.from("orders").update({
+        bling_invoice_id:invoiceId,
+        bling_invoice_status:"processando_sefaz",
+        bling_invoice_submitted_at:new Date().toISOString(),
+        updated_at:new Date().toISOString(),
+      }).eq("tenant_id",context.tenantId).eq("id",order.id);
+
+      await auditFiscalCommand(context.tenantId,context.userId,"fiscal.bling_invoice_submitted",receipt.id,{
+        receiptCode:receipt.receipt_code,
+        blingInvoiceId:invoiceId,
+        sendEmail:data.sendEmail,
+      });
+
+      let final:any = null;
+      for (const delay of [800,1400,2200]) {
+        await new Promise((resolve) => setTimeout(resolve,delay));
+        try {
+          final = await blingGet("/nfe/" + encodeURIComponent(invoiceId),token);
+          const normalized = normalizedStatus(final);
+          if (["authorized","rejected","denied","cancelled"].includes(normalized)) break;
+        } catch {
+          // A submissão já foi aceita; consulta será retomada pela sincronização periódica.
+        }
+      }
+
+      const synced = await syncOrderFiscalInternal({
+        tenantId:context.tenantId,
+        userId:context.userId,
+        orderId:order.id,
+        token,
+      });
+
+      const commandStatus =
+        synced.status === "authorized" ? "authorized" :
+        ["rejected","denied"].includes(String(synced.status)) ? "rejected" :
+        synced.status === "cancelled" ? "cancelled" : "processing";
+
+      await db.from("fiscal_emission_commands").update({
+        status:commandStatus,
+        remote_invoice_id:invoiceId,
+        finished_at:commandStatus === "processing" ? null : new Date().toISOString(),
+        last_error:commandStatus === "rejected" ? "NF-e rejeitada/denegada pelo fluxo fiscal." : null,
+        response_snapshot:{ stage:"synced", result:synced },
+        updated_at:new Date().toISOString(),
+      }).eq("tenant_id",context.tenantId).eq("id",commandId);
+
+      return {
+        ok:true,
+        reused:Boolean(existingInvoiceId),
+        commandId,
+        invoiceId,
+        state:commandStatus,
+        fiscal:synced,
+      };
+    } catch (error:any) {
+      const message = String(error?.message ?? error).slice(0,600);
+      const ambiguousCreate = (createPostStarted && !knownInvoiceId) || message.includes("timeout") || message.includes("AbortError") || error?.name === "AbortError";
+      await db.from("fiscal_emission_commands").update({
+        status: ambiguousCreate ? "processing" : "failed",
+        last_error:message,
+        finished_at:ambiguousCreate ? null : new Date().toISOString(),
+        updated_at:new Date().toISOString(),
+      }).eq("tenant_id",context.tenantId).eq("id",commandId);
+      await auditFiscalCommand(context.tenantId,context.userId,"fiscal.bling_invoice_error",receipt.id,{
+        receiptCode:receipt.receipt_code,
+        error:message,
+        ambiguous:ambiguousCreate,
+      });
+      throw error;
+    }
+  });
+
+export const refreshReceiptNfeStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) => z.object({ receiptId:z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    await requireTenantRole(context.supabase as any,context.userId,context.tenantId,[...SYNC_ROLES]);
+    const db = supabaseAdmin as any;
+    const { data: receipt, error } = await db.from("sales_receipts")
+      .select("id,order_id")
+      .eq("tenant_id",context.tenantId)
+      .eq("id",data.receiptId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!receipt) throw new Error("Recibo não encontrado.");
+    const result = await syncOrderFiscalInternal({
+      tenantId:context.tenantId,
+      userId:context.userId,
+      orderId:receipt.order_id,
+    });
+    if (result.invoiceId) {
+      const status =
+        result.status === "authorized" ? "authorized" :
+        ["rejected","denied"].includes(String(result.status)) ? "rejected" :
+        result.status === "cancelled" ? "cancelled" : "processing";
+      await db.from("fiscal_emission_commands").update({
+        status,
+        remote_invoice_id:result.invoiceId,
+        finished_at:status === "processing" ? null : new Date().toISOString(),
+        last_error:status === "rejected" ? "NF-e rejeitada/denegada." : null,
+        response_snapshot:{ stage:"refresh", result },
+        updated_at:new Date().toISOString(),
+      }).eq("tenant_id",context.tenantId).eq("receipt_id",receipt.id);
+    }
+    return result;
+  });
+
+export const downloadReceiptNfeDocument = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input) => z.object({
+    receiptId:z.string().uuid(),
+    format:z.enum(["pdf","xml"]),
+  }).parse(input))
+  .handler(async ({ data, context }) => {
+    await requireTenantRole(context.supabase as any,context.userId,context.tenantId,[...READ_ROLES]);
+    const db = supabaseAdmin as any;
+    const { data: doc, error } = await db.from("fiscal_documents")
+      .select("access_key,number,series,status")
+      .eq("tenant_id",context.tenantId)
+      .eq("receipt_id",data.receiptId)
+      .eq("provider","bling")
+      .order("created_at",{ascending:false})
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!doc?.access_key) throw new Error("Chave de acesso da NF-e ainda não disponível.");
+
+    const token = await getBlingAccessToken(context.tenantId);
+    const res = await fetch(
+      API + "/nfe/documento/" + encodeURIComponent(doc.access_key) + "?formato=" + data.format,
+      {
+        headers:{ Authorization:"Bearer " + token, "enable-jwt":"1" },
+        signal:AbortSignal.timeout(25_000),
+      },
+    );
+    if (!res.ok) throw new Error("Não foi possível baixar o " + data.format.toUpperCase() + " da NF-e (HTTP " + res.status + ").");
+    const buffer = Buffer.from(await res.arrayBuffer());
+    if (buffer.length > 8_000_000) throw new Error("Documento fiscal acima do limite de download pelo ERP.");
+    return {
+      ok:true,
+      contentBase64:buffer.toString("base64"),
+      contentType:data.format === "pdf" ? "application/pdf" : "application/xml",
+      filename:"NFe-" + String(doc.series ?? "1") + "-" + String(doc.number ?? "documento") + "." + data.format,
+    };
+  });

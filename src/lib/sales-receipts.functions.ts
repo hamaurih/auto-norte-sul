@@ -21,7 +21,7 @@ export const getOrderReceipt = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     if (!receipt) return { receipt:null, decisions:[], documents:[], latestDecision:null };
 
-    const [decisions, documents] = await Promise.all([
+    const [decisions, documents, command] = await Promise.all([
       sb.from("receipt_fiscal_decisions")
         .select("id,decision,reason,actor_user_id,created_at")
         .eq("tenant_id", context.tenantId)
@@ -33,14 +33,21 @@ export const getOrderReceipt = createServerFn({ method: "GET" })
         .eq("tenant_id", context.tenantId)
         .eq("receipt_id", receipt.id)
         .order("created_at", { ascending:false }),
+      sb.from("fiscal_emission_commands")
+        .select("id,status,remote_invoice_id,last_error,started_at,submitted_at,finished_at,updated_at")
+        .eq("tenant_id",context.tenantId)
+        .eq("receipt_id",receipt.id)
+        .maybeSingle(),
     ]);
     if (decisions.error) throw new Error(decisions.error.message);
     if (documents.error) throw new Error(documents.error.message);
+    if (command.error) throw new Error(command.error.message);
 
     return {
       receipt,
       decisions: decisions.data ?? [],
       documents: documents.data ?? [],
+      emissionCommand: command.data ?? null,
       latestDecision: decisions.data?.[0] ?? null,
     };
   });

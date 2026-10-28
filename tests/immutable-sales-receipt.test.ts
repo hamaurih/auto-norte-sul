@@ -32,6 +32,6 @@ describe("Immutable sales receipt fiscal flow", () => {
     expect(source.includes("Recibo da venda")).toBe(true);
     expect(source.includes("Não emitir agora")).toBe(true);
     expect(source.includes("Solicitar emissão")).toBe(true);
-    expect(source.includes("Preparar NF-e")).toBe(true);
+    expect(source.includes("Emitir NF-e")).toBe(true);
   });
 });
