@@ -96,6 +96,6 @@ export const getSiteSaleAlerts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const sb=tdb(context.supabase);await requireAnyTenantRole(sb,context.userId,context.tenantId);
-    const {data,error}=await sb.from("orders").select("id,total,customer_name,status,created_at").eq("tenant_id",context.tenantId).in("status",["pago","faturado","enviado","entregue"]).order("updated_at",{ascending:false}).limit(10);
+    const {data,error}=await sb.from("orders").select("id,total,customer_name,status,created_at,payment_method").eq("tenant_id",context.tenantId).in("status",["pago","faturado","enviado","entregue"]).order("updated_at",{ascending:false}).limit(10);
     if(error)throw new Error(error.message);return data??[];
   });
