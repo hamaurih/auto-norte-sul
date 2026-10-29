@@ -3,15 +3,10 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
+import { TaxProductScenarios } from "@/components/admin/TaxProductScenarios";
 import { Progress } from "@/components/ui/progress";
 import { useSession } from "@/lib/session";
-import {
-  simulateTaxPrice,
-  taxMigrationMode,
-  tax_migration_preview,
-  TAX_GO_LIVE,
-} from "@/lib/tax-migration";
+import { taxMigrationMode, tax_migration_preview, TAX_GO_LIVE } from "@/lib/tax-migration";
 
 export const Route = createFileRoute("/_authenticated/admin/migracao-tributaria")({
   beforeLoad: () => {
@@ -25,11 +20,9 @@ const tasks = [
   ["nfe", "Campos IBS/CBS na NF-e"],
   ["operation", "Cálculo por operação"],
   ["ibge", "Destino IBGE"],
-  ["split", "Split payment"],
+  ["split", "Split Payment"],
   ["marketplace", "Marketplace / responsabilidade solidária"],
 ] as const;
-const money = (value: number) =>
-  value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function TaxMigrationPage() {
   const { isAdmin, user } = useSession();
@@ -45,7 +38,6 @@ function TaxMigrationPage() {
 
 function TaxMigrationPreview({ storageKey }: { storageKey: string }) {
   const [now, setNow] = useState<number | null>(null);
-  const [price, setPrice] = useState("100.00");
   const [checked, setChecked] = useState<string[]>([]);
   const [ready, setReady] = useState(false);
   const [storageError, setStorageError] = useState(false);
@@ -68,7 +60,6 @@ function TaxMigrationPreview({ storageKey }: { storageKey: string }) {
   const hours = Math.floor(remaining / 3_600_000) % 24;
   const minutes = Math.floor(remaining / 60_000) % 60;
   const seconds = Math.floor(remaining / 1000) % 60;
-  const simulation = price.trim() === "" ? null : simulateTaxPrice(Number(price));
   const toggle = (id: string, value: boolean) => {
     const next = value
       ? [...checked.filter((item) => item !== id), id]
@@ -94,6 +85,7 @@ function TaxMigrationPreview({ storageKey }: { storageKey: string }) {
           realizada por esta página.
         </p>
       </header>
+      <TaxProductScenarios />
       <Card>
         <CardHeader>
           <CardTitle>Fase de migração</CardTitle>
@@ -110,75 +102,6 @@ function TaxMigrationPreview({ storageKey }: { storageKey: string }) {
             Até 01/01/2027, 00h de Brasília — marco da CBS efetiva. Em 2026, o modo é sempre
             demonstração. Após essa data, a flag pode habilitar o modo efetivo apenas visual; a
             passagem do tempo não habilita cobrança.
-          </p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Simulador de preço ao cliente</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="max-w-sm space-y-2">
-            <label htmlFor="tax-price" className="text-sm font-medium">
-              Preço base do exemplo (R$)
-            </label>
-            <Input
-              id="tax-price"
-              type="number"
-              inputMode="decimal"
-              min="0"
-              max="1000000000"
-              step="0.01"
-              value={price}
-              onChange={(event) => setPrice(event.target.value)}
-              aria-describedby="tax-assumption"
-            />
-          </div>
-          <p id="tax-assumption" className="text-sm text-muted-foreground">
-            Hipótese didática: preço final = base + tributos destacados. Não considera créditos,
-            regimes especiais ou substituição de PIS/Cofins; não representa o reajuste tributário
-            real. Em 2027, o exemplo considera somente CBS, sem estimar IBS.
-          </p>
-          {simulation ? (
-            <div className="grid gap-4 md:grid-cols-2" aria-live="polite">
-              <div className="space-y-2 rounded-xl border p-4">
-                <h2 className="font-semibold">2026 · informativo</h2>
-                <p>CBS 0,9%: {money(simulation.cbs2026)}</p>
-                <p>IBS 0,1%: {money(simulation.ibs2026)}</p>
-                <p className="font-bold">Preço final ilustrativo: {money(simulation.total2026)}</p>
-                <p className="text-sm">
-                  Impacto sobre a base: +{money(simulation.cbs2026 + simulation.ibs2026)} (1%)
-                </p>
-              </div>
-              <div className="space-y-2 rounded-xl border p-4">
-                <h2 className="font-semibold">2027 · referência</h2>
-                <p>CBS 11,3%: {money(simulation.cbs2027)}</p>
-                <p className="font-bold">Preço final ilustrativo: {money(simulation.total2027)}</p>
-                <p className="text-sm">
-                  Impacto sobre a base: +{money(simulation.cbs2027)} (11,3%)
-                </p>
-              </div>
-              <p className="text-sm md:col-span-2">
-                Diferença ilustrativa entre cenários:{" "}
-                {money(simulation.total2027 - simulation.total2026)}.
-              </p>
-            </div>
-          ) : (
-            <p role="alert" className="text-sm text-destructive">
-              Informe um preço válido entre R$ 0 e R$ 1 bilhão.
-            </p>
-          )}
-          <p className="text-sm text-muted-foreground">
-            CBS 11,3%: referência TCU de 28/10/2026, sujeita à fixação por resolução do Senado.{" "}
-            <a
-              className="underline"
-              href="https://portal.tcu.gov.br/imprensa/noticias/tcu-calcula-aliquota-de-referencia-de-113-para-novo-tributo-sobre-consumo"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Consultar fonte TCU
-            </a>
-            .
           </p>
         </CardContent>
       </Card>
