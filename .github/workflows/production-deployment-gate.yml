@@ -111,7 +111,8 @@ jobs:
           version: 2.122.0
 
       - name: Start isolated local Supabase
-        run: supabase start
+        # Database tests do not require the local mail server. Excluding it avoids its host port 54324.
+        run: supabase start --exclude inbucket
 
       - name: Phase 0 database gate
         run: supabase test db supabase/tests/phase0_tenant_isolation.sql
