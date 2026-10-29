@@ -56,6 +56,7 @@ import { Route as AuthenticatedAdminHistoricoCustosRouteImport } from './routes/
 import { Route as AuthenticatedAdminFornecedoresRouteImport } from './routes/_authenticated/admin.fornecedores'
 import { Route as AuthenticatedAdminFormacaoPrecosRouteImport } from './routes/_authenticated/admin.formacao-precos'
 import { Route as AuthenticatedAdminFiscalProdutosRouteImport } from './routes/_authenticated/admin.fiscal-produtos'
+import { Route as AuthenticatedAdminMigracaoTributariaRouteImport } from './routes/_authenticated/admin.migracao-tributaria'
 import { Route as AuthenticatedAdminFiscalRouteImport } from './routes/_authenticated/admin.fiscal'
 import { Route as AuthenticatedAdminFiliaisRouteImport } from './routes/_authenticated/admin.filiais'
 import { Route as AuthenticatedAdminExpedicaoRouteImport } from './routes/_authenticated/admin.expedicao'
@@ -356,6 +357,12 @@ const AuthenticatedAdminFiscalProdutosRoute =
     path: '/fiscal-produtos',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminMigracaoTributariaRoute =
+  AuthenticatedAdminMigracaoTributariaRouteImport.update({
+    id: '/migracao-tributaria',
+    path: '/migracao-tributaria',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminFiscalRoute =
   AuthenticatedAdminFiscalRouteImport.update({
     id: '/fiscal',
@@ -639,6 +646,7 @@ export interface FileRoutesByFullPath {
   '/admin/filiais': typeof AuthenticatedAdminFiliaisRoute
   '/admin/fiscal': typeof AuthenticatedAdminFiscalRoute
   '/admin/fiscal-produtos': typeof AuthenticatedAdminFiscalProdutosRoute
+  '/admin/migracao-tributaria': typeof AuthenticatedAdminMigracaoTributariaRoute
   '/admin/formacao-precos': typeof AuthenticatedAdminFormacaoPrecosRoute
   '/admin/fornecedores': typeof AuthenticatedAdminFornecedoresRoute
   '/admin/historico-custos': typeof AuthenticatedAdminHistoricoCustosRoute
@@ -725,6 +733,7 @@ export interface FileRoutesByTo {
   '/admin/filiais': typeof AuthenticatedAdminFiliaisRoute
   '/admin/fiscal': typeof AuthenticatedAdminFiscalRoute
   '/admin/fiscal-produtos': typeof AuthenticatedAdminFiscalProdutosRoute
+  '/admin/migracao-tributaria': typeof AuthenticatedAdminMigracaoTributariaRoute
   '/admin/formacao-precos': typeof AuthenticatedAdminFormacaoPrecosRoute
   '/admin/fornecedores': typeof AuthenticatedAdminFornecedoresRoute
   '/admin/historico-custos': typeof AuthenticatedAdminHistoricoCustosRoute
@@ -816,6 +825,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/filiais': typeof AuthenticatedAdminFiliaisRoute
   '/_authenticated/admin/fiscal': typeof AuthenticatedAdminFiscalRoute
   '/_authenticated/admin/fiscal-produtos': typeof AuthenticatedAdminFiscalProdutosRoute
+  '/_authenticated/admin/migracao-tributaria': typeof AuthenticatedAdminMigracaoTributariaRoute
   '/_authenticated/admin/formacao-precos': typeof AuthenticatedAdminFormacaoPrecosRoute
   '/_authenticated/admin/fornecedores': typeof AuthenticatedAdminFornecedoresRoute
   '/_authenticated/admin/historico-custos': typeof AuthenticatedAdminHistoricoCustosRoute
@@ -907,6 +917,7 @@ export interface FileRouteTypes {
     | '/admin/filiais'
     | '/admin/fiscal'
     | '/admin/fiscal-produtos'
+    | '/admin/migracao-tributaria'
     | '/admin/formacao-precos'
     | '/admin/fornecedores'
     | '/admin/historico-custos'
@@ -993,6 +1004,7 @@ export interface FileRouteTypes {
     | '/admin/filiais'
     | '/admin/fiscal'
     | '/admin/fiscal-produtos'
+    | '/admin/migracao-tributaria'
     | '/admin/formacao-precos'
     | '/admin/fornecedores'
     | '/admin/historico-custos'
@@ -1083,6 +1095,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/filiais'
     | '/_authenticated/admin/fiscal'
     | '/_authenticated/admin/fiscal-produtos'
+    | '/_authenticated/admin/migracao-tributaria'
     | '/_authenticated/admin/formacao-precos'
     | '/_authenticated/admin/fornecedores'
     | '/_authenticated/admin/historico-custos'
@@ -1491,6 +1504,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminFiscalProdutosRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/migracao-tributaria': {
+      id: '/_authenticated/admin/migracao-tributaria'
+      path: '/migracao-tributaria'
+      fullPath: '/admin/migracao-tributaria'
+      preLoaderRoute: typeof AuthenticatedAdminMigracaoTributariaRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/fiscal': {
       id: '/_authenticated/admin/fiscal'
       path: '/fiscal'
@@ -1864,6 +1884,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminFiliaisRoute: typeof AuthenticatedAdminFiliaisRoute
   AuthenticatedAdminFiscalRoute: typeof AuthenticatedAdminFiscalRoute
   AuthenticatedAdminFiscalProdutosRoute: typeof AuthenticatedAdminFiscalProdutosRoute
+  AuthenticatedAdminMigracaoTributariaRoute: typeof AuthenticatedAdminMigracaoTributariaRoute
   AuthenticatedAdminFormacaoPrecosRoute: typeof AuthenticatedAdminFormacaoPrecosRoute
   AuthenticatedAdminFornecedoresRoute: typeof AuthenticatedAdminFornecedoresRoute
   AuthenticatedAdminHistoricoCustosRoute: typeof AuthenticatedAdminHistoricoCustosRoute
@@ -1921,6 +1942,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminFiliaisRoute: AuthenticatedAdminFiliaisRoute,
   AuthenticatedAdminFiscalRoute: AuthenticatedAdminFiscalRoute,
   AuthenticatedAdminFiscalProdutosRoute: AuthenticatedAdminFiscalProdutosRoute,
+  AuthenticatedAdminMigracaoTributariaRoute: AuthenticatedAdminMigracaoTributariaRoute,
   AuthenticatedAdminFormacaoPrecosRoute: AuthenticatedAdminFormacaoPrecosRoute,
   AuthenticatedAdminFornecedoresRoute: AuthenticatedAdminFornecedoresRoute,
   AuthenticatedAdminHistoricoCustosRoute:
