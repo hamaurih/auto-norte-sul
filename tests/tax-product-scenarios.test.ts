@@ -43,6 +43,8 @@ describe("PB product tax scenarios", () => {
     if (s.pending !== null) throw Error(s.pending);
     expect(s.today).toBe(0);
     expect(s.future).toBe(11.3);
+    expect(s.splitRate).toBe(11.3);
+    expect(s.split).toBe(11.3);
     expect(s.deposit).toBe(88.7);
     expect(s.profitFuture).toBe(28.7);
     expect(s.profitConsumed).toBe(28.25);

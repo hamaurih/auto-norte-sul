@@ -76,7 +76,11 @@ export function simulateProduct(p: TaxProduct, o: TaxOptions) {
     return { pending: "Carga estimada ≥ 100%; revise parâmetros" } as const;
   const today = round((price * todayRate) / 100),
     future = round((price * futureRate) / 100);
-  const split = round(price * 0.113); // Split Payment segregates CBS/IBS only, not legacy ICMS.
+  // Split Payment segregates this product's CBS/IBS only (not ICMS/DIFAL/ST).
+  const cbs = 11.2;
+  const ibs = 0.1;
+  const splitRate = round(cbs + ibs);
+  const split = round((price * splitRate) / 100);
   const cost = p.average_cost;
   const grossProfit =
     cost !== null && Number.isFinite(cost) && cost >= 0 ? round(price - cost) : null;
@@ -88,6 +92,9 @@ export function simulateProduct(p: TaxProduct, o: TaxOptions) {
     futureRate,
     today,
     future,
+    cbs,
+    ibs,
+    splitRate,
     split,
     deposit: round(price - split),
     netAfterTaxes: round(price - future),

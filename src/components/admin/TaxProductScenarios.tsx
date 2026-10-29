@@ -302,7 +302,9 @@ export function TaxProductScenarios() {
                       <p>
                         {pct(s.futureRate)} · retido {money(s.future)}
                       </p>
-                      <p>CBS 11,2% + IBS 0,1% + ICMS/DIFAL/ST</p>
+                      <p>
+                        CBS {pct(s.cbs)} + IBS {pct(s.ibs)} + ICMS/DIFAL/ST
+                      </p>
                       <p>
                         Lucro após impostos:{" "}
                         {s.profitFuture === null ? "custo pendente" : money(s.profitFuture)}
@@ -310,7 +312,10 @@ export function TaxProductScenarios() {
                     </div>
                     <div className="rounded border p-3">
                       <h4 className="font-bold">Split Payment</h4>
-                      <p>11,3% · retido na venda: {money(s.split)}</p>
+                      <p className="font-semibold">
+                        Alíquota deste produto na liquidação: {pct(s.splitRate)}
+                      </p>
+                      <p>Valor retido na hora da venda: {money(s.split)}</p>
                       <p className="font-bold">Cai na conta do vendedor: {money(s.deposit)}</p>
                       <p className="text-sm">
                         Somente CBS/IBS segregados. Após reservar ICMS/DIFAL/ST:{" "}
