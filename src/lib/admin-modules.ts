@@ -1,3 +1,4 @@
+import { tax_migration_preview } from "@/lib/tax-migration";
 import {
   ArrowLeftRight,
   BarChart3,
@@ -76,6 +77,14 @@ export const adminModules: AdminModule[] = [
     icon: ShoppingBag,
     accent: "bg-blue-100 text-blue-700",
     shortcuts: [
+      ...(tax_migration_preview ? [{
+        to: "/admin/migracao-tributaria",
+        label: "Migração IBS/CBS",
+        description: "Simulação e preparação tributária",
+        icon: Percent,
+        adminOnly: true,
+        permission: "fiscal" as const,
+      }] : []),
       { to: "/admin/pdv", label: "PDV", description: "Frente de caixa", icon: ScanLine },
       {
         to: "/admin/pedidos",

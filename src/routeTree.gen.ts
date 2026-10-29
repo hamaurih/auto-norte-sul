@@ -9,143 +9,120 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
-import { Route as PrimeiroAcessoRouteImport } from './routes/primeiro-acesso'
-import { Route as McpRouteImport } from './routes/mcp'
-import { Route as EsqueciSenhaRouteImport } from './routes/esqueci-senha'
-import { Route as CheckoutRouteImport } from './routes/checkout'
-import { Route as CatalogoRouteImport } from './routes/catalogo'
-import { Route as CarrinhoRouteImport } from './routes/carrinho'
-import { Route as B2bRouteImport } from './routes/b2b'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AtivacaoRouteImport } from './routes/ativacao'
-import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ProdutoSlugRouteImport } from './routes/produto.$slug'
-import { Route as BrandSocialDotwebpRouteImport } from './routes/brand/social[.]webp'
-import { Route as ApiHealthRouteImport } from './routes/api/health'
-import { Route as AuthenticatedVendedorRouteImport } from './routes/_authenticated/vendedor'
-import { Route as AuthenticatedPedidosRouteImport } from './routes/_authenticated/pedidos'
-import { Route as AuthenticatedContaRouteImport } from './routes/_authenticated/conta'
-import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
-import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AtivacaoRouteImport } from './routes/ativacao'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as B2bRouteImport } from './routes/b2b'
+import { Route as CarrinhoRouteImport } from './routes/carrinho'
+import { Route as CatalogoRouteImport } from './routes/catalogo'
+import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as EsqueciSenhaRouteImport } from './routes/esqueci-senha'
+import { Route as McpRouteImport } from './routes/mcp'
+import { Route as PrimeiroAcessoRouteImport } from './routes/primeiro-acesso'
+import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
-import { Route as AuthenticatedVendedorIndexRouteImport } from './routes/_authenticated/vendedor.index'
-import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
-import { Route as ApiPublicLoginRouteImport } from './routes/api/public/login'
-import { Route as AuthenticatedVendedorPedidoAssistidoRouteImport } from './routes/_authenticated/vendedor.pedido-assistido'
-import { Route as AuthenticatedVendedorMeusPedidosRouteImport } from './routes/_authenticated/vendedor.meus-pedidos'
-import { Route as AuthenticatedVendedorClientesRouteImport } from './routes/_authenticated/vendedor.clientes'
-import { Route as AuthenticatedAdminVendedoresRouteImport } from './routes/_authenticated/admin.vendedores'
-import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin.usuarios'
-import { Route as AuthenticatedAdminSuprimentosRouteImport } from './routes/_authenticated/admin.suprimentos'
-import { Route as AuthenticatedAdminSaneamentoCustosRouteImport } from './routes/_authenticated/admin.saneamento-custos'
-import { Route as AuthenticatedAdminSaneamentoRouteImport } from './routes/_authenticated/admin.saneamento'
-import { Route as AuthenticatedAdminRevisaoCodigosRouteImport } from './routes/_authenticated/admin.revisao-codigos'
-import { Route as AuthenticatedAdminReposicaoRouteImport } from './routes/_authenticated/admin.reposicao'
-import { Route as AuthenticatedAdminPromocoesRouteImport } from './routes/_authenticated/admin.promocoes'
-import { Route as AuthenticatedAdminPedidosRouteImport } from './routes/_authenticated/admin.pedidos'
-import { Route as AuthenticatedAdminPdvRouteImport } from './routes/_authenticated/admin.pdv'
-import { Route as AuthenticatedAdminMigracaoBlingRouteImport } from './routes/_authenticated/admin.migracao-bling'
-import { Route as AuthenticatedAdminMarcasRouteImport } from './routes/_authenticated/admin.marcas'
-import { Route as AuthenticatedAdminInteligenciaComercialRouteImport } from './routes/_authenticated/admin.inteligencia-comercial'
-import { Route as AuthenticatedAdminIaAesBusinessRouteImport } from './routes/_authenticated/admin.ia-aes-business'
-import { Route as AuthenticatedAdminHomologacaoRouteImport } from './routes/_authenticated/admin.homologacao'
-import { Route as AuthenticatedAdminHistoricoCustosRouteImport } from './routes/_authenticated/admin.historico-custos'
-import { Route as AuthenticatedAdminFornecedoresRouteImport } from './routes/_authenticated/admin.fornecedores'
-import { Route as AuthenticatedAdminFormacaoPrecosRouteImport } from './routes/_authenticated/admin.formacao-precos'
-import { Route as AuthenticatedAdminFiscalProdutosRouteImport } from './routes/_authenticated/admin.fiscal-produtos'
-import { Route as AuthenticatedAdminFiscalRouteImport } from './routes/_authenticated/admin.fiscal'
-import { Route as AuthenticatedAdminFiliaisRouteImport } from './routes/_authenticated/admin.filiais'
-import { Route as AuthenticatedAdminExpedicaoRouteImport } from './routes/_authenticated/admin.expedicao'
-import { Route as AuthenticatedAdminEstoqueRouteImport } from './routes/_authenticated/admin.estoque'
-import { Route as AuthenticatedAdminEnriquecimentoProdutosRouteImport } from './routes/_authenticated/admin.enriquecimento-produtos'
-import { Route as AuthenticatedAdminEcossistemaRouteImport } from './routes/_authenticated/admin.ecossistema'
-import { Route as AuthenticatedAdminCuponsRouteImport } from './routes/_authenticated/admin.cupons'
-import { Route as AuthenticatedAdminConfiguracoesRouteImport } from './routes/_authenticated/admin.configuracoes'
-import { Route as AuthenticatedAdminClientesRouteImport } from './routes/_authenticated/admin.clientes'
-import { Route as AuthenticatedAdminCategoriasRouteImport } from './routes/_authenticated/admin.categorias'
-import { Route as AuthenticatedAdminCatalogoFabricantesRouteImport } from './routes/_authenticated/admin.catalogo-fabricantes'
-import { Route as AuthenticatedAdminCadastrosB2bRouteImport } from './routes/_authenticated/admin.cadastros-b2b'
-import { Route as AuthenticatedAdminBlingRouteImport } from './routes/_authenticated/admin.bling'
-import { Route as AuthenticatedAdminBannersRouteImport } from './routes/_authenticated/admin.banners'
-import { Route as AuthenticatedAdminAuditoriaRouteImport } from './routes/_authenticated/admin.auditoria'
-import { Route as AuthenticatedAdminAplicacoesVeicularesRouteImport } from './routes/_authenticated/admin.aplicacoes-veiculares'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedContaRouteImport } from './routes/_authenticated/conta'
+import { Route as AuthenticatedPagamentoRouteImport } from './routes/_authenticated/pagamento'
+import { Route as AuthenticatedPedidosRouteImport } from './routes/_authenticated/pedidos'
+import { Route as AuthenticatedVendedorRouteImport } from './routes/_authenticated/vendedor'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as BrandSocialDotwebpRouteImport } from './routes/brand/social[.]webp'
+import { Route as ProdutoSlugRouteImport } from './routes/produto.$slug'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
-import { Route as AuthenticatedAdminRecebimentosIndexRouteImport } from './routes/_authenticated/admin.recebimentos.index'
-import { Route as AuthenticatedAdminProdutosIndexRouteImport } from './routes/_authenticated/admin.produtos.index'
-import { Route as AuthenticatedAdminPedidosCompraIndexRouteImport } from './routes/_authenticated/admin.pedidos-compra.index'
-import { Route as AuthenticatedAdminOrcamentosIndexRouteImport } from './routes/_authenticated/admin.orcamentos.index'
-import { Route as AuthenticatedAdminNfeImportacaoIndexRouteImport } from './routes/_authenticated/admin.nfe-importacao.index'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as AuthenticatedAdminAplicacoesVeicularesRouteImport } from './routes/_authenticated/admin.aplicacoes-veiculares'
+import { Route as AuthenticatedAdminAuditoriaRouteImport } from './routes/_authenticated/admin.auditoria'
+import { Route as AuthenticatedAdminBackupExportacaoRouteImport } from './routes/_authenticated/admin.backup-exportacao'
+import { Route as AuthenticatedAdminBannersRouteImport } from './routes/_authenticated/admin.banners'
+import { Route as AuthenticatedAdminBlingRouteImport } from './routes/_authenticated/admin.bling'
+import { Route as AuthenticatedAdminCadastrosB2bRouteImport } from './routes/_authenticated/admin.cadastros-b2b'
+import { Route as AuthenticatedAdminCatalogoFabricantesRouteImport } from './routes/_authenticated/admin.catalogo-fabricantes'
+import { Route as AuthenticatedAdminCategoriasRouteImport } from './routes/_authenticated/admin.categorias'
+import { Route as AuthenticatedAdminClientesRouteImport } from './routes/_authenticated/admin.clientes'
+import { Route as AuthenticatedAdminConciliacaoFinanceiraRouteImport } from './routes/_authenticated/admin.conciliacao-financeira'
+import { Route as AuthenticatedAdminConfiguracoesRouteImport } from './routes/_authenticated/admin.configuracoes'
+import { Route as AuthenticatedAdminContasPagarRouteImport } from './routes/_authenticated/admin.contas-pagar'
+import { Route as AuthenticatedAdminContasReceberRouteImport } from './routes/_authenticated/admin.contas-receber'
+import { Route as AuthenticatedAdminCotacoesCompraRouteImport } from './routes/_authenticated/admin.cotacoes-compra'
+import { Route as AuthenticatedAdminCuponsRouteImport } from './routes/_authenticated/admin.cupons'
+import { Route as AuthenticatedAdminDevolucoesFornecedorRouteImport } from './routes/_authenticated/admin.devolucoes-fornecedor'
+import { Route as AuthenticatedAdminEcossistemaRouteImport } from './routes/_authenticated/admin.ecossistema'
+import { Route as AuthenticatedAdminEnriquecimentoFreteRouteImport } from './routes/_authenticated/admin.enriquecimento-frete'
+import { Route as AuthenticatedAdminEnriquecimentoProdutosRouteImport } from './routes/_authenticated/admin.enriquecimento-produtos'
+import { Route as AuthenticatedAdminEstoqueRouteImport } from './routes/_authenticated/admin.estoque'
+import { Route as AuthenticatedAdminExpedicaoRouteImport } from './routes/_authenticated/admin.expedicao'
+import { Route as AuthenticatedAdminFiliaisRouteImport } from './routes/_authenticated/admin.filiais'
+import { Route as AuthenticatedAdminFinanceiroRouteImport } from './routes/_authenticated/admin.financeiro'
+import { Route as AuthenticatedAdminFinanceiroCanaisRouteImport } from './routes/_authenticated/admin.financeiro-canais'
+import { Route as AuthenticatedAdminFiscalRouteImport } from './routes/_authenticated/admin.fiscal'
+import { Route as AuthenticatedAdminFiscalProdutosRouteImport } from './routes/_authenticated/admin.fiscal-produtos'
+import { Route as AuthenticatedAdminFluxoCaixaRouteImport } from './routes/_authenticated/admin.fluxo-caixa'
+import { Route as AuthenticatedAdminFormacaoPrecosRouteImport } from './routes/_authenticated/admin.formacao-precos'
+import { Route as AuthenticatedAdminFornecedoresRouteImport } from './routes/_authenticated/admin.fornecedores'
+import { Route as AuthenticatedAdminHistoricoCustosRouteImport } from './routes/_authenticated/admin.historico-custos'
+import { Route as AuthenticatedAdminHomologacaoRouteImport } from './routes/_authenticated/admin.homologacao'
+import { Route as AuthenticatedAdminIaAesBusinessRouteImport } from './routes/_authenticated/admin.ia-aes-business'
+import { Route as AuthenticatedAdminInteligenciaComercialRouteImport } from './routes/_authenticated/admin.inteligencia-comercial'
+import { Route as AuthenticatedAdminMarcasRouteImport } from './routes/_authenticated/admin.marcas'
+import { Route as AuthenticatedAdminMigracaoBlingRouteImport } from './routes/_authenticated/admin.migracao-bling'
+import { Route as AuthenticatedAdminMigracaoTributariaRouteImport } from './routes/_authenticated/admin.migracao-tributaria'
+import { Route as AuthenticatedAdminPdvRouteImport } from './routes/_authenticated/admin.pdv'
+import { Route as AuthenticatedAdminPedidosRouteImport } from './routes/_authenticated/admin.pedidos'
+import { Route as AuthenticatedAdminPromocoesRouteImport } from './routes/_authenticated/admin.promocoes'
+import { Route as AuthenticatedAdminReposicaoRouteImport } from './routes/_authenticated/admin.reposicao'
+import { Route as AuthenticatedAdminResumoVendasRouteImport } from './routes/_authenticated/admin.resumo-vendas'
+import { Route as AuthenticatedAdminRevisaoCodigosRouteImport } from './routes/_authenticated/admin.revisao-codigos'
+import { Route as AuthenticatedAdminSaneamentoRouteImport } from './routes/_authenticated/admin.saneamento'
+import { Route as AuthenticatedAdminSaneamentoCustosRouteImport } from './routes/_authenticated/admin.saneamento-custos'
+import { Route as AuthenticatedAdminSuprimentosRouteImport } from './routes/_authenticated/admin.suprimentos'
+import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin.usuarios'
+import { Route as AuthenticatedAdminVendedoresRouteImport } from './routes/_authenticated/admin.vendedores'
+import { Route as AuthenticatedVendedorIndexRouteImport } from './routes/_authenticated/vendedor.index'
+import { Route as AuthenticatedVendedorClientesRouteImport } from './routes/_authenticated/vendedor.clientes'
+import { Route as AuthenticatedVendedorMeusPedidosRouteImport } from './routes/_authenticated/vendedor.meus-pedidos'
+import { Route as AuthenticatedVendedorPedidoAssistidoRouteImport } from './routes/_authenticated/vendedor.pedido-assistido'
+import { Route as ApiPublicLoginRouteImport } from './routes/api/public/login'
+import { Route as ApiPublicSignupRouteImport } from './routes/api/public/signup'
 import { Route as AuthenticatedAdminEcossistemaIndexRouteImport } from './routes/_authenticated/admin.ecossistema.index'
-import { Route as ApiPublicCronEnrichmentRouteImport } from './routes/api/public/cron.enrichment'
-import { Route as ApiPublicCronBlingHealthRouteImport } from './routes/api/public/cron.bling-health'
-import { Route as ApiPublicBlingCallbackRouteImport } from './routes/api/public/bling.callback'
-import { Route as AuthenticatedAdminVendedoresNovoRouteImport } from './routes/_authenticated/admin.vendedores.novo'
-import { Route as AuthenticatedAdminSaneamentoAliasesRouteImport } from './routes/_authenticated/admin.saneamento.aliases'
-import { Route as AuthenticatedAdminRecebimentosIdRouteImport } from './routes/_authenticated/admin.recebimentos.$id'
-import { Route as AuthenticatedAdminProdutosNovoRouteImport } from './routes/_authenticated/admin.produtos.novo'
-import { Route as AuthenticatedAdminProdutosIdRouteImport } from './routes/_authenticated/admin.produtos.$id'
-import { Route as AuthenticatedAdminPedidosIdRouteImport } from './routes/_authenticated/admin.pedidos.$id'
-import { Route as AuthenticatedAdminPedidosCompraNovoRouteImport } from './routes/_authenticated/admin.pedidos-compra.novo'
-import { Route as AuthenticatedAdminPedidosCompraIdRouteImport } from './routes/_authenticated/admin.pedidos-compra.$id'
-import { Route as AuthenticatedAdminOrcamentosNovoRouteImport } from './routes/_authenticated/admin.orcamentos.novo'
-import { Route as AuthenticatedAdminOrcamentosIdRouteImport } from './routes/_authenticated/admin.orcamentos.$id'
-import { Route as AuthenticatedAdminNfeImportacaoIdRouteImport } from './routes/_authenticated/admin.nfe-importacao.$id'
-import { Route as AuthenticatedAdminEcossistemaBlingRouteImport } from './routes/_authenticated/admin.ecossistema.bling'
 import { Route as AuthenticatedAdminEcossistemaSlugRouteImport } from './routes/_authenticated/admin.ecossistema.$slug'
-import { Route as ApiPublicStoneConciliationWebhookRouteImport } from './routes/api/public/stone.conciliation.webhook'
+import { Route as AuthenticatedAdminEcossistemaBlingRouteImport } from './routes/_authenticated/admin.ecossistema.bling'
+import { Route as AuthenticatedAdminNfeImportacaoIndexRouteImport } from './routes/_authenticated/admin.nfe-importacao.index'
+import { Route as AuthenticatedAdminNfeImportacaoIdRouteImport } from './routes/_authenticated/admin.nfe-importacao.$id'
+import { Route as AuthenticatedAdminOrcamentosIndexRouteImport } from './routes/_authenticated/admin.orcamentos.index'
+import { Route as AuthenticatedAdminOrcamentosIdRouteImport } from './routes/_authenticated/admin.orcamentos.$id'
+import { Route as AuthenticatedAdminOrcamentosNovoRouteImport } from './routes/_authenticated/admin.orcamentos.novo'
+import { Route as AuthenticatedAdminPedidosCompraIndexRouteImport } from './routes/_authenticated/admin.pedidos-compra.index'
+import { Route as AuthenticatedAdminPedidosCompraIdRouteImport } from './routes/_authenticated/admin.pedidos-compra.$id'
+import { Route as AuthenticatedAdminPedidosCompraNovoRouteImport } from './routes/_authenticated/admin.pedidos-compra.novo'
+import { Route as AuthenticatedAdminPedidosIdRouteImport } from './routes/_authenticated/admin.pedidos.$id'
+import { Route as AuthenticatedAdminProdutosIndexRouteImport } from './routes/_authenticated/admin.produtos.index'
+import { Route as AuthenticatedAdminProdutosIdRouteImport } from './routes/_authenticated/admin.produtos.$id'
+import { Route as AuthenticatedAdminProdutosNovoRouteImport } from './routes/_authenticated/admin.produtos.novo'
+import { Route as AuthenticatedAdminRecebimentosIndexRouteImport } from './routes/_authenticated/admin.recebimentos.index'
+import { Route as AuthenticatedAdminRecebimentosIdRouteImport } from './routes/_authenticated/admin.recebimentos.$id'
+import { Route as AuthenticatedAdminSaneamentoAliasesRouteImport } from './routes/_authenticated/admin.saneamento.aliases'
+import { Route as AuthenticatedAdminVendedoresNovoRouteImport } from './routes/_authenticated/admin.vendedores.novo'
+import { Route as ApiPublicAsaasWebhookRouteImport } from './routes/api/public/asaas.webhook'
+import { Route as ApiPublicBlingCallbackRouteImport } from './routes/api/public/bling.callback'
+import { Route as ApiPublicCronBlingFiscalSyncRouteImport } from './routes/api/public/cron.bling-fiscal-sync'
+import { Route as ApiPublicCronBlingHealthRouteImport } from './routes/api/public/cron.bling-health'
+import { Route as ApiPublicCronBlingSalesExportRouteImport } from './routes/api/public/cron.bling-sales-export'
+import { Route as ApiPublicCronEnrichmentRouteImport } from './routes/api/public/cron.enrichment'
+import { Route as ApiPublicCronShippingEnrichmentRouteImport } from './routes/api/public/cron.shipping-enrichment'
 import { Route as AuthenticatedAdminPedidosCompraEditarIdRouteImport } from './routes/_authenticated/admin.pedidos-compra.editar.$id'
+import { Route as ApiPublicStoneConciliationWebhookRouteImport } from './routes/api/public/stone.conciliation.webhook'
 
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
-  id: '/redefinir-senha',
-  path: '/redefinir-senha',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrimeiroAcessoRoute = PrimeiroAcessoRouteImport.update({
-  id: '/primeiro-acesso',
-  path: '/primeiro-acesso',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const McpRoute = McpRouteImport.update({
-  id: '/mcp',
-  path: '/mcp',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EsqueciSenhaRoute = EsqueciSenhaRouteImport.update({
-  id: '/esqueci-senha',
-  path: '/esqueci-senha',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CheckoutRoute = CheckoutRouteImport.update({
-  id: '/checkout',
-  path: '/checkout',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CatalogoRoute = CatalogoRouteImport.update({
-  id: '/catalogo',
-  path: '/catalogo',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CarrinhoRoute = CarrinhoRouteImport.update({
-  id: '/carrinho',
-  path: '/carrinho',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const B2bRoute = B2bRouteImport.update({
-  id: '/b2b',
-  path: '/b2b',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AtivacaoRoute = AtivacaoRouteImport.update({
@@ -153,38 +130,71 @@ const AtivacaoRoute = AtivacaoRouteImport.update({
   path: '/ativacao',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
-  id: '/_authenticated',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const B2bRoute = B2bRouteImport.update({
+  id: '/b2b',
+  path: '/b2b',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProdutoSlugRoute = ProdutoSlugRouteImport.update({
-  id: '/produto/$slug',
-  path: '/produto/$slug',
+const CarrinhoRoute = CarrinhoRouteImport.update({
+  id: '/carrinho',
+  path: '/carrinho',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BrandSocialDotwebpRoute = BrandSocialDotwebpRouteImport.update({
-  id: '/brand/social.webp',
-  path: '/brand/social.webp',
+const CatalogoRoute = CatalogoRouteImport.update({
+  id: '/catalogo',
+  path: '/catalogo',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiHealthRoute = ApiHealthRouteImport.update({
-  id: '/api/health',
-  path: '/api/health',
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedVendedorRoute = AuthenticatedVendedorRouteImport.update({
-  id: '/vendedor',
-  path: '/vendedor',
-  getParentRoute: () => AuthenticatedRouteRoute,
+const EsqueciSenhaRoute = EsqueciSenhaRouteImport.update({
+  id: '/esqueci-senha',
+  path: '/esqueci-senha',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedPedidosRoute = AuthenticatedPedidosRouteImport.update({
-  id: '/pedidos',
-  path: '/pedidos',
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrimeiroAcessoRoute = PrimeiroAcessoRouteImport.update({
+  id: '/primeiro-acesso',
+  path: '/primeiro-acesso',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
+  id: '/redefinir-senha',
+  path: '/redefinir-senha',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedContaRoute = AuthenticatedContaRouteImport.update({
@@ -192,251 +202,51 @@ const AuthenticatedContaRoute = AuthenticatedContaRouteImport.update({
   path: '/conta',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+const AuthenticatedPagamentoRoute = AuthenticatedPagamentoRouteImport.update({
+  id: '/pagamento',
+  path: '/pagamento',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const Char91DotwellKnownChar93OauthProtectedResourceRoute =
-  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
-    id: '/.well-known/oauth-protected-resource',
-    path: '/.well-known/oauth-protected-resource',
+const AuthenticatedPedidosRoute = AuthenticatedPedidosRouteImport.update({
+  id: '/pedidos',
+  path: '/pedidos',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedVendedorRoute = AuthenticatedVendedorRouteImport.update({
+  id: '/vendedor',
+  path: '/vendedor',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BrandSocialDotwebpRoute = BrandSocialDotwebpRouteImport.update({
+  id: '/brand/social.webp',
+  path: '/brand/social.webp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProdutoSlugRoute = ProdutoSlugRouteImport.update({
+  id: '/produto/$slug',
+  path: '/produto/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotmcpChar93InvokeToolToolRoute =
+  Char91DotmcpChar93InvokeToolToolRouteImport.update({
+    id: '/.mcp/invoke-tool/$tool',
+    path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
-  } as any)
-const Char91DotmcpChar93ListToolsRoute =
-  Char91DotmcpChar93ListToolsRouteImport.update({
-    id: '/.mcp/list-tools',
-    path: '/.mcp/list-tools',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const AuthenticatedVendedorIndexRoute =
-  AuthenticatedVendedorIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthenticatedVendedorRoute,
   } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
-const ApiPublicLoginRoute = ApiPublicLoginRouteImport.update({
-  id: '/api/public/login',
-  path: '/api/public/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedVendedorPedidoAssistidoRoute =
-  AuthenticatedVendedorPedidoAssistidoRouteImport.update({
-    id: '/pedido-assistido',
-    path: '/pedido-assistido',
-    getParentRoute: () => AuthenticatedVendedorRoute,
-  } as any)
-const AuthenticatedVendedorMeusPedidosRoute =
-  AuthenticatedVendedorMeusPedidosRouteImport.update({
-    id: '/meus-pedidos',
-    path: '/meus-pedidos',
-    getParentRoute: () => AuthenticatedVendedorRoute,
-  } as any)
-const AuthenticatedVendedorClientesRoute =
-  AuthenticatedVendedorClientesRouteImport.update({
-    id: '/clientes',
-    path: '/clientes',
-    getParentRoute: () => AuthenticatedVendedorRoute,
-  } as any)
-const AuthenticatedAdminVendedoresRoute =
-  AuthenticatedAdminVendedoresRouteImport.update({
-    id: '/vendedores',
-    path: '/vendedores',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminUsuariosRoute =
-  AuthenticatedAdminUsuariosRouteImport.update({
-    id: '/usuarios',
-    path: '/usuarios',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminSuprimentosRoute =
-  AuthenticatedAdminSuprimentosRouteImport.update({
-    id: '/suprimentos',
-    path: '/suprimentos',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminSaneamentoCustosRoute =
-  AuthenticatedAdminSaneamentoCustosRouteImport.update({
-    id: '/saneamento-custos',
-    path: '/saneamento-custos',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminSaneamentoRoute =
-  AuthenticatedAdminSaneamentoRouteImport.update({
-    id: '/saneamento',
-    path: '/saneamento',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminRevisaoCodigosRoute =
-  AuthenticatedAdminRevisaoCodigosRouteImport.update({
-    id: '/revisao-codigos',
-    path: '/revisao-codigos',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminReposicaoRoute =
-  AuthenticatedAdminReposicaoRouteImport.update({
-    id: '/reposicao',
-    path: '/reposicao',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminPromocoesRoute =
-  AuthenticatedAdminPromocoesRouteImport.update({
-    id: '/promocoes',
-    path: '/promocoes',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminPedidosRoute =
-  AuthenticatedAdminPedidosRouteImport.update({
-    id: '/pedidos',
-    path: '/pedidos',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminPdvRoute = AuthenticatedAdminPdvRouteImport.update({
-  id: '/pdv',
-  path: '/pdv',
-  getParentRoute: () => AuthenticatedAdminRoute,
-} as any)
-const AuthenticatedAdminMigracaoBlingRoute =
-  AuthenticatedAdminMigracaoBlingRouteImport.update({
-    id: '/migracao-bling',
-    path: '/migracao-bling',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminMarcasRoute =
-  AuthenticatedAdminMarcasRouteImport.update({
-    id: '/marcas',
-    path: '/marcas',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminInteligenciaComercialRoute =
-  AuthenticatedAdminInteligenciaComercialRouteImport.update({
-    id: '/inteligencia-comercial',
-    path: '/inteligencia-comercial',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminIaAesBusinessRoute =
-  AuthenticatedAdminIaAesBusinessRouteImport.update({
-    id: '/ia-aes-business',
-    path: '/ia-aes-business',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminHomologacaoRoute =
-  AuthenticatedAdminHomologacaoRouteImport.update({
-    id: '/homologacao',
-    path: '/homologacao',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminHistoricoCustosRoute =
-  AuthenticatedAdminHistoricoCustosRouteImport.update({
-    id: '/historico-custos',
-    path: '/historico-custos',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminFornecedoresRoute =
-  AuthenticatedAdminFornecedoresRouteImport.update({
-    id: '/fornecedores',
-    path: '/fornecedores',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminFormacaoPrecosRoute =
-  AuthenticatedAdminFormacaoPrecosRouteImport.update({
-    id: '/formacao-precos',
-    path: '/formacao-precos',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminFiscalProdutosRoute =
-  AuthenticatedAdminFiscalProdutosRouteImport.update({
-    id: '/fiscal-produtos',
-    path: '/fiscal-produtos',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminFiscalRoute =
-  AuthenticatedAdminFiscalRouteImport.update({
-    id: '/fiscal',
-    path: '/fiscal',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminFiliaisRoute =
-  AuthenticatedAdminFiliaisRouteImport.update({
-    id: '/filiais',
-    path: '/filiais',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminExpedicaoRoute =
-  AuthenticatedAdminExpedicaoRouteImport.update({
-    id: '/expedicao',
-    path: '/expedicao',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminEstoqueRoute =
-  AuthenticatedAdminEstoqueRouteImport.update({
-    id: '/estoque',
-    path: '/estoque',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminEnriquecimentoProdutosRoute =
-  AuthenticatedAdminEnriquecimentoProdutosRouteImport.update({
-    id: '/enriquecimento-produtos',
-    path: '/enriquecimento-produtos',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminEcossistemaRoute =
-  AuthenticatedAdminEcossistemaRouteImport.update({
-    id: '/ecossistema',
-    path: '/ecossistema',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminCuponsRoute =
-  AuthenticatedAdminCuponsRouteImport.update({
-    id: '/cupons',
-    path: '/cupons',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminConfiguracoesRoute =
-  AuthenticatedAdminConfiguracoesRouteImport.update({
-    id: '/configuracoes',
-    path: '/configuracoes',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminClientesRoute =
-  AuthenticatedAdminClientesRouteImport.update({
-    id: '/clientes',
-    path: '/clientes',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminCategoriasRoute =
-  AuthenticatedAdminCategoriasRouteImport.update({
-    id: '/categorias',
-    path: '/categorias',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminCatalogoFabricantesRoute =
-  AuthenticatedAdminCatalogoFabricantesRouteImport.update({
-    id: '/catalogo-fabricantes',
-    path: '/catalogo-fabricantes',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminCadastrosB2bRoute =
-  AuthenticatedAdminCadastrosB2bRouteImport.update({
-    id: '/cadastros-b2b',
-    path: '/cadastros-b2b',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminBlingRoute = AuthenticatedAdminBlingRouteImport.update({
-  id: '/bling',
-  path: '/bling',
-  getParentRoute: () => AuthenticatedAdminRoute,
-} as any)
-const AuthenticatedAdminBannersRoute =
-  AuthenticatedAdminBannersRouteImport.update({
-    id: '/banners',
-    path: '/banners',
+const AuthenticatedAdminAplicacoesVeicularesRoute =
+  AuthenticatedAdminAplicacoesVeicularesRouteImport.update({
+    id: '/aplicacoes-veiculares',
+    path: '/aplicacoes-veiculares',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminAuditoriaRoute =
@@ -445,139 +255,312 @@ const AuthenticatedAdminAuditoriaRoute =
     path: '/auditoria',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const AuthenticatedAdminAplicacoesVeicularesRoute =
-  AuthenticatedAdminAplicacoesVeicularesRouteImport.update({
-    id: '/aplicacoes-veiculares',
-    path: '/aplicacoes-veiculares',
+const AuthenticatedAdminBackupExportacaoRoute =
+  AuthenticatedAdminBackupExportacaoRouteImport.update({
+    id: '/backup-exportacao',
+    path: '/backup-exportacao',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const Char91DotmcpChar93InvokeToolToolRoute =
-  Char91DotmcpChar93InvokeToolToolRouteImport.update({
-    id: '/.mcp/invoke-tool/$tool',
-    path: '/.mcp/invoke-tool/$tool',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const AuthenticatedAdminRecebimentosIndexRoute =
-  AuthenticatedAdminRecebimentosIndexRouteImport.update({
-    id: '/recebimentos/',
-    path: '/recebimentos/',
+const AuthenticatedAdminBannersRoute =
+  AuthenticatedAdminBannersRouteImport.update({
+    id: '/banners',
+    path: '/banners',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const AuthenticatedAdminProdutosIndexRoute =
-  AuthenticatedAdminProdutosIndexRouteImport.update({
-    id: '/produtos/',
-    path: '/produtos/',
+const AuthenticatedAdminBlingRoute = AuthenticatedAdminBlingRouteImport.update({
+  id: '/bling',
+  path: '/bling',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedAdminCadastrosB2bRoute =
+  AuthenticatedAdminCadastrosB2bRouteImport.update({
+    id: '/cadastros-b2b',
+    path: '/cadastros-b2b',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const AuthenticatedAdminPedidosCompraIndexRoute =
-  AuthenticatedAdminPedidosCompraIndexRouteImport.update({
-    id: '/pedidos-compra/',
-    path: '/pedidos-compra/',
+const AuthenticatedAdminCatalogoFabricantesRoute =
+  AuthenticatedAdminCatalogoFabricantesRouteImport.update({
+    id: '/catalogo-fabricantes',
+    path: '/catalogo-fabricantes',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const AuthenticatedAdminOrcamentosIndexRoute =
-  AuthenticatedAdminOrcamentosIndexRouteImport.update({
-    id: '/orcamentos/',
-    path: '/orcamentos/',
+const AuthenticatedAdminCategoriasRoute =
+  AuthenticatedAdminCategoriasRouteImport.update({
+    id: '/categorias',
+    path: '/categorias',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const AuthenticatedAdminNfeImportacaoIndexRoute =
-  AuthenticatedAdminNfeImportacaoIndexRouteImport.update({
-    id: '/nfe-importacao/',
-    path: '/nfe-importacao/',
+const AuthenticatedAdminClientesRoute =
+  AuthenticatedAdminClientesRouteImport.update({
+    id: '/clientes',
+    path: '/clientes',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminConciliacaoFinanceiraRoute =
+  AuthenticatedAdminConciliacaoFinanceiraRouteImport.update({
+    id: '/conciliacao-financeira',
+    path: '/conciliacao-financeira',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminConfiguracoesRoute =
+  AuthenticatedAdminConfiguracoesRouteImport.update({
+    id: '/configuracoes',
+    path: '/configuracoes',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminContasPagarRoute =
+  AuthenticatedAdminContasPagarRouteImport.update({
+    id: '/contas-pagar',
+    path: '/contas-pagar',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminContasReceberRoute =
+  AuthenticatedAdminContasReceberRouteImport.update({
+    id: '/contas-receber',
+    path: '/contas-receber',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminCotacoesCompraRoute =
+  AuthenticatedAdminCotacoesCompraRouteImport.update({
+    id: '/cotacoes-compra',
+    path: '/cotacoes-compra',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminCuponsRoute =
+  AuthenticatedAdminCuponsRouteImport.update({
+    id: '/cupons',
+    path: '/cupons',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminDevolucoesFornecedorRoute =
+  AuthenticatedAdminDevolucoesFornecedorRouteImport.update({
+    id: '/devolucoes-fornecedor',
+    path: '/devolucoes-fornecedor',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminEcossistemaRoute =
+  AuthenticatedAdminEcossistemaRouteImport.update({
+    id: '/ecossistema',
+    path: '/ecossistema',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminEnriquecimentoFreteRoute =
+  AuthenticatedAdminEnriquecimentoFreteRouteImport.update({
+    id: '/enriquecimento-frete',
+    path: '/enriquecimento-frete',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminEnriquecimentoProdutosRoute =
+  AuthenticatedAdminEnriquecimentoProdutosRouteImport.update({
+    id: '/enriquecimento-produtos',
+    path: '/enriquecimento-produtos',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminEstoqueRoute =
+  AuthenticatedAdminEstoqueRouteImport.update({
+    id: '/estoque',
+    path: '/estoque',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminExpedicaoRoute =
+  AuthenticatedAdminExpedicaoRouteImport.update({
+    id: '/expedicao',
+    path: '/expedicao',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminFiliaisRoute =
+  AuthenticatedAdminFiliaisRouteImport.update({
+    id: '/filiais',
+    path: '/filiais',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminFinanceiroRoute =
+  AuthenticatedAdminFinanceiroRouteImport.update({
+    id: '/financeiro',
+    path: '/financeiro',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminFinanceiroCanaisRoute =
+  AuthenticatedAdminFinanceiroCanaisRouteImport.update({
+    id: '/financeiro-canais',
+    path: '/financeiro-canais',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminFiscalRoute =
+  AuthenticatedAdminFiscalRouteImport.update({
+    id: '/fiscal',
+    path: '/fiscal',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminFiscalProdutosRoute =
+  AuthenticatedAdminFiscalProdutosRouteImport.update({
+    id: '/fiscal-produtos',
+    path: '/fiscal-produtos',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminFluxoCaixaRoute =
+  AuthenticatedAdminFluxoCaixaRouteImport.update({
+    id: '/fluxo-caixa',
+    path: '/fluxo-caixa',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminFormacaoPrecosRoute =
+  AuthenticatedAdminFormacaoPrecosRouteImport.update({
+    id: '/formacao-precos',
+    path: '/formacao-precos',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminFornecedoresRoute =
+  AuthenticatedAdminFornecedoresRouteImport.update({
+    id: '/fornecedores',
+    path: '/fornecedores',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminHistoricoCustosRoute =
+  AuthenticatedAdminHistoricoCustosRouteImport.update({
+    id: '/historico-custos',
+    path: '/historico-custos',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminHomologacaoRoute =
+  AuthenticatedAdminHomologacaoRouteImport.update({
+    id: '/homologacao',
+    path: '/homologacao',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminIaAesBusinessRoute =
+  AuthenticatedAdminIaAesBusinessRouteImport.update({
+    id: '/ia-aes-business',
+    path: '/ia-aes-business',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminInteligenciaComercialRoute =
+  AuthenticatedAdminInteligenciaComercialRouteImport.update({
+    id: '/inteligencia-comercial',
+    path: '/inteligencia-comercial',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminMarcasRoute =
+  AuthenticatedAdminMarcasRouteImport.update({
+    id: '/marcas',
+    path: '/marcas',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminMigracaoBlingRoute =
+  AuthenticatedAdminMigracaoBlingRouteImport.update({
+    id: '/migracao-bling',
+    path: '/migracao-bling',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminMigracaoTributariaRoute =
+  AuthenticatedAdminMigracaoTributariaRouteImport.update({
+    id: '/migracao-tributaria',
+    path: '/migracao-tributaria',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminPdvRoute = AuthenticatedAdminPdvRouteImport.update({
+  id: '/pdv',
+  path: '/pdv',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedAdminPedidosRoute =
+  AuthenticatedAdminPedidosRouteImport.update({
+    id: '/pedidos',
+    path: '/pedidos',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminPromocoesRoute =
+  AuthenticatedAdminPromocoesRouteImport.update({
+    id: '/promocoes',
+    path: '/promocoes',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminReposicaoRoute =
+  AuthenticatedAdminReposicaoRouteImport.update({
+    id: '/reposicao',
+    path: '/reposicao',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminResumoVendasRoute =
+  AuthenticatedAdminResumoVendasRouteImport.update({
+    id: '/resumo-vendas',
+    path: '/resumo-vendas',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminRevisaoCodigosRoute =
+  AuthenticatedAdminRevisaoCodigosRouteImport.update({
+    id: '/revisao-codigos',
+    path: '/revisao-codigos',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminSaneamentoRoute =
+  AuthenticatedAdminSaneamentoRouteImport.update({
+    id: '/saneamento',
+    path: '/saneamento',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminSaneamentoCustosRoute =
+  AuthenticatedAdminSaneamentoCustosRouteImport.update({
+    id: '/saneamento-custos',
+    path: '/saneamento-custos',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminSuprimentosRoute =
+  AuthenticatedAdminSuprimentosRouteImport.update({
+    id: '/suprimentos',
+    path: '/suprimentos',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminUsuariosRoute =
+  AuthenticatedAdminUsuariosRouteImport.update({
+    id: '/usuarios',
+    path: '/usuarios',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminVendedoresRoute =
+  AuthenticatedAdminVendedoresRouteImport.update({
+    id: '/vendedores',
+    path: '/vendedores',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedVendedorIndexRoute =
+  AuthenticatedVendedorIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedVendedorRoute,
+  } as any)
+const AuthenticatedVendedorClientesRoute =
+  AuthenticatedVendedorClientesRouteImport.update({
+    id: '/clientes',
+    path: '/clientes',
+    getParentRoute: () => AuthenticatedVendedorRoute,
+  } as any)
+const AuthenticatedVendedorMeusPedidosRoute =
+  AuthenticatedVendedorMeusPedidosRouteImport.update({
+    id: '/meus-pedidos',
+    path: '/meus-pedidos',
+    getParentRoute: () => AuthenticatedVendedorRoute,
+  } as any)
+const AuthenticatedVendedorPedidoAssistidoRoute =
+  AuthenticatedVendedorPedidoAssistidoRouteImport.update({
+    id: '/pedido-assistido',
+    path: '/pedido-assistido',
+    getParentRoute: () => AuthenticatedVendedorRoute,
+  } as any)
+const ApiPublicLoginRoute = ApiPublicLoginRouteImport.update({
+  id: '/api/public/login',
+  path: '/api/public/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicSignupRoute = ApiPublicSignupRouteImport.update({
+  id: '/api/public/signup',
+  path: '/api/public/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAdminEcossistemaIndexRoute =
   AuthenticatedAdminEcossistemaIndexRouteImport.update({
     id: '/',
     path: '/',
-    getParentRoute: () => AuthenticatedAdminEcossistemaRoute,
-  } as any)
-const ApiPublicCronEnrichmentRoute = ApiPublicCronEnrichmentRouteImport.update({
-  id: '/api/public/cron/enrichment',
-  path: '/api/public/cron/enrichment',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicCronBlingHealthRoute = ApiPublicCronBlingHealthRouteImport.update({
-  id: '/api/public/cron/bling-health',
-  path: '/api/public/cron/bling-health',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicBlingCallbackRoute = ApiPublicBlingCallbackRouteImport.update({
-  id: '/api/public/bling/callback',
-  path: '/api/public/bling/callback',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedAdminVendedoresNovoRoute =
-  AuthenticatedAdminVendedoresNovoRouteImport.update({
-    id: '/novo',
-    path: '/novo',
-    getParentRoute: () => AuthenticatedAdminVendedoresRoute,
-  } as any)
-const AuthenticatedAdminSaneamentoAliasesRoute =
-  AuthenticatedAdminSaneamentoAliasesRouteImport.update({
-    id: '/aliases',
-    path: '/aliases',
-    getParentRoute: () => AuthenticatedAdminSaneamentoRoute,
-  } as any)
-const AuthenticatedAdminRecebimentosIdRoute =
-  AuthenticatedAdminRecebimentosIdRouteImport.update({
-    id: '/recebimentos/$id',
-    path: '/recebimentos/$id',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminProdutosNovoRoute =
-  AuthenticatedAdminProdutosNovoRouteImport.update({
-    id: '/produtos/novo',
-    path: '/produtos/novo',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminProdutosIdRoute =
-  AuthenticatedAdminProdutosIdRouteImport.update({
-    id: '/produtos/$id',
-    path: '/produtos/$id',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminPedidosIdRoute =
-  AuthenticatedAdminPedidosIdRouteImport.update({
-    id: '/$id',
-    path: '/$id',
-    getParentRoute: () => AuthenticatedAdminPedidosRoute,
-  } as any)
-const AuthenticatedAdminPedidosCompraNovoRoute =
-  AuthenticatedAdminPedidosCompraNovoRouteImport.update({
-    id: '/pedidos-compra/novo',
-    path: '/pedidos-compra/novo',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminPedidosCompraIdRoute =
-  AuthenticatedAdminPedidosCompraIdRouteImport.update({
-    id: '/pedidos-compra/$id',
-    path: '/pedidos-compra/$id',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminOrcamentosNovoRoute =
-  AuthenticatedAdminOrcamentosNovoRouteImport.update({
-    id: '/orcamentos/novo',
-    path: '/orcamentos/novo',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminOrcamentosIdRoute =
-  AuthenticatedAdminOrcamentosIdRouteImport.update({
-    id: '/orcamentos/$id',
-    path: '/orcamentos/$id',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminNfeImportacaoIdRoute =
-  AuthenticatedAdminNfeImportacaoIdRouteImport.update({
-    id: '/nfe-importacao/$id',
-    path: '/nfe-importacao/$id',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminEcossistemaBlingRoute =
-  AuthenticatedAdminEcossistemaBlingRouteImport.update({
-    id: '/bling',
-    path: '/bling',
     getParentRoute: () => AuthenticatedAdminEcossistemaRoute,
   } as any)
 const AuthenticatedAdminEcossistemaSlugRoute =
@@ -586,10 +569,145 @@ const AuthenticatedAdminEcossistemaSlugRoute =
     path: '/$slug',
     getParentRoute: () => AuthenticatedAdminEcossistemaRoute,
   } as any)
-const ApiPublicStoneConciliationWebhookRoute =
-  ApiPublicStoneConciliationWebhookRouteImport.update({
-    id: '/api/public/stone/conciliation/webhook',
-    path: '/api/public/stone/conciliation/webhook',
+const AuthenticatedAdminEcossistemaBlingRoute =
+  AuthenticatedAdminEcossistemaBlingRouteImport.update({
+    id: '/bling',
+    path: '/bling',
+    getParentRoute: () => AuthenticatedAdminEcossistemaRoute,
+  } as any)
+const AuthenticatedAdminNfeImportacaoIndexRoute =
+  AuthenticatedAdminNfeImportacaoIndexRouteImport.update({
+    id: '/nfe-importacao/',
+    path: '/nfe-importacao/',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminNfeImportacaoIdRoute =
+  AuthenticatedAdminNfeImportacaoIdRouteImport.update({
+    id: '/nfe-importacao/$id',
+    path: '/nfe-importacao/$id',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminOrcamentosIndexRoute =
+  AuthenticatedAdminOrcamentosIndexRouteImport.update({
+    id: '/orcamentos/',
+    path: '/orcamentos/',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminOrcamentosIdRoute =
+  AuthenticatedAdminOrcamentosIdRouteImport.update({
+    id: '/orcamentos/$id',
+    path: '/orcamentos/$id',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminOrcamentosNovoRoute =
+  AuthenticatedAdminOrcamentosNovoRouteImport.update({
+    id: '/orcamentos/novo',
+    path: '/orcamentos/novo',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminPedidosCompraIndexRoute =
+  AuthenticatedAdminPedidosCompraIndexRouteImport.update({
+    id: '/pedidos-compra/',
+    path: '/pedidos-compra/',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminPedidosCompraIdRoute =
+  AuthenticatedAdminPedidosCompraIdRouteImport.update({
+    id: '/pedidos-compra/$id',
+    path: '/pedidos-compra/$id',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminPedidosCompraNovoRoute =
+  AuthenticatedAdminPedidosCompraNovoRouteImport.update({
+    id: '/pedidos-compra/novo',
+    path: '/pedidos-compra/novo',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminPedidosIdRoute =
+  AuthenticatedAdminPedidosIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedAdminPedidosRoute,
+  } as any)
+const AuthenticatedAdminProdutosIndexRoute =
+  AuthenticatedAdminProdutosIndexRouteImport.update({
+    id: '/produtos/',
+    path: '/produtos/',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminProdutosIdRoute =
+  AuthenticatedAdminProdutosIdRouteImport.update({
+    id: '/produtos/$id',
+    path: '/produtos/$id',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminProdutosNovoRoute =
+  AuthenticatedAdminProdutosNovoRouteImport.update({
+    id: '/produtos/novo',
+    path: '/produtos/novo',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminRecebimentosIndexRoute =
+  AuthenticatedAdminRecebimentosIndexRouteImport.update({
+    id: '/recebimentos/',
+    path: '/recebimentos/',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminRecebimentosIdRoute =
+  AuthenticatedAdminRecebimentosIdRouteImport.update({
+    id: '/recebimentos/$id',
+    path: '/recebimentos/$id',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminSaneamentoAliasesRoute =
+  AuthenticatedAdminSaneamentoAliasesRouteImport.update({
+    id: '/aliases',
+    path: '/aliases',
+    getParentRoute: () => AuthenticatedAdminSaneamentoRoute,
+  } as any)
+const AuthenticatedAdminVendedoresNovoRoute =
+  AuthenticatedAdminVendedoresNovoRouteImport.update({
+    id: '/novo',
+    path: '/novo',
+    getParentRoute: () => AuthenticatedAdminVendedoresRoute,
+  } as any)
+const ApiPublicAsaasWebhookRoute = ApiPublicAsaasWebhookRouteImport.update({
+  id: '/api/public/asaas/webhook',
+  path: '/api/public/asaas/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicBlingCallbackRoute = ApiPublicBlingCallbackRouteImport.update({
+  id: '/api/public/bling/callback',
+  path: '/api/public/bling/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicCronBlingFiscalSyncRoute =
+  ApiPublicCronBlingFiscalSyncRouteImport.update({
+    id: '/api/public/cron/bling-fiscal-sync',
+    path: '/api/public/cron/bling-fiscal-sync',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCronBlingHealthRoute =
+  ApiPublicCronBlingHealthRouteImport.update({
+    id: '/api/public/cron/bling-health',
+    path: '/api/public/cron/bling-health',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCronBlingSalesExportRoute =
+  ApiPublicCronBlingSalesExportRouteImport.update({
+    id: '/api/public/cron/bling-sales-export',
+    path: '/api/public/cron/bling-sales-export',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCronEnrichmentRoute = ApiPublicCronEnrichmentRouteImport.update({
+  id: '/api/public/cron/enrichment',
+  path: '/api/public/cron/enrichment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicCronShippingEnrichmentRoute =
+  ApiPublicCronShippingEnrichmentRouteImport.update({
+    id: '/api/public/cron/shipping-enrichment',
+    path: '/api/public/cron/shipping-enrichment',
     getParentRoute: () => rootRouteImport,
   } as any)
 const AuthenticatedAdminPedidosCompraEditarIdRoute =
@@ -597,6 +715,12 @@ const AuthenticatedAdminPedidosCompraEditarIdRoute =
     id: '/pedidos-compra/editar/$id',
     path: '/pedidos-compra/editar/$id',
     getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const ApiPublicStoneConciliationWebhookRoute =
+  ApiPublicStoneConciliationWebhookRouteImport.update({
+    id: '/api/public/stone/conciliation/webhook',
+    path: '/api/public/stone/conciliation/webhook',
+    getParentRoute: () => rootRouteImport,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -616,6 +740,7 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/conta': typeof AuthenticatedContaRoute
+  '/pagamento': typeof AuthenticatedPagamentoRoute
   '/pedidos': typeof AuthenticatedPedidosRoute
   '/vendedor': typeof AuthenticatedVendedorRouteWithChildren
   '/api/health': typeof ApiHealthRoute
@@ -624,21 +749,31 @@ export interface FileRoutesByFullPath {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/aplicacoes-veiculares': typeof AuthenticatedAdminAplicacoesVeicularesRoute
   '/admin/auditoria': typeof AuthenticatedAdminAuditoriaRoute
+  '/admin/backup-exportacao': typeof AuthenticatedAdminBackupExportacaoRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/bling': typeof AuthenticatedAdminBlingRoute
   '/admin/cadastros-b2b': typeof AuthenticatedAdminCadastrosB2bRoute
   '/admin/catalogo-fabricantes': typeof AuthenticatedAdminCatalogoFabricantesRoute
   '/admin/categorias': typeof AuthenticatedAdminCategoriasRoute
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
+  '/admin/conciliacao-financeira': typeof AuthenticatedAdminConciliacaoFinanceiraRoute
   '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
+  '/admin/contas-pagar': typeof AuthenticatedAdminContasPagarRoute
+  '/admin/contas-receber': typeof AuthenticatedAdminContasReceberRoute
+  '/admin/cotacoes-compra': typeof AuthenticatedAdminCotacoesCompraRoute
   '/admin/cupons': typeof AuthenticatedAdminCuponsRoute
+  '/admin/devolucoes-fornecedor': typeof AuthenticatedAdminDevolucoesFornecedorRoute
   '/admin/ecossistema': typeof AuthenticatedAdminEcossistemaRouteWithChildren
+  '/admin/enriquecimento-frete': typeof AuthenticatedAdminEnriquecimentoFreteRoute
   '/admin/enriquecimento-produtos': typeof AuthenticatedAdminEnriquecimentoProdutosRoute
   '/admin/estoque': typeof AuthenticatedAdminEstoqueRoute
   '/admin/expedicao': typeof AuthenticatedAdminExpedicaoRoute
   '/admin/filiais': typeof AuthenticatedAdminFiliaisRoute
+  '/admin/financeiro': typeof AuthenticatedAdminFinanceiroRoute
+  '/admin/financeiro-canais': typeof AuthenticatedAdminFinanceiroCanaisRoute
   '/admin/fiscal': typeof AuthenticatedAdminFiscalRoute
   '/admin/fiscal-produtos': typeof AuthenticatedAdminFiscalProdutosRoute
+  '/admin/fluxo-caixa': typeof AuthenticatedAdminFluxoCaixaRoute
   '/admin/formacao-precos': typeof AuthenticatedAdminFormacaoPrecosRoute
   '/admin/fornecedores': typeof AuthenticatedAdminFornecedoresRoute
   '/admin/historico-custos': typeof AuthenticatedAdminHistoricoCustosRoute
@@ -647,10 +782,12 @@ export interface FileRoutesByFullPath {
   '/admin/inteligencia-comercial': typeof AuthenticatedAdminInteligenciaComercialRoute
   '/admin/marcas': typeof AuthenticatedAdminMarcasRoute
   '/admin/migracao-bling': typeof AuthenticatedAdminMigracaoBlingRoute
+  '/admin/migracao-tributaria': typeof AuthenticatedAdminMigracaoTributariaRoute
   '/admin/pdv': typeof AuthenticatedAdminPdvRoute
   '/admin/pedidos': typeof AuthenticatedAdminPedidosRouteWithChildren
   '/admin/promocoes': typeof AuthenticatedAdminPromocoesRoute
   '/admin/reposicao': typeof AuthenticatedAdminReposicaoRoute
+  '/admin/resumo-vendas': typeof AuthenticatedAdminResumoVendasRoute
   '/admin/revisao-codigos': typeof AuthenticatedAdminRevisaoCodigosRoute
   '/admin/saneamento': typeof AuthenticatedAdminSaneamentoRouteWithChildren
   '/admin/saneamento-custos': typeof AuthenticatedAdminSaneamentoCustosRoute
@@ -661,6 +798,7 @@ export interface FileRoutesByFullPath {
   '/vendedor/meus-pedidos': typeof AuthenticatedVendedorMeusPedidosRoute
   '/vendedor/pedido-assistido': typeof AuthenticatedVendedorPedidoAssistidoRoute
   '/api/public/login': typeof ApiPublicLoginRoute
+  '/api/public/signup': typeof ApiPublicSignupRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/vendedor/': typeof AuthenticatedVendedorIndexRoute
   '/admin/ecossistema/$slug': typeof AuthenticatedAdminEcossistemaSlugRoute
@@ -676,9 +814,13 @@ export interface FileRoutesByFullPath {
   '/admin/recebimentos/$id': typeof AuthenticatedAdminRecebimentosIdRoute
   '/admin/saneamento/aliases': typeof AuthenticatedAdminSaneamentoAliasesRoute
   '/admin/vendedores/novo': typeof AuthenticatedAdminVendedoresNovoRoute
+  '/api/public/asaas/webhook': typeof ApiPublicAsaasWebhookRoute
   '/api/public/bling/callback': typeof ApiPublicBlingCallbackRoute
-  '/api/public/cron/enrichment': typeof ApiPublicCronEnrichmentRoute
+  '/api/public/cron/bling-fiscal-sync': typeof ApiPublicCronBlingFiscalSyncRoute
   '/api/public/cron/bling-health': typeof ApiPublicCronBlingHealthRoute
+  '/api/public/cron/bling-sales-export': typeof ApiPublicCronBlingSalesExportRoute
+  '/api/public/cron/enrichment': typeof ApiPublicCronEnrichmentRoute
+  '/api/public/cron/shipping-enrichment': typeof ApiPublicCronShippingEnrichmentRoute
   '/admin/ecossistema/': typeof AuthenticatedAdminEcossistemaIndexRoute
   '/admin/nfe-importacao/': typeof AuthenticatedAdminNfeImportacaoIndexRoute
   '/admin/orcamentos/': typeof AuthenticatedAdminOrcamentosIndexRoute
@@ -704,6 +846,7 @@ export interface FileRoutesByTo {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/conta': typeof AuthenticatedContaRoute
+  '/pagamento': typeof AuthenticatedPagamentoRoute
   '/pedidos': typeof AuthenticatedPedidosRoute
   '/api/health': typeof ApiHealthRoute
   '/brand/social.webp': typeof BrandSocialDotwebpRoute
@@ -711,20 +854,30 @@ export interface FileRoutesByTo {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/aplicacoes-veiculares': typeof AuthenticatedAdminAplicacoesVeicularesRoute
   '/admin/auditoria': typeof AuthenticatedAdminAuditoriaRoute
+  '/admin/backup-exportacao': typeof AuthenticatedAdminBackupExportacaoRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/bling': typeof AuthenticatedAdminBlingRoute
   '/admin/cadastros-b2b': typeof AuthenticatedAdminCadastrosB2bRoute
   '/admin/catalogo-fabricantes': typeof AuthenticatedAdminCatalogoFabricantesRoute
   '/admin/categorias': typeof AuthenticatedAdminCategoriasRoute
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
+  '/admin/conciliacao-financeira': typeof AuthenticatedAdminConciliacaoFinanceiraRoute
   '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
+  '/admin/contas-pagar': typeof AuthenticatedAdminContasPagarRoute
+  '/admin/contas-receber': typeof AuthenticatedAdminContasReceberRoute
+  '/admin/cotacoes-compra': typeof AuthenticatedAdminCotacoesCompraRoute
   '/admin/cupons': typeof AuthenticatedAdminCuponsRoute
+  '/admin/devolucoes-fornecedor': typeof AuthenticatedAdminDevolucoesFornecedorRoute
+  '/admin/enriquecimento-frete': typeof AuthenticatedAdminEnriquecimentoFreteRoute
   '/admin/enriquecimento-produtos': typeof AuthenticatedAdminEnriquecimentoProdutosRoute
   '/admin/estoque': typeof AuthenticatedAdminEstoqueRoute
   '/admin/expedicao': typeof AuthenticatedAdminExpedicaoRoute
   '/admin/filiais': typeof AuthenticatedAdminFiliaisRoute
+  '/admin/financeiro': typeof AuthenticatedAdminFinanceiroRoute
+  '/admin/financeiro-canais': typeof AuthenticatedAdminFinanceiroCanaisRoute
   '/admin/fiscal': typeof AuthenticatedAdminFiscalRoute
   '/admin/fiscal-produtos': typeof AuthenticatedAdminFiscalProdutosRoute
+  '/admin/fluxo-caixa': typeof AuthenticatedAdminFluxoCaixaRoute
   '/admin/formacao-precos': typeof AuthenticatedAdminFormacaoPrecosRoute
   '/admin/fornecedores': typeof AuthenticatedAdminFornecedoresRoute
   '/admin/historico-custos': typeof AuthenticatedAdminHistoricoCustosRoute
@@ -733,10 +886,12 @@ export interface FileRoutesByTo {
   '/admin/inteligencia-comercial': typeof AuthenticatedAdminInteligenciaComercialRoute
   '/admin/marcas': typeof AuthenticatedAdminMarcasRoute
   '/admin/migracao-bling': typeof AuthenticatedAdminMigracaoBlingRoute
+  '/admin/migracao-tributaria': typeof AuthenticatedAdminMigracaoTributariaRoute
   '/admin/pdv': typeof AuthenticatedAdminPdvRoute
   '/admin/pedidos': typeof AuthenticatedAdminPedidosRouteWithChildren
   '/admin/promocoes': typeof AuthenticatedAdminPromocoesRoute
   '/admin/reposicao': typeof AuthenticatedAdminReposicaoRoute
+  '/admin/resumo-vendas': typeof AuthenticatedAdminResumoVendasRoute
   '/admin/revisao-codigos': typeof AuthenticatedAdminRevisaoCodigosRoute
   '/admin/saneamento': typeof AuthenticatedAdminSaneamentoRouteWithChildren
   '/admin/saneamento-custos': typeof AuthenticatedAdminSaneamentoCustosRoute
@@ -747,6 +902,7 @@ export interface FileRoutesByTo {
   '/vendedor/meus-pedidos': typeof AuthenticatedVendedorMeusPedidosRoute
   '/vendedor/pedido-assistido': typeof AuthenticatedVendedorPedidoAssistidoRoute
   '/api/public/login': typeof ApiPublicLoginRoute
+  '/api/public/signup': typeof ApiPublicSignupRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/vendedor': typeof AuthenticatedVendedorIndexRoute
   '/admin/ecossistema/$slug': typeof AuthenticatedAdminEcossistemaSlugRoute
@@ -762,9 +918,13 @@ export interface FileRoutesByTo {
   '/admin/recebimentos/$id': typeof AuthenticatedAdminRecebimentosIdRoute
   '/admin/saneamento/aliases': typeof AuthenticatedAdminSaneamentoAliasesRoute
   '/admin/vendedores/novo': typeof AuthenticatedAdminVendedoresNovoRoute
+  '/api/public/asaas/webhook': typeof ApiPublicAsaasWebhookRoute
   '/api/public/bling/callback': typeof ApiPublicBlingCallbackRoute
-  '/api/public/cron/enrichment': typeof ApiPublicCronEnrichmentRoute
+  '/api/public/cron/bling-fiscal-sync': typeof ApiPublicCronBlingFiscalSyncRoute
   '/api/public/cron/bling-health': typeof ApiPublicCronBlingHealthRoute
+  '/api/public/cron/bling-sales-export': typeof ApiPublicCronBlingSalesExportRoute
+  '/api/public/cron/enrichment': typeof ApiPublicCronEnrichmentRoute
+  '/api/public/cron/shipping-enrichment': typeof ApiPublicCronShippingEnrichmentRoute
   '/admin/ecossistema': typeof AuthenticatedAdminEcossistemaIndexRoute
   '/admin/nfe-importacao': typeof AuthenticatedAdminNfeImportacaoIndexRoute
   '/admin/orcamentos': typeof AuthenticatedAdminOrcamentosIndexRoute
@@ -793,6 +953,7 @@ export interface FileRoutesById {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/conta': typeof AuthenticatedContaRoute
+  '/_authenticated/pagamento': typeof AuthenticatedPagamentoRoute
   '/_authenticated/pedidos': typeof AuthenticatedPedidosRoute
   '/_authenticated/vendedor': typeof AuthenticatedVendedorRouteWithChildren
   '/api/health': typeof ApiHealthRoute
@@ -801,21 +962,31 @@ export interface FileRoutesById {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/admin/aplicacoes-veiculares': typeof AuthenticatedAdminAplicacoesVeicularesRoute
   '/_authenticated/admin/auditoria': typeof AuthenticatedAdminAuditoriaRoute
+  '/_authenticated/admin/backup-exportacao': typeof AuthenticatedAdminBackupExportacaoRoute
   '/_authenticated/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/_authenticated/admin/bling': typeof AuthenticatedAdminBlingRoute
   '/_authenticated/admin/cadastros-b2b': typeof AuthenticatedAdminCadastrosB2bRoute
   '/_authenticated/admin/catalogo-fabricantes': typeof AuthenticatedAdminCatalogoFabricantesRoute
   '/_authenticated/admin/categorias': typeof AuthenticatedAdminCategoriasRoute
   '/_authenticated/admin/clientes': typeof AuthenticatedAdminClientesRoute
+  '/_authenticated/admin/conciliacao-financeira': typeof AuthenticatedAdminConciliacaoFinanceiraRoute
   '/_authenticated/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
+  '/_authenticated/admin/contas-pagar': typeof AuthenticatedAdminContasPagarRoute
+  '/_authenticated/admin/contas-receber': typeof AuthenticatedAdminContasReceberRoute
+  '/_authenticated/admin/cotacoes-compra': typeof AuthenticatedAdminCotacoesCompraRoute
   '/_authenticated/admin/cupons': typeof AuthenticatedAdminCuponsRoute
+  '/_authenticated/admin/devolucoes-fornecedor': typeof AuthenticatedAdminDevolucoesFornecedorRoute
   '/_authenticated/admin/ecossistema': typeof AuthenticatedAdminEcossistemaRouteWithChildren
+  '/_authenticated/admin/enriquecimento-frete': typeof AuthenticatedAdminEnriquecimentoFreteRoute
   '/_authenticated/admin/enriquecimento-produtos': typeof AuthenticatedAdminEnriquecimentoProdutosRoute
   '/_authenticated/admin/estoque': typeof AuthenticatedAdminEstoqueRoute
   '/_authenticated/admin/expedicao': typeof AuthenticatedAdminExpedicaoRoute
   '/_authenticated/admin/filiais': typeof AuthenticatedAdminFiliaisRoute
+  '/_authenticated/admin/financeiro': typeof AuthenticatedAdminFinanceiroRoute
+  '/_authenticated/admin/financeiro-canais': typeof AuthenticatedAdminFinanceiroCanaisRoute
   '/_authenticated/admin/fiscal': typeof AuthenticatedAdminFiscalRoute
   '/_authenticated/admin/fiscal-produtos': typeof AuthenticatedAdminFiscalProdutosRoute
+  '/_authenticated/admin/fluxo-caixa': typeof AuthenticatedAdminFluxoCaixaRoute
   '/_authenticated/admin/formacao-precos': typeof AuthenticatedAdminFormacaoPrecosRoute
   '/_authenticated/admin/fornecedores': typeof AuthenticatedAdminFornecedoresRoute
   '/_authenticated/admin/historico-custos': typeof AuthenticatedAdminHistoricoCustosRoute
@@ -824,10 +995,12 @@ export interface FileRoutesById {
   '/_authenticated/admin/inteligencia-comercial': typeof AuthenticatedAdminInteligenciaComercialRoute
   '/_authenticated/admin/marcas': typeof AuthenticatedAdminMarcasRoute
   '/_authenticated/admin/migracao-bling': typeof AuthenticatedAdminMigracaoBlingRoute
+  '/_authenticated/admin/migracao-tributaria': typeof AuthenticatedAdminMigracaoTributariaRoute
   '/_authenticated/admin/pdv': typeof AuthenticatedAdminPdvRoute
   '/_authenticated/admin/pedidos': typeof AuthenticatedAdminPedidosRouteWithChildren
   '/_authenticated/admin/promocoes': typeof AuthenticatedAdminPromocoesRoute
   '/_authenticated/admin/reposicao': typeof AuthenticatedAdminReposicaoRoute
+  '/_authenticated/admin/resumo-vendas': typeof AuthenticatedAdminResumoVendasRoute
   '/_authenticated/admin/revisao-codigos': typeof AuthenticatedAdminRevisaoCodigosRoute
   '/_authenticated/admin/saneamento': typeof AuthenticatedAdminSaneamentoRouteWithChildren
   '/_authenticated/admin/saneamento-custos': typeof AuthenticatedAdminSaneamentoCustosRoute
@@ -838,6 +1011,7 @@ export interface FileRoutesById {
   '/_authenticated/vendedor/meus-pedidos': typeof AuthenticatedVendedorMeusPedidosRoute
   '/_authenticated/vendedor/pedido-assistido': typeof AuthenticatedVendedorPedidoAssistidoRoute
   '/api/public/login': typeof ApiPublicLoginRoute
+  '/api/public/signup': typeof ApiPublicSignupRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/vendedor/': typeof AuthenticatedVendedorIndexRoute
   '/_authenticated/admin/ecossistema/$slug': typeof AuthenticatedAdminEcossistemaSlugRoute
@@ -853,9 +1027,13 @@ export interface FileRoutesById {
   '/_authenticated/admin/recebimentos/$id': typeof AuthenticatedAdminRecebimentosIdRoute
   '/_authenticated/admin/saneamento/aliases': typeof AuthenticatedAdminSaneamentoAliasesRoute
   '/_authenticated/admin/vendedores/novo': typeof AuthenticatedAdminVendedoresNovoRoute
+  '/api/public/asaas/webhook': typeof ApiPublicAsaasWebhookRoute
   '/api/public/bling/callback': typeof ApiPublicBlingCallbackRoute
-  '/api/public/cron/enrichment': typeof ApiPublicCronEnrichmentRoute
+  '/api/public/cron/bling-fiscal-sync': typeof ApiPublicCronBlingFiscalSyncRoute
   '/api/public/cron/bling-health': typeof ApiPublicCronBlingHealthRoute
+  '/api/public/cron/bling-sales-export': typeof ApiPublicCronBlingSalesExportRoute
+  '/api/public/cron/enrichment': typeof ApiPublicCronEnrichmentRoute
+  '/api/public/cron/shipping-enrichment': typeof ApiPublicCronShippingEnrichmentRoute
   '/_authenticated/admin/ecossistema/': typeof AuthenticatedAdminEcossistemaIndexRoute
   '/_authenticated/admin/nfe-importacao/': typeof AuthenticatedAdminNfeImportacaoIndexRoute
   '/_authenticated/admin/orcamentos/': typeof AuthenticatedAdminOrcamentosIndexRoute
@@ -884,6 +1062,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/admin'
     | '/conta'
+    | '/pagamento'
     | '/pedidos'
     | '/vendedor'
     | '/api/health'
@@ -892,21 +1071,31 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/admin/aplicacoes-veiculares'
     | '/admin/auditoria'
+    | '/admin/backup-exportacao'
     | '/admin/banners'
     | '/admin/bling'
     | '/admin/cadastros-b2b'
     | '/admin/catalogo-fabricantes'
     | '/admin/categorias'
     | '/admin/clientes'
+    | '/admin/conciliacao-financeira'
     | '/admin/configuracoes'
+    | '/admin/contas-pagar'
+    | '/admin/contas-receber'
+    | '/admin/cotacoes-compra'
     | '/admin/cupons'
+    | '/admin/devolucoes-fornecedor'
     | '/admin/ecossistema'
+    | '/admin/enriquecimento-frete'
     | '/admin/enriquecimento-produtos'
     | '/admin/estoque'
     | '/admin/expedicao'
     | '/admin/filiais'
+    | '/admin/financeiro'
+    | '/admin/financeiro-canais'
     | '/admin/fiscal'
     | '/admin/fiscal-produtos'
+    | '/admin/fluxo-caixa'
     | '/admin/formacao-precos'
     | '/admin/fornecedores'
     | '/admin/historico-custos'
@@ -915,10 +1104,12 @@ export interface FileRouteTypes {
     | '/admin/inteligencia-comercial'
     | '/admin/marcas'
     | '/admin/migracao-bling'
+    | '/admin/migracao-tributaria'
     | '/admin/pdv'
     | '/admin/pedidos'
     | '/admin/promocoes'
     | '/admin/reposicao'
+    | '/admin/resumo-vendas'
     | '/admin/revisao-codigos'
     | '/admin/saneamento'
     | '/admin/saneamento-custos'
@@ -929,6 +1120,7 @@ export interface FileRouteTypes {
     | '/vendedor/meus-pedidos'
     | '/vendedor/pedido-assistido'
     | '/api/public/login'
+    | '/api/public/signup'
     | '/admin/'
     | '/vendedor/'
     | '/admin/ecossistema/$slug'
@@ -944,9 +1136,13 @@ export interface FileRouteTypes {
     | '/admin/recebimentos/$id'
     | '/admin/saneamento/aliases'
     | '/admin/vendedores/novo'
+    | '/api/public/asaas/webhook'
     | '/api/public/bling/callback'
-    | '/api/public/cron/enrichment'
+    | '/api/public/cron/bling-fiscal-sync'
     | '/api/public/cron/bling-health'
+    | '/api/public/cron/bling-sales-export'
+    | '/api/public/cron/enrichment'
+    | '/api/public/cron/shipping-enrichment'
     | '/admin/ecossistema/'
     | '/admin/nfe-importacao/'
     | '/admin/orcamentos/'
@@ -972,6 +1168,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/conta'
+    | '/pagamento'
     | '/pedidos'
     | '/api/health'
     | '/brand/social.webp'
@@ -979,20 +1176,30 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/admin/aplicacoes-veiculares'
     | '/admin/auditoria'
+    | '/admin/backup-exportacao'
     | '/admin/banners'
     | '/admin/bling'
     | '/admin/cadastros-b2b'
     | '/admin/catalogo-fabricantes'
     | '/admin/categorias'
     | '/admin/clientes'
+    | '/admin/conciliacao-financeira'
     | '/admin/configuracoes'
+    | '/admin/contas-pagar'
+    | '/admin/contas-receber'
+    | '/admin/cotacoes-compra'
     | '/admin/cupons'
+    | '/admin/devolucoes-fornecedor'
+    | '/admin/enriquecimento-frete'
     | '/admin/enriquecimento-produtos'
     | '/admin/estoque'
     | '/admin/expedicao'
     | '/admin/filiais'
+    | '/admin/financeiro'
+    | '/admin/financeiro-canais'
     | '/admin/fiscal'
     | '/admin/fiscal-produtos'
+    | '/admin/fluxo-caixa'
     | '/admin/formacao-precos'
     | '/admin/fornecedores'
     | '/admin/historico-custos'
@@ -1001,10 +1208,12 @@ export interface FileRouteTypes {
     | '/admin/inteligencia-comercial'
     | '/admin/marcas'
     | '/admin/migracao-bling'
+    | '/admin/migracao-tributaria'
     | '/admin/pdv'
     | '/admin/pedidos'
     | '/admin/promocoes'
     | '/admin/reposicao'
+    | '/admin/resumo-vendas'
     | '/admin/revisao-codigos'
     | '/admin/saneamento'
     | '/admin/saneamento-custos'
@@ -1015,6 +1224,7 @@ export interface FileRouteTypes {
     | '/vendedor/meus-pedidos'
     | '/vendedor/pedido-assistido'
     | '/api/public/login'
+    | '/api/public/signup'
     | '/admin'
     | '/vendedor'
     | '/admin/ecossistema/$slug'
@@ -1030,9 +1240,13 @@ export interface FileRouteTypes {
     | '/admin/recebimentos/$id'
     | '/admin/saneamento/aliases'
     | '/admin/vendedores/novo'
+    | '/api/public/asaas/webhook'
     | '/api/public/bling/callback'
-    | '/api/public/cron/enrichment'
+    | '/api/public/cron/bling-fiscal-sync'
     | '/api/public/cron/bling-health'
+    | '/api/public/cron/bling-sales-export'
+    | '/api/public/cron/enrichment'
+    | '/api/public/cron/shipping-enrichment'
     | '/admin/ecossistema'
     | '/admin/nfe-importacao'
     | '/admin/orcamentos'
@@ -1060,6 +1274,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/admin'
     | '/_authenticated/conta'
+    | '/_authenticated/pagamento'
     | '/_authenticated/pedidos'
     | '/_authenticated/vendedor'
     | '/api/health'
@@ -1068,21 +1283,31 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/admin/aplicacoes-veiculares'
     | '/_authenticated/admin/auditoria'
+    | '/_authenticated/admin/backup-exportacao'
     | '/_authenticated/admin/banners'
     | '/_authenticated/admin/bling'
     | '/_authenticated/admin/cadastros-b2b'
     | '/_authenticated/admin/catalogo-fabricantes'
     | '/_authenticated/admin/categorias'
     | '/_authenticated/admin/clientes'
+    | '/_authenticated/admin/conciliacao-financeira'
     | '/_authenticated/admin/configuracoes'
+    | '/_authenticated/admin/contas-pagar'
+    | '/_authenticated/admin/contas-receber'
+    | '/_authenticated/admin/cotacoes-compra'
     | '/_authenticated/admin/cupons'
+    | '/_authenticated/admin/devolucoes-fornecedor'
     | '/_authenticated/admin/ecossistema'
+    | '/_authenticated/admin/enriquecimento-frete'
     | '/_authenticated/admin/enriquecimento-produtos'
     | '/_authenticated/admin/estoque'
     | '/_authenticated/admin/expedicao'
     | '/_authenticated/admin/filiais'
+    | '/_authenticated/admin/financeiro'
+    | '/_authenticated/admin/financeiro-canais'
     | '/_authenticated/admin/fiscal'
     | '/_authenticated/admin/fiscal-produtos'
+    | '/_authenticated/admin/fluxo-caixa'
     | '/_authenticated/admin/formacao-precos'
     | '/_authenticated/admin/fornecedores'
     | '/_authenticated/admin/historico-custos'
@@ -1091,10 +1316,12 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/inteligencia-comercial'
     | '/_authenticated/admin/marcas'
     | '/_authenticated/admin/migracao-bling'
+    | '/_authenticated/admin/migracao-tributaria'
     | '/_authenticated/admin/pdv'
     | '/_authenticated/admin/pedidos'
     | '/_authenticated/admin/promocoes'
     | '/_authenticated/admin/reposicao'
+    | '/_authenticated/admin/resumo-vendas'
     | '/_authenticated/admin/revisao-codigos'
     | '/_authenticated/admin/saneamento'
     | '/_authenticated/admin/saneamento-custos'
@@ -1105,6 +1332,7 @@ export interface FileRouteTypes {
     | '/_authenticated/vendedor/meus-pedidos'
     | '/_authenticated/vendedor/pedido-assistido'
     | '/api/public/login'
+    | '/api/public/signup'
     | '/_authenticated/admin/'
     | '/_authenticated/vendedor/'
     | '/_authenticated/admin/ecossistema/$slug'
@@ -1120,9 +1348,13 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/recebimentos/$id'
     | '/_authenticated/admin/saneamento/aliases'
     | '/_authenticated/admin/vendedores/novo'
+    | '/api/public/asaas/webhook'
     | '/api/public/bling/callback'
-    | '/api/public/cron/enrichment'
+    | '/api/public/cron/bling-fiscal-sync'
     | '/api/public/cron/bling-health'
+    | '/api/public/cron/bling-sales-export'
+    | '/api/public/cron/enrichment'
+    | '/api/public/cron/shipping-enrichment'
     | '/_authenticated/admin/ecossistema/'
     | '/_authenticated/admin/nfe-importacao/'
     | '/_authenticated/admin/orcamentos/'
@@ -1154,89 +1386,24 @@ export interface RootRouteChildren {
   ProdutoSlugRoute: typeof ProdutoSlugRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicLoginRoute: typeof ApiPublicLoginRoute
+  ApiPublicSignupRoute: typeof ApiPublicSignupRoute
+  ApiPublicAsaasWebhookRoute: typeof ApiPublicAsaasWebhookRoute
   ApiPublicBlingCallbackRoute: typeof ApiPublicBlingCallbackRoute
-  ApiPublicCronEnrichmentRoute: typeof ApiPublicCronEnrichmentRoute
+  ApiPublicCronBlingFiscalSyncRoute: typeof ApiPublicCronBlingFiscalSyncRoute
   ApiPublicCronBlingHealthRoute: typeof ApiPublicCronBlingHealthRoute
+  ApiPublicCronBlingSalesExportRoute: typeof ApiPublicCronBlingSalesExportRoute
+  ApiPublicCronEnrichmentRoute: typeof ApiPublicCronEnrichmentRoute
+  ApiPublicCronShippingEnrichmentRoute: typeof ApiPublicCronShippingEnrichmentRoute
   ApiPublicStoneConciliationWebhookRoute: typeof ApiPublicStoneConciliationWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/redefinir-senha': {
-      id: '/redefinir-senha'
-      path: '/redefinir-senha'
-      fullPath: '/redefinir-senha'
-      preLoaderRoute: typeof RedefinirSenhaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/primeiro-acesso': {
-      id: '/primeiro-acesso'
-      path: '/primeiro-acesso'
-      fullPath: '/primeiro-acesso'
-      preLoaderRoute: typeof PrimeiroAcessoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mcp': {
-      id: '/mcp'
-      path: '/mcp'
-      fullPath: '/mcp'
-      preLoaderRoute: typeof McpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/esqueci-senha': {
-      id: '/esqueci-senha'
-      path: '/esqueci-senha'
-      fullPath: '/esqueci-senha'
-      preLoaderRoute: typeof EsqueciSenhaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/checkout': {
-      id: '/checkout'
-      path: '/checkout'
-      fullPath: '/checkout'
-      preLoaderRoute: typeof CheckoutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/catalogo': {
-      id: '/catalogo'
-      path: '/catalogo'
-      fullPath: '/catalogo'
-      preLoaderRoute: typeof CatalogoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/carrinho': {
-      id: '/carrinho'
-      path: '/carrinho'
-      fullPath: '/carrinho'
-      preLoaderRoute: typeof CarrinhoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/b2b': {
-      id: '/b2b'
-      path: '/b2b'
-      fullPath: '/b2b'
-      preLoaderRoute: typeof B2bRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/ativacao': {
-      id: '/ativacao'
-      path: '/ativacao'
-      fullPath: '/ativacao'
-      preLoaderRoute: typeof AtivacaoRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -1246,67 +1413,81 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/ativacao': {
+      id: '/ativacao'
+      path: '/ativacao'
+      fullPath: '/ativacao'
+      preLoaderRoute: typeof AtivacaoRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/produto/$slug': {
-      id: '/produto/$slug'
-      path: '/produto/$slug'
-      fullPath: '/produto/$slug'
-      preLoaderRoute: typeof ProdutoSlugRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/brand/social.webp': {
-      id: '/brand/social.webp'
-      path: '/brand/social.webp'
-      fullPath: '/brand/social.webp'
-      preLoaderRoute: typeof BrandSocialDotwebpRouteImport
+    '/b2b': {
+      id: '/b2b'
+      path: '/b2b'
+      fullPath: '/b2b'
+      preLoaderRoute: typeof B2bRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/health': {
-      id: '/api/health'
-      path: '/api/health'
-      fullPath: '/api/health'
-      preLoaderRoute: typeof ApiHealthRouteImport
+    '/carrinho': {
+      id: '/carrinho'
+      path: '/carrinho'
+      fullPath: '/carrinho'
+      preLoaderRoute: typeof CarrinhoRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/vendedor': {
-      id: '/_authenticated/vendedor'
-      path: '/vendedor'
-      fullPath: '/vendedor'
-      preLoaderRoute: typeof AuthenticatedVendedorRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/catalogo': {
+      id: '/catalogo'
+      path: '/catalogo'
+      fullPath: '/catalogo'
+      preLoaderRoute: typeof CatalogoRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/pedidos': {
-      id: '/_authenticated/pedidos'
-      path: '/pedidos'
-      fullPath: '/pedidos'
-      preLoaderRoute: typeof AuthenticatedPedidosRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/conta': {
-      id: '/_authenticated/conta'
-      path: '/conta'
-      fullPath: '/conta'
-      preLoaderRoute: typeof AuthenticatedContaRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/esqueci-senha': {
+      id: '/esqueci-senha'
+      path: '/esqueci-senha'
+      fullPath: '/esqueci-senha'
+      preLoaderRoute: typeof EsqueciSenhaRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/admin': {
-      id: '/_authenticated/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AuthenticatedAdminRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/.well-known/oauth-protected-resource': {
-      id: '/.well-known/oauth-protected-resource'
-      path: '/.well-known/oauth-protected-resource'
-      fullPath: '/.well-known/oauth-protected-resource'
-      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+    '/primeiro-acesso': {
+      id: '/primeiro-acesso'
+      path: '/primeiro-acesso'
+      fullPath: '/primeiro-acesso'
+      preLoaderRoute: typeof PrimeiroAcessoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/redefinir-senha': {
+      id: '/redefinir-senha'
+      path: '/redefinir-senha'
+      fullPath: '/redefinir-senha'
+      preLoaderRoute: typeof RedefinirSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.mcp/list-tools': {
@@ -1316,284 +1497,81 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/vendedor/': {
-      id: '/_authenticated/vendedor/'
-      path: '/'
-      fullPath: '/vendedor/'
-      preLoaderRoute: typeof AuthenticatedVendedorIndexRouteImport
-      parentRoute: typeof AuthenticatedVendedorRoute
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/conta': {
+      id: '/_authenticated/conta'
+      path: '/conta'
+      fullPath: '/conta'
+      preLoaderRoute: typeof AuthenticatedContaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/pagamento': {
+      id: '/_authenticated/pagamento'
+      path: '/pagamento'
+      fullPath: '/pagamento'
+      preLoaderRoute: typeof AuthenticatedPagamentoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/pedidos': {
+      id: '/_authenticated/pedidos'
+      path: '/pedidos'
+      fullPath: '/pedidos'
+      preLoaderRoute: typeof AuthenticatedPedidosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/vendedor': {
+      id: '/_authenticated/vendedor'
+      path: '/vendedor'
+      fullPath: '/vendedor'
+      preLoaderRoute: typeof AuthenticatedVendedorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/brand/social.webp': {
+      id: '/brand/social.webp'
+      path: '/brand/social.webp'
+      fullPath: '/brand/social.webp'
+      preLoaderRoute: typeof BrandSocialDotwebpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/produto/$slug': {
+      id: '/produto/$slug'
+      path: '/produto/$slug'
+      fullPath: '/produto/$slug'
+      preLoaderRoute: typeof ProdutoSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin/': {
       id: '/_authenticated/admin/'
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/api/public/login': {
-      id: '/api/public/login'
-      path: '/api/public/login'
-      fullPath: '/api/public/login'
-      preLoaderRoute: typeof ApiPublicLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/vendedor/pedido-assistido': {
-      id: '/_authenticated/vendedor/pedido-assistido'
-      path: '/pedido-assistido'
-      fullPath: '/vendedor/pedido-assistido'
-      preLoaderRoute: typeof AuthenticatedVendedorPedidoAssistidoRouteImport
-      parentRoute: typeof AuthenticatedVendedorRoute
-    }
-    '/_authenticated/vendedor/meus-pedidos': {
-      id: '/_authenticated/vendedor/meus-pedidos'
-      path: '/meus-pedidos'
-      fullPath: '/vendedor/meus-pedidos'
-      preLoaderRoute: typeof AuthenticatedVendedorMeusPedidosRouteImport
-      parentRoute: typeof AuthenticatedVendedorRoute
-    }
-    '/_authenticated/vendedor/clientes': {
-      id: '/_authenticated/vendedor/clientes'
-      path: '/clientes'
-      fullPath: '/vendedor/clientes'
-      preLoaderRoute: typeof AuthenticatedVendedorClientesRouteImport
-      parentRoute: typeof AuthenticatedVendedorRoute
-    }
-    '/_authenticated/admin/vendedores': {
-      id: '/_authenticated/admin/vendedores'
-      path: '/vendedores'
-      fullPath: '/admin/vendedores'
-      preLoaderRoute: typeof AuthenticatedAdminVendedoresRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/usuarios': {
-      id: '/_authenticated/admin/usuarios'
-      path: '/usuarios'
-      fullPath: '/admin/usuarios'
-      preLoaderRoute: typeof AuthenticatedAdminUsuariosRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/suprimentos': {
-      id: '/_authenticated/admin/suprimentos'
-      path: '/suprimentos'
-      fullPath: '/admin/suprimentos'
-      preLoaderRoute: typeof AuthenticatedAdminSuprimentosRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/saneamento-custos': {
-      id: '/_authenticated/admin/saneamento-custos'
-      path: '/saneamento-custos'
-      fullPath: '/admin/saneamento-custos'
-      preLoaderRoute: typeof AuthenticatedAdminSaneamentoCustosRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/saneamento': {
-      id: '/_authenticated/admin/saneamento'
-      path: '/saneamento'
-      fullPath: '/admin/saneamento'
-      preLoaderRoute: typeof AuthenticatedAdminSaneamentoRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/revisao-codigos': {
-      id: '/_authenticated/admin/revisao-codigos'
-      path: '/revisao-codigos'
-      fullPath: '/admin/revisao-codigos'
-      preLoaderRoute: typeof AuthenticatedAdminRevisaoCodigosRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/reposicao': {
-      id: '/_authenticated/admin/reposicao'
-      path: '/reposicao'
-      fullPath: '/admin/reposicao'
-      preLoaderRoute: typeof AuthenticatedAdminReposicaoRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/promocoes': {
-      id: '/_authenticated/admin/promocoes'
-      path: '/promocoes'
-      fullPath: '/admin/promocoes'
-      preLoaderRoute: typeof AuthenticatedAdminPromocoesRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/pedidos': {
-      id: '/_authenticated/admin/pedidos'
-      path: '/pedidos'
-      fullPath: '/admin/pedidos'
-      preLoaderRoute: typeof AuthenticatedAdminPedidosRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/pdv': {
-      id: '/_authenticated/admin/pdv'
-      path: '/pdv'
-      fullPath: '/admin/pdv'
-      preLoaderRoute: typeof AuthenticatedAdminPdvRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/migracao-bling': {
-      id: '/_authenticated/admin/migracao-bling'
-      path: '/migracao-bling'
-      fullPath: '/admin/migracao-bling'
-      preLoaderRoute: typeof AuthenticatedAdminMigracaoBlingRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/marcas': {
-      id: '/_authenticated/admin/marcas'
-      path: '/marcas'
-      fullPath: '/admin/marcas'
-      preLoaderRoute: typeof AuthenticatedAdminMarcasRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/inteligencia-comercial': {
-      id: '/_authenticated/admin/inteligencia-comercial'
-      path: '/inteligencia-comercial'
-      fullPath: '/admin/inteligencia-comercial'
-      preLoaderRoute: typeof AuthenticatedAdminInteligenciaComercialRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/ia-aes-business': {
-      id: '/_authenticated/admin/ia-aes-business'
-      path: '/ia-aes-business'
-      fullPath: '/admin/ia-aes-business'
-      preLoaderRoute: typeof AuthenticatedAdminIaAesBusinessRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/homologacao': {
-      id: '/_authenticated/admin/homologacao'
-      path: '/homologacao'
-      fullPath: '/admin/homologacao'
-      preLoaderRoute: typeof AuthenticatedAdminHomologacaoRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/historico-custos': {
-      id: '/_authenticated/admin/historico-custos'
-      path: '/historico-custos'
-      fullPath: '/admin/historico-custos'
-      preLoaderRoute: typeof AuthenticatedAdminHistoricoCustosRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/fornecedores': {
-      id: '/_authenticated/admin/fornecedores'
-      path: '/fornecedores'
-      fullPath: '/admin/fornecedores'
-      preLoaderRoute: typeof AuthenticatedAdminFornecedoresRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/formacao-precos': {
-      id: '/_authenticated/admin/formacao-precos'
-      path: '/formacao-precos'
-      fullPath: '/admin/formacao-precos'
-      preLoaderRoute: typeof AuthenticatedAdminFormacaoPrecosRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/fiscal-produtos': {
-      id: '/_authenticated/admin/fiscal-produtos'
-      path: '/fiscal-produtos'
-      fullPath: '/admin/fiscal-produtos'
-      preLoaderRoute: typeof AuthenticatedAdminFiscalProdutosRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/fiscal': {
-      id: '/_authenticated/admin/fiscal'
-      path: '/fiscal'
-      fullPath: '/admin/fiscal'
-      preLoaderRoute: typeof AuthenticatedAdminFiscalRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/filiais': {
-      id: '/_authenticated/admin/filiais'
-      path: '/filiais'
-      fullPath: '/admin/filiais'
-      preLoaderRoute: typeof AuthenticatedAdminFiliaisRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/expedicao': {
-      id: '/_authenticated/admin/expedicao'
-      path: '/expedicao'
-      fullPath: '/admin/expedicao'
-      preLoaderRoute: typeof AuthenticatedAdminExpedicaoRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/estoque': {
-      id: '/_authenticated/admin/estoque'
-      path: '/estoque'
-      fullPath: '/admin/estoque'
-      preLoaderRoute: typeof AuthenticatedAdminEstoqueRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/enriquecimento-produtos': {
-      id: '/_authenticated/admin/enriquecimento-produtos'
-      path: '/enriquecimento-produtos'
-      fullPath: '/admin/enriquecimento-produtos'
-      preLoaderRoute: typeof AuthenticatedAdminEnriquecimentoProdutosRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/ecossistema': {
-      id: '/_authenticated/admin/ecossistema'
-      path: '/ecossistema'
-      fullPath: '/admin/ecossistema'
-      preLoaderRoute: typeof AuthenticatedAdminEcossistemaRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/cupons': {
-      id: '/_authenticated/admin/cupons'
-      path: '/cupons'
-      fullPath: '/admin/cupons'
-      preLoaderRoute: typeof AuthenticatedAdminCuponsRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/configuracoes': {
-      id: '/_authenticated/admin/configuracoes'
-      path: '/configuracoes'
-      fullPath: '/admin/configuracoes'
-      preLoaderRoute: typeof AuthenticatedAdminConfiguracoesRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/clientes': {
-      id: '/_authenticated/admin/clientes'
-      path: '/clientes'
-      fullPath: '/admin/clientes'
-      preLoaderRoute: typeof AuthenticatedAdminClientesRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/categorias': {
-      id: '/_authenticated/admin/categorias'
-      path: '/categorias'
-      fullPath: '/admin/categorias'
-      preLoaderRoute: typeof AuthenticatedAdminCategoriasRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/catalogo-fabricantes': {
-      id: '/_authenticated/admin/catalogo-fabricantes'
-      path: '/catalogo-fabricantes'
-      fullPath: '/admin/catalogo-fabricantes'
-      preLoaderRoute: typeof AuthenticatedAdminCatalogoFabricantesRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/cadastros-b2b': {
-      id: '/_authenticated/admin/cadastros-b2b'
-      path: '/cadastros-b2b'
-      fullPath: '/admin/cadastros-b2b'
-      preLoaderRoute: typeof AuthenticatedAdminCadastrosB2bRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/bling': {
-      id: '/_authenticated/admin/bling'
-      path: '/bling'
-      fullPath: '/admin/bling'
-      preLoaderRoute: typeof AuthenticatedAdminBlingRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/banners': {
-      id: '/_authenticated/admin/banners'
-      path: '/banners'
-      fullPath: '/admin/banners'
-      preLoaderRoute: typeof AuthenticatedAdminBannersRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/auditoria': {
-      id: '/_authenticated/admin/auditoria'
-      path: '/auditoria'
-      fullPath: '/admin/auditoria'
-      preLoaderRoute: typeof AuthenticatedAdminAuditoriaRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/aplicacoes-veiculares': {
@@ -1603,158 +1581,375 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminAplicacoesVeicularesRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/.mcp/invoke-tool/$tool': {
-      id: '/.mcp/invoke-tool/$tool'
-      path: '/.mcp/invoke-tool/$tool'
-      fullPath: '/.mcp/invoke-tool/$tool'
-      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
+    '/_authenticated/admin/auditoria': {
+      id: '/_authenticated/admin/auditoria'
+      path: '/auditoria'
+      fullPath: '/admin/auditoria'
+      preLoaderRoute: typeof AuthenticatedAdminAuditoriaRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/backup-exportacao': {
+      id: '/_authenticated/admin/backup-exportacao'
+      path: '/backup-exportacao'
+      fullPath: '/admin/backup-exportacao'
+      preLoaderRoute: typeof AuthenticatedAdminBackupExportacaoRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/banners': {
+      id: '/_authenticated/admin/banners'
+      path: '/banners'
+      fullPath: '/admin/banners'
+      preLoaderRoute: typeof AuthenticatedAdminBannersRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/bling': {
+      id: '/_authenticated/admin/bling'
+      path: '/bling'
+      fullPath: '/admin/bling'
+      preLoaderRoute: typeof AuthenticatedAdminBlingRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/cadastros-b2b': {
+      id: '/_authenticated/admin/cadastros-b2b'
+      path: '/cadastros-b2b'
+      fullPath: '/admin/cadastros-b2b'
+      preLoaderRoute: typeof AuthenticatedAdminCadastrosB2bRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/catalogo-fabricantes': {
+      id: '/_authenticated/admin/catalogo-fabricantes'
+      path: '/catalogo-fabricantes'
+      fullPath: '/admin/catalogo-fabricantes'
+      preLoaderRoute: typeof AuthenticatedAdminCatalogoFabricantesRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/categorias': {
+      id: '/_authenticated/admin/categorias'
+      path: '/categorias'
+      fullPath: '/admin/categorias'
+      preLoaderRoute: typeof AuthenticatedAdminCategoriasRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/clientes': {
+      id: '/_authenticated/admin/clientes'
+      path: '/clientes'
+      fullPath: '/admin/clientes'
+      preLoaderRoute: typeof AuthenticatedAdminClientesRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/conciliacao-financeira': {
+      id: '/_authenticated/admin/conciliacao-financeira'
+      path: '/conciliacao-financeira'
+      fullPath: '/admin/conciliacao-financeira'
+      preLoaderRoute: typeof AuthenticatedAdminConciliacaoFinanceiraRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/configuracoes': {
+      id: '/_authenticated/admin/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/admin/configuracoes'
+      preLoaderRoute: typeof AuthenticatedAdminConfiguracoesRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/contas-pagar': {
+      id: '/_authenticated/admin/contas-pagar'
+      path: '/contas-pagar'
+      fullPath: '/admin/contas-pagar'
+      preLoaderRoute: typeof AuthenticatedAdminContasPagarRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/contas-receber': {
+      id: '/_authenticated/admin/contas-receber'
+      path: '/contas-receber'
+      fullPath: '/admin/contas-receber'
+      preLoaderRoute: typeof AuthenticatedAdminContasReceberRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/cotacoes-compra': {
+      id: '/_authenticated/admin/cotacoes-compra'
+      path: '/cotacoes-compra'
+      fullPath: '/admin/cotacoes-compra'
+      preLoaderRoute: typeof AuthenticatedAdminCotacoesCompraRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/cupons': {
+      id: '/_authenticated/admin/cupons'
+      path: '/cupons'
+      fullPath: '/admin/cupons'
+      preLoaderRoute: typeof AuthenticatedAdminCuponsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/devolucoes-fornecedor': {
+      id: '/_authenticated/admin/devolucoes-fornecedor'
+      path: '/devolucoes-fornecedor'
+      fullPath: '/admin/devolucoes-fornecedor'
+      preLoaderRoute: typeof AuthenticatedAdminDevolucoesFornecedorRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/ecossistema': {
+      id: '/_authenticated/admin/ecossistema'
+      path: '/ecossistema'
+      fullPath: '/admin/ecossistema'
+      preLoaderRoute: typeof AuthenticatedAdminEcossistemaRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/enriquecimento-frete': {
+      id: '/_authenticated/admin/enriquecimento-frete'
+      path: '/enriquecimento-frete'
+      fullPath: '/admin/enriquecimento-frete'
+      preLoaderRoute: typeof AuthenticatedAdminEnriquecimentoFreteRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/enriquecimento-produtos': {
+      id: '/_authenticated/admin/enriquecimento-produtos'
+      path: '/enriquecimento-produtos'
+      fullPath: '/admin/enriquecimento-produtos'
+      preLoaderRoute: typeof AuthenticatedAdminEnriquecimentoProdutosRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/estoque': {
+      id: '/_authenticated/admin/estoque'
+      path: '/estoque'
+      fullPath: '/admin/estoque'
+      preLoaderRoute: typeof AuthenticatedAdminEstoqueRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/expedicao': {
+      id: '/_authenticated/admin/expedicao'
+      path: '/expedicao'
+      fullPath: '/admin/expedicao'
+      preLoaderRoute: typeof AuthenticatedAdminExpedicaoRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/filiais': {
+      id: '/_authenticated/admin/filiais'
+      path: '/filiais'
+      fullPath: '/admin/filiais'
+      preLoaderRoute: typeof AuthenticatedAdminFiliaisRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/financeiro': {
+      id: '/_authenticated/admin/financeiro'
+      path: '/financeiro'
+      fullPath: '/admin/financeiro'
+      preLoaderRoute: typeof AuthenticatedAdminFinanceiroRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/financeiro-canais': {
+      id: '/_authenticated/admin/financeiro-canais'
+      path: '/financeiro-canais'
+      fullPath: '/admin/financeiro-canais'
+      preLoaderRoute: typeof AuthenticatedAdminFinanceiroCanaisRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/fiscal': {
+      id: '/_authenticated/admin/fiscal'
+      path: '/fiscal'
+      fullPath: '/admin/fiscal'
+      preLoaderRoute: typeof AuthenticatedAdminFiscalRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/fiscal-produtos': {
+      id: '/_authenticated/admin/fiscal-produtos'
+      path: '/fiscal-produtos'
+      fullPath: '/admin/fiscal-produtos'
+      preLoaderRoute: typeof AuthenticatedAdminFiscalProdutosRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/fluxo-caixa': {
+      id: '/_authenticated/admin/fluxo-caixa'
+      path: '/fluxo-caixa'
+      fullPath: '/admin/fluxo-caixa'
+      preLoaderRoute: typeof AuthenticatedAdminFluxoCaixaRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/formacao-precos': {
+      id: '/_authenticated/admin/formacao-precos'
+      path: '/formacao-precos'
+      fullPath: '/admin/formacao-precos'
+      preLoaderRoute: typeof AuthenticatedAdminFormacaoPrecosRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/fornecedores': {
+      id: '/_authenticated/admin/fornecedores'
+      path: '/fornecedores'
+      fullPath: '/admin/fornecedores'
+      preLoaderRoute: typeof AuthenticatedAdminFornecedoresRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/historico-custos': {
+      id: '/_authenticated/admin/historico-custos'
+      path: '/historico-custos'
+      fullPath: '/admin/historico-custos'
+      preLoaderRoute: typeof AuthenticatedAdminHistoricoCustosRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/homologacao': {
+      id: '/_authenticated/admin/homologacao'
+      path: '/homologacao'
+      fullPath: '/admin/homologacao'
+      preLoaderRoute: typeof AuthenticatedAdminHomologacaoRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/ia-aes-business': {
+      id: '/_authenticated/admin/ia-aes-business'
+      path: '/ia-aes-business'
+      fullPath: '/admin/ia-aes-business'
+      preLoaderRoute: typeof AuthenticatedAdminIaAesBusinessRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/inteligencia-comercial': {
+      id: '/_authenticated/admin/inteligencia-comercial'
+      path: '/inteligencia-comercial'
+      fullPath: '/admin/inteligencia-comercial'
+      preLoaderRoute: typeof AuthenticatedAdminInteligenciaComercialRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/marcas': {
+      id: '/_authenticated/admin/marcas'
+      path: '/marcas'
+      fullPath: '/admin/marcas'
+      preLoaderRoute: typeof AuthenticatedAdminMarcasRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/migracao-bling': {
+      id: '/_authenticated/admin/migracao-bling'
+      path: '/migracao-bling'
+      fullPath: '/admin/migracao-bling'
+      preLoaderRoute: typeof AuthenticatedAdminMigracaoBlingRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/migracao-tributaria': {
+      id: '/_authenticated/admin/migracao-tributaria'
+      path: '/migracao-tributaria'
+      fullPath: '/admin/migracao-tributaria'
+      preLoaderRoute: typeof AuthenticatedAdminMigracaoTributariaRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/pdv': {
+      id: '/_authenticated/admin/pdv'
+      path: '/pdv'
+      fullPath: '/admin/pdv'
+      preLoaderRoute: typeof AuthenticatedAdminPdvRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/pedidos': {
+      id: '/_authenticated/admin/pedidos'
+      path: '/pedidos'
+      fullPath: '/admin/pedidos'
+      preLoaderRoute: typeof AuthenticatedAdminPedidosRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/promocoes': {
+      id: '/_authenticated/admin/promocoes'
+      path: '/promocoes'
+      fullPath: '/admin/promocoes'
+      preLoaderRoute: typeof AuthenticatedAdminPromocoesRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/reposicao': {
+      id: '/_authenticated/admin/reposicao'
+      path: '/reposicao'
+      fullPath: '/admin/reposicao'
+      preLoaderRoute: typeof AuthenticatedAdminReposicaoRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/resumo-vendas': {
+      id: '/_authenticated/admin/resumo-vendas'
+      path: '/resumo-vendas'
+      fullPath: '/admin/resumo-vendas'
+      preLoaderRoute: typeof AuthenticatedAdminResumoVendasRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/revisao-codigos': {
+      id: '/_authenticated/admin/revisao-codigos'
+      path: '/revisao-codigos'
+      fullPath: '/admin/revisao-codigos'
+      preLoaderRoute: typeof AuthenticatedAdminRevisaoCodigosRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/saneamento': {
+      id: '/_authenticated/admin/saneamento'
+      path: '/saneamento'
+      fullPath: '/admin/saneamento'
+      preLoaderRoute: typeof AuthenticatedAdminSaneamentoRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/saneamento-custos': {
+      id: '/_authenticated/admin/saneamento-custos'
+      path: '/saneamento-custos'
+      fullPath: '/admin/saneamento-custos'
+      preLoaderRoute: typeof AuthenticatedAdminSaneamentoCustosRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/suprimentos': {
+      id: '/_authenticated/admin/suprimentos'
+      path: '/suprimentos'
+      fullPath: '/admin/suprimentos'
+      preLoaderRoute: typeof AuthenticatedAdminSuprimentosRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/usuarios': {
+      id: '/_authenticated/admin/usuarios'
+      path: '/usuarios'
+      fullPath: '/admin/usuarios'
+      preLoaderRoute: typeof AuthenticatedAdminUsuariosRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/vendedores': {
+      id: '/_authenticated/admin/vendedores'
+      path: '/vendedores'
+      fullPath: '/admin/vendedores'
+      preLoaderRoute: typeof AuthenticatedAdminVendedoresRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/vendedor/': {
+      id: '/_authenticated/vendedor/'
+      path: '/'
+      fullPath: '/vendedor/'
+      preLoaderRoute: typeof AuthenticatedVendedorIndexRouteImport
+      parentRoute: typeof AuthenticatedVendedorRoute
+    }
+    '/_authenticated/vendedor/clientes': {
+      id: '/_authenticated/vendedor/clientes'
+      path: '/clientes'
+      fullPath: '/vendedor/clientes'
+      preLoaderRoute: typeof AuthenticatedVendedorClientesRouteImport
+      parentRoute: typeof AuthenticatedVendedorRoute
+    }
+    '/_authenticated/vendedor/meus-pedidos': {
+      id: '/_authenticated/vendedor/meus-pedidos'
+      path: '/meus-pedidos'
+      fullPath: '/vendedor/meus-pedidos'
+      preLoaderRoute: typeof AuthenticatedVendedorMeusPedidosRouteImport
+      parentRoute: typeof AuthenticatedVendedorRoute
+    }
+    '/_authenticated/vendedor/pedido-assistido': {
+      id: '/_authenticated/vendedor/pedido-assistido'
+      path: '/pedido-assistido'
+      fullPath: '/vendedor/pedido-assistido'
+      preLoaderRoute: typeof AuthenticatedVendedorPedidoAssistidoRouteImport
+      parentRoute: typeof AuthenticatedVendedorRoute
+    }
+    '/api/public/login': {
+      id: '/api/public/login'
+      path: '/api/public/login'
+      fullPath: '/api/public/login'
+      preLoaderRoute: typeof ApiPublicLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/admin/recebimentos/': {
-      id: '/_authenticated/admin/recebimentos/'
-      path: '/recebimentos'
-      fullPath: '/admin/recebimentos/'
-      preLoaderRoute: typeof AuthenticatedAdminRecebimentosIndexRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/produtos/': {
-      id: '/_authenticated/admin/produtos/'
-      path: '/produtos'
-      fullPath: '/admin/produtos/'
-      preLoaderRoute: typeof AuthenticatedAdminProdutosIndexRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/pedidos-compra/': {
-      id: '/_authenticated/admin/pedidos-compra/'
-      path: '/pedidos-compra'
-      fullPath: '/admin/pedidos-compra/'
-      preLoaderRoute: typeof AuthenticatedAdminPedidosCompraIndexRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/orcamentos/': {
-      id: '/_authenticated/admin/orcamentos/'
-      path: '/orcamentos'
-      fullPath: '/admin/orcamentos/'
-      preLoaderRoute: typeof AuthenticatedAdminOrcamentosIndexRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/nfe-importacao/': {
-      id: '/_authenticated/admin/nfe-importacao/'
-      path: '/nfe-importacao'
-      fullPath: '/admin/nfe-importacao/'
-      preLoaderRoute: typeof AuthenticatedAdminNfeImportacaoIndexRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
+    '/api/public/signup': {
+      id: '/api/public/signup'
+      path: '/api/public/signup'
+      fullPath: '/api/public/signup'
+      preLoaderRoute: typeof ApiPublicSignupRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin/ecossistema/': {
       id: '/_authenticated/admin/ecossistema/'
       path: '/'
       fullPath: '/admin/ecossistema/'
       preLoaderRoute: typeof AuthenticatedAdminEcossistemaIndexRouteImport
-      parentRoute: typeof AuthenticatedAdminEcossistemaRoute
-    }
-    '/api/public/cron/enrichment': {
-      id: '/api/public/cron/enrichment'
-      path: '/api/public/cron/enrichment'
-      fullPath: '/api/public/cron/enrichment'
-      preLoaderRoute: typeof ApiPublicCronEnrichmentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/cron/bling-health': {
-      id: '/api/public/cron/bling-health'
-      path: '/api/public/cron/bling-health'
-      fullPath: '/api/public/cron/bling-health'
-      preLoaderRoute: typeof ApiPublicCronBlingHealthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/bling/callback': {
-      id: '/api/public/bling/callback'
-      path: '/api/public/bling/callback'
-      fullPath: '/api/public/bling/callback'
-      preLoaderRoute: typeof ApiPublicBlingCallbackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/admin/vendedores/novo': {
-      id: '/_authenticated/admin/vendedores/novo'
-      path: '/novo'
-      fullPath: '/admin/vendedores/novo'
-      preLoaderRoute: typeof AuthenticatedAdminVendedoresNovoRouteImport
-      parentRoute: typeof AuthenticatedAdminVendedoresRoute
-    }
-    '/_authenticated/admin/saneamento/aliases': {
-      id: '/_authenticated/admin/saneamento/aliases'
-      path: '/aliases'
-      fullPath: '/admin/saneamento/aliases'
-      preLoaderRoute: typeof AuthenticatedAdminSaneamentoAliasesRouteImport
-      parentRoute: typeof AuthenticatedAdminSaneamentoRoute
-    }
-    '/_authenticated/admin/recebimentos/$id': {
-      id: '/_authenticated/admin/recebimentos/$id'
-      path: '/recebimentos/$id'
-      fullPath: '/admin/recebimentos/$id'
-      preLoaderRoute: typeof AuthenticatedAdminRecebimentosIdRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/produtos/novo': {
-      id: '/_authenticated/admin/produtos/novo'
-      path: '/produtos/novo'
-      fullPath: '/admin/produtos/novo'
-      preLoaderRoute: typeof AuthenticatedAdminProdutosNovoRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/produtos/$id': {
-      id: '/_authenticated/admin/produtos/$id'
-      path: '/produtos/$id'
-      fullPath: '/admin/produtos/$id'
-      preLoaderRoute: typeof AuthenticatedAdminProdutosIdRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/pedidos/$id': {
-      id: '/_authenticated/admin/pedidos/$id'
-      path: '/$id'
-      fullPath: '/admin/pedidos/$id'
-      preLoaderRoute: typeof AuthenticatedAdminPedidosIdRouteImport
-      parentRoute: typeof AuthenticatedAdminPedidosRoute
-    }
-    '/_authenticated/admin/pedidos-compra/novo': {
-      id: '/_authenticated/admin/pedidos-compra/novo'
-      path: '/pedidos-compra/novo'
-      fullPath: '/admin/pedidos-compra/novo'
-      preLoaderRoute: typeof AuthenticatedAdminPedidosCompraNovoRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/pedidos-compra/$id': {
-      id: '/_authenticated/admin/pedidos-compra/$id'
-      path: '/pedidos-compra/$id'
-      fullPath: '/admin/pedidos-compra/$id'
-      preLoaderRoute: typeof AuthenticatedAdminPedidosCompraIdRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/orcamentos/novo': {
-      id: '/_authenticated/admin/orcamentos/novo'
-      path: '/orcamentos/novo'
-      fullPath: '/admin/orcamentos/novo'
-      preLoaderRoute: typeof AuthenticatedAdminOrcamentosNovoRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/orcamentos/$id': {
-      id: '/_authenticated/admin/orcamentos/$id'
-      path: '/orcamentos/$id'
-      fullPath: '/admin/orcamentos/$id'
-      preLoaderRoute: typeof AuthenticatedAdminOrcamentosIdRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/nfe-importacao/$id': {
-      id: '/_authenticated/admin/nfe-importacao/$id'
-      path: '/nfe-importacao/$id'
-      fullPath: '/admin/nfe-importacao/$id'
-      preLoaderRoute: typeof AuthenticatedAdminNfeImportacaoIdRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/ecossistema/bling': {
-      id: '/_authenticated/admin/ecossistema/bling'
-      path: '/bling'
-      fullPath: '/admin/ecossistema/bling'
-      preLoaderRoute: typeof AuthenticatedAdminEcossistemaBlingRouteImport
       parentRoute: typeof AuthenticatedAdminEcossistemaRoute
     }
     '/_authenticated/admin/ecossistema/$slug': {
@@ -1764,11 +1959,172 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminEcossistemaSlugRouteImport
       parentRoute: typeof AuthenticatedAdminEcossistemaRoute
     }
-    '/api/public/stone/conciliation/webhook': {
-      id: '/api/public/stone/conciliation/webhook'
-      path: '/api/public/stone/conciliation/webhook'
-      fullPath: '/api/public/stone/conciliation/webhook'
-      preLoaderRoute: typeof ApiPublicStoneConciliationWebhookRouteImport
+    '/_authenticated/admin/ecossistema/bling': {
+      id: '/_authenticated/admin/ecossistema/bling'
+      path: '/bling'
+      fullPath: '/admin/ecossistema/bling'
+      preLoaderRoute: typeof AuthenticatedAdminEcossistemaBlingRouteImport
+      parentRoute: typeof AuthenticatedAdminEcossistemaRoute
+    }
+    '/_authenticated/admin/nfe-importacao/': {
+      id: '/_authenticated/admin/nfe-importacao/'
+      path: '/nfe-importacao'
+      fullPath: '/admin/nfe-importacao/'
+      preLoaderRoute: typeof AuthenticatedAdminNfeImportacaoIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/nfe-importacao/$id': {
+      id: '/_authenticated/admin/nfe-importacao/$id'
+      path: '/nfe-importacao/$id'
+      fullPath: '/admin/nfe-importacao/$id'
+      preLoaderRoute: typeof AuthenticatedAdminNfeImportacaoIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/orcamentos/': {
+      id: '/_authenticated/admin/orcamentos/'
+      path: '/orcamentos'
+      fullPath: '/admin/orcamentos/'
+      preLoaderRoute: typeof AuthenticatedAdminOrcamentosIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/orcamentos/$id': {
+      id: '/_authenticated/admin/orcamentos/$id'
+      path: '/orcamentos/$id'
+      fullPath: '/admin/orcamentos/$id'
+      preLoaderRoute: typeof AuthenticatedAdminOrcamentosIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/orcamentos/novo': {
+      id: '/_authenticated/admin/orcamentos/novo'
+      path: '/orcamentos/novo'
+      fullPath: '/admin/orcamentos/novo'
+      preLoaderRoute: typeof AuthenticatedAdminOrcamentosNovoRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/pedidos-compra/': {
+      id: '/_authenticated/admin/pedidos-compra/'
+      path: '/pedidos-compra'
+      fullPath: '/admin/pedidos-compra/'
+      preLoaderRoute: typeof AuthenticatedAdminPedidosCompraIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/pedidos-compra/$id': {
+      id: '/_authenticated/admin/pedidos-compra/$id'
+      path: '/pedidos-compra/$id'
+      fullPath: '/admin/pedidos-compra/$id'
+      preLoaderRoute: typeof AuthenticatedAdminPedidosCompraIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/pedidos-compra/novo': {
+      id: '/_authenticated/admin/pedidos-compra/novo'
+      path: '/pedidos-compra/novo'
+      fullPath: '/admin/pedidos-compra/novo'
+      preLoaderRoute: typeof AuthenticatedAdminPedidosCompraNovoRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/pedidos/$id': {
+      id: '/_authenticated/admin/pedidos/$id'
+      path: '/$id'
+      fullPath: '/admin/pedidos/$id'
+      preLoaderRoute: typeof AuthenticatedAdminPedidosIdRouteImport
+      parentRoute: typeof AuthenticatedAdminPedidosRoute
+    }
+    '/_authenticated/admin/produtos/': {
+      id: '/_authenticated/admin/produtos/'
+      path: '/produtos'
+      fullPath: '/admin/produtos/'
+      preLoaderRoute: typeof AuthenticatedAdminProdutosIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/produtos/$id': {
+      id: '/_authenticated/admin/produtos/$id'
+      path: '/produtos/$id'
+      fullPath: '/admin/produtos/$id'
+      preLoaderRoute: typeof AuthenticatedAdminProdutosIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/produtos/novo': {
+      id: '/_authenticated/admin/produtos/novo'
+      path: '/produtos/novo'
+      fullPath: '/admin/produtos/novo'
+      preLoaderRoute: typeof AuthenticatedAdminProdutosNovoRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/recebimentos/': {
+      id: '/_authenticated/admin/recebimentos/'
+      path: '/recebimentos'
+      fullPath: '/admin/recebimentos/'
+      preLoaderRoute: typeof AuthenticatedAdminRecebimentosIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/recebimentos/$id': {
+      id: '/_authenticated/admin/recebimentos/$id'
+      path: '/recebimentos/$id'
+      fullPath: '/admin/recebimentos/$id'
+      preLoaderRoute: typeof AuthenticatedAdminRecebimentosIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/saneamento/aliases': {
+      id: '/_authenticated/admin/saneamento/aliases'
+      path: '/aliases'
+      fullPath: '/admin/saneamento/aliases'
+      preLoaderRoute: typeof AuthenticatedAdminSaneamentoAliasesRouteImport
+      parentRoute: typeof AuthenticatedAdminSaneamentoRoute
+    }
+    '/_authenticated/admin/vendedores/novo': {
+      id: '/_authenticated/admin/vendedores/novo'
+      path: '/novo'
+      fullPath: '/admin/vendedores/novo'
+      preLoaderRoute: typeof AuthenticatedAdminVendedoresNovoRouteImport
+      parentRoute: typeof AuthenticatedAdminVendedoresRoute
+    }
+    '/api/public/asaas/webhook': {
+      id: '/api/public/asaas/webhook'
+      path: '/api/public/asaas/webhook'
+      fullPath: '/api/public/asaas/webhook'
+      preLoaderRoute: typeof ApiPublicAsaasWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/bling/callback': {
+      id: '/api/public/bling/callback'
+      path: '/api/public/bling/callback'
+      fullPath: '/api/public/bling/callback'
+      preLoaderRoute: typeof ApiPublicBlingCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cron/bling-fiscal-sync': {
+      id: '/api/public/cron/bling-fiscal-sync'
+      path: '/api/public/cron/bling-fiscal-sync'
+      fullPath: '/api/public/cron/bling-fiscal-sync'
+      preLoaderRoute: typeof ApiPublicCronBlingFiscalSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cron/bling-health': {
+      id: '/api/public/cron/bling-health'
+      path: '/api/public/cron/bling-health'
+      fullPath: '/api/public/cron/bling-health'
+      preLoaderRoute: typeof ApiPublicCronBlingHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cron/bling-sales-export': {
+      id: '/api/public/cron/bling-sales-export'
+      path: '/api/public/cron/bling-sales-export'
+      fullPath: '/api/public/cron/bling-sales-export'
+      preLoaderRoute: typeof ApiPublicCronBlingSalesExportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cron/enrichment': {
+      id: '/api/public/cron/enrichment'
+      path: '/api/public/cron/enrichment'
+      fullPath: '/api/public/cron/enrichment'
+      preLoaderRoute: typeof ApiPublicCronEnrichmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cron/shipping-enrichment': {
+      id: '/api/public/cron/shipping-enrichment'
+      path: '/api/public/cron/shipping-enrichment'
+      fullPath: '/api/public/cron/shipping-enrichment'
+      preLoaderRoute: typeof ApiPublicCronShippingEnrichmentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin/pedidos-compra/editar/$id': {
@@ -1777,6 +2133,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/pedidos-compra/editar/$id'
       preLoaderRoute: typeof AuthenticatedAdminPedidosCompraEditarIdRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/api/public/stone/conciliation/webhook': {
+      id: '/api/public/stone/conciliation/webhook'
+      path: '/api/public/stone/conciliation/webhook'
+      fullPath: '/api/public/stone/conciliation/webhook'
+      preLoaderRoute: typeof ApiPublicStoneConciliationWebhookRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -1849,21 +2212,31 @@ const AuthenticatedAdminVendedoresRouteWithChildren =
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminAplicacoesVeicularesRoute: typeof AuthenticatedAdminAplicacoesVeicularesRoute
   AuthenticatedAdminAuditoriaRoute: typeof AuthenticatedAdminAuditoriaRoute
+  AuthenticatedAdminBackupExportacaoRoute: typeof AuthenticatedAdminBackupExportacaoRoute
   AuthenticatedAdminBannersRoute: typeof AuthenticatedAdminBannersRoute
   AuthenticatedAdminBlingRoute: typeof AuthenticatedAdminBlingRoute
   AuthenticatedAdminCadastrosB2bRoute: typeof AuthenticatedAdminCadastrosB2bRoute
   AuthenticatedAdminCatalogoFabricantesRoute: typeof AuthenticatedAdminCatalogoFabricantesRoute
   AuthenticatedAdminCategoriasRoute: typeof AuthenticatedAdminCategoriasRoute
   AuthenticatedAdminClientesRoute: typeof AuthenticatedAdminClientesRoute
+  AuthenticatedAdminConciliacaoFinanceiraRoute: typeof AuthenticatedAdminConciliacaoFinanceiraRoute
   AuthenticatedAdminConfiguracoesRoute: typeof AuthenticatedAdminConfiguracoesRoute
+  AuthenticatedAdminContasPagarRoute: typeof AuthenticatedAdminContasPagarRoute
+  AuthenticatedAdminContasReceberRoute: typeof AuthenticatedAdminContasReceberRoute
+  AuthenticatedAdminCotacoesCompraRoute: typeof AuthenticatedAdminCotacoesCompraRoute
   AuthenticatedAdminCuponsRoute: typeof AuthenticatedAdminCuponsRoute
+  AuthenticatedAdminDevolucoesFornecedorRoute: typeof AuthenticatedAdminDevolucoesFornecedorRoute
   AuthenticatedAdminEcossistemaRoute: typeof AuthenticatedAdminEcossistemaRouteWithChildren
+  AuthenticatedAdminEnriquecimentoFreteRoute: typeof AuthenticatedAdminEnriquecimentoFreteRoute
   AuthenticatedAdminEnriquecimentoProdutosRoute: typeof AuthenticatedAdminEnriquecimentoProdutosRoute
   AuthenticatedAdminEstoqueRoute: typeof AuthenticatedAdminEstoqueRoute
   AuthenticatedAdminExpedicaoRoute: typeof AuthenticatedAdminExpedicaoRoute
   AuthenticatedAdminFiliaisRoute: typeof AuthenticatedAdminFiliaisRoute
+  AuthenticatedAdminFinanceiroRoute: typeof AuthenticatedAdminFinanceiroRoute
+  AuthenticatedAdminFinanceiroCanaisRoute: typeof AuthenticatedAdminFinanceiroCanaisRoute
   AuthenticatedAdminFiscalRoute: typeof AuthenticatedAdminFiscalRoute
   AuthenticatedAdminFiscalProdutosRoute: typeof AuthenticatedAdminFiscalProdutosRoute
+  AuthenticatedAdminFluxoCaixaRoute: typeof AuthenticatedAdminFluxoCaixaRoute
   AuthenticatedAdminFormacaoPrecosRoute: typeof AuthenticatedAdminFormacaoPrecosRoute
   AuthenticatedAdminFornecedoresRoute: typeof AuthenticatedAdminFornecedoresRoute
   AuthenticatedAdminHistoricoCustosRoute: typeof AuthenticatedAdminHistoricoCustosRoute
@@ -1872,10 +2245,12 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminInteligenciaComercialRoute: typeof AuthenticatedAdminInteligenciaComercialRoute
   AuthenticatedAdminMarcasRoute: typeof AuthenticatedAdminMarcasRoute
   AuthenticatedAdminMigracaoBlingRoute: typeof AuthenticatedAdminMigracaoBlingRoute
+  AuthenticatedAdminMigracaoTributariaRoute: typeof AuthenticatedAdminMigracaoTributariaRoute
   AuthenticatedAdminPdvRoute: typeof AuthenticatedAdminPdvRoute
   AuthenticatedAdminPedidosRoute: typeof AuthenticatedAdminPedidosRouteWithChildren
   AuthenticatedAdminPromocoesRoute: typeof AuthenticatedAdminPromocoesRoute
   AuthenticatedAdminReposicaoRoute: typeof AuthenticatedAdminReposicaoRoute
+  AuthenticatedAdminResumoVendasRoute: typeof AuthenticatedAdminResumoVendasRoute
   AuthenticatedAdminRevisaoCodigosRoute: typeof AuthenticatedAdminRevisaoCodigosRoute
   AuthenticatedAdminSaneamentoRoute: typeof AuthenticatedAdminSaneamentoRouteWithChildren
   AuthenticatedAdminSaneamentoCustosRoute: typeof AuthenticatedAdminSaneamentoCustosRoute
@@ -1903,6 +2278,8 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminAplicacoesVeicularesRoute:
     AuthenticatedAdminAplicacoesVeicularesRoute,
   AuthenticatedAdminAuditoriaRoute: AuthenticatedAdminAuditoriaRoute,
+  AuthenticatedAdminBackupExportacaoRoute:
+    AuthenticatedAdminBackupExportacaoRoute,
   AuthenticatedAdminBannersRoute: AuthenticatedAdminBannersRoute,
   AuthenticatedAdminBlingRoute: AuthenticatedAdminBlingRoute,
   AuthenticatedAdminCadastrosB2bRoute: AuthenticatedAdminCadastrosB2bRoute,
@@ -1910,17 +2287,30 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
     AuthenticatedAdminCatalogoFabricantesRoute,
   AuthenticatedAdminCategoriasRoute: AuthenticatedAdminCategoriasRoute,
   AuthenticatedAdminClientesRoute: AuthenticatedAdminClientesRoute,
+  AuthenticatedAdminConciliacaoFinanceiraRoute:
+    AuthenticatedAdminConciliacaoFinanceiraRoute,
   AuthenticatedAdminConfiguracoesRoute: AuthenticatedAdminConfiguracoesRoute,
+  AuthenticatedAdminContasPagarRoute: AuthenticatedAdminContasPagarRoute,
+  AuthenticatedAdminContasReceberRoute: AuthenticatedAdminContasReceberRoute,
+  AuthenticatedAdminCotacoesCompraRoute: AuthenticatedAdminCotacoesCompraRoute,
   AuthenticatedAdminCuponsRoute: AuthenticatedAdminCuponsRoute,
+  AuthenticatedAdminDevolucoesFornecedorRoute:
+    AuthenticatedAdminDevolucoesFornecedorRoute,
   AuthenticatedAdminEcossistemaRoute:
     AuthenticatedAdminEcossistemaRouteWithChildren,
+  AuthenticatedAdminEnriquecimentoFreteRoute:
+    AuthenticatedAdminEnriquecimentoFreteRoute,
   AuthenticatedAdminEnriquecimentoProdutosRoute:
     AuthenticatedAdminEnriquecimentoProdutosRoute,
   AuthenticatedAdminEstoqueRoute: AuthenticatedAdminEstoqueRoute,
   AuthenticatedAdminExpedicaoRoute: AuthenticatedAdminExpedicaoRoute,
   AuthenticatedAdminFiliaisRoute: AuthenticatedAdminFiliaisRoute,
+  AuthenticatedAdminFinanceiroRoute: AuthenticatedAdminFinanceiroRoute,
+  AuthenticatedAdminFinanceiroCanaisRoute:
+    AuthenticatedAdminFinanceiroCanaisRoute,
   AuthenticatedAdminFiscalRoute: AuthenticatedAdminFiscalRoute,
   AuthenticatedAdminFiscalProdutosRoute: AuthenticatedAdminFiscalProdutosRoute,
+  AuthenticatedAdminFluxoCaixaRoute: AuthenticatedAdminFluxoCaixaRoute,
   AuthenticatedAdminFormacaoPrecosRoute: AuthenticatedAdminFormacaoPrecosRoute,
   AuthenticatedAdminFornecedoresRoute: AuthenticatedAdminFornecedoresRoute,
   AuthenticatedAdminHistoricoCustosRoute:
@@ -1931,10 +2321,13 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
     AuthenticatedAdminInteligenciaComercialRoute,
   AuthenticatedAdminMarcasRoute: AuthenticatedAdminMarcasRoute,
   AuthenticatedAdminMigracaoBlingRoute: AuthenticatedAdminMigracaoBlingRoute,
+  AuthenticatedAdminMigracaoTributariaRoute:
+    AuthenticatedAdminMigracaoTributariaRoute,
   AuthenticatedAdminPdvRoute: AuthenticatedAdminPdvRoute,
   AuthenticatedAdminPedidosRoute: AuthenticatedAdminPedidosRouteWithChildren,
   AuthenticatedAdminPromocoesRoute: AuthenticatedAdminPromocoesRoute,
   AuthenticatedAdminReposicaoRoute: AuthenticatedAdminReposicaoRoute,
+  AuthenticatedAdminResumoVendasRoute: AuthenticatedAdminResumoVendasRoute,
   AuthenticatedAdminRevisaoCodigosRoute: AuthenticatedAdminRevisaoCodigosRoute,
   AuthenticatedAdminSaneamentoRoute:
     AuthenticatedAdminSaneamentoRouteWithChildren,
@@ -1995,6 +2388,7 @@ const AuthenticatedVendedorRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
   AuthenticatedContaRoute: typeof AuthenticatedContaRoute
+  AuthenticatedPagamentoRoute: typeof AuthenticatedPagamentoRoute
   AuthenticatedPedidosRoute: typeof AuthenticatedPedidosRoute
   AuthenticatedVendedorRoute: typeof AuthenticatedVendedorRouteWithChildren
 }
@@ -2002,6 +2396,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
   AuthenticatedContaRoute: AuthenticatedContaRoute,
+  AuthenticatedPagamentoRoute: AuthenticatedPagamentoRoute,
   AuthenticatedPedidosRoute: AuthenticatedPedidosRoute,
   AuthenticatedVendedorRoute: AuthenticatedVendedorRouteWithChildren,
 }
@@ -2031,9 +2426,14 @@ const rootRouteChildren: RootRouteChildren = {
   ProdutoSlugRoute: ProdutoSlugRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicLoginRoute: ApiPublicLoginRoute,
+  ApiPublicSignupRoute: ApiPublicSignupRoute,
+  ApiPublicAsaasWebhookRoute: ApiPublicAsaasWebhookRoute,
   ApiPublicBlingCallbackRoute: ApiPublicBlingCallbackRoute,
-  ApiPublicCronEnrichmentRoute: ApiPublicCronEnrichmentRoute,
+  ApiPublicCronBlingFiscalSyncRoute: ApiPublicCronBlingFiscalSyncRoute,
   ApiPublicCronBlingHealthRoute: ApiPublicCronBlingHealthRoute,
+  ApiPublicCronBlingSalesExportRoute: ApiPublicCronBlingSalesExportRoute,
+  ApiPublicCronEnrichmentRoute: ApiPublicCronEnrichmentRoute,
+  ApiPublicCronShippingEnrichmentRoute: ApiPublicCronShippingEnrichmentRoute,
   ApiPublicStoneConciliationWebhookRoute:
     ApiPublicStoneConciliationWebhookRoute,
 }
