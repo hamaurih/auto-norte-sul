@@ -36,6 +36,8 @@ jobs:
           grep -F 'PHASE0 FAIL: consulta leu dados do tenant demo' supabase/tests/phase0_tenant_isolation.sql
           grep -F 'PHASE0 FAIL: gerente demo leu o tenant real' supabase/tests/phase0_tenant_isolation.sql
           grep -F 'PHASE0 FAIL: externo leu outro tenant' supabase/tests/phase0_tenant_isolation.sql
+          grep -F 'supabase start --exclude inbucket' .github/workflows/phase0-security.yml
+          grep -F 'supabase start --exclude inbucket' .github/workflows/production-deployment-gate.yml
 
       - name: Stage deterministic Phase 0 migrations
         run: |
@@ -57,7 +59,8 @@ jobs:
           docker ps --format '{{.ID}} {{.Ports}}' | awk '/5432[0-9]\/tcp/ {print $1}' | xargs -r docker rm -f || true
 
       - name: Start isolated local Supabase
-        run: supabase start
+        # Database tests do not require the local mail server. Excluding it avoids its host port 54324.
+        run: supabase start --exclude inbucket
 
       - name: Run mandatory Phase 0 database tests
         run: supabase test db supabase/tests/phase0_tenant_isolation.sql
