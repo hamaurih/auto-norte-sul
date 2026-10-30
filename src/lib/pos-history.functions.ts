@@ -36,6 +36,7 @@ export type PosSaleListRow = {
   operator_name: string | null;
   customer_id: string | null;
   customer_name: string | null;
+  order_id: string | null;
   payment_methods: string[];
 };
 
@@ -92,7 +93,7 @@ export const listPosSales = createServerFn({ method: "GET" })
     const sessionJoin = data.terminalCode ? "!inner" : "";
     const paymentJoin = data.paymentMethod ? "!inner" : "";
     const select =
-      "id, created_at, status, subtotal, discount_amount, total, fiscal_status, cancelled_at," +
+      "id, order_id, created_at, status, subtotal, discount_amount, total, fiscal_status, cancelled_at," +
       ` operator_id, customer_id, session:pos_cash_sessions${sessionJoin}(terminal_code),` +
       ` payments:pos_payments${paymentJoin}(method)`;
 
@@ -237,6 +238,7 @@ export const getPosSaleDetail = createServerFn({ method: "GET" })
       operator_name: row.operator_id ? operators.get(row.operator_id) || null : null,
       customer_id: row.customer_id ?? null,
       customer_name: row.customer_id ? customers.get(row.customer_id)?.name || null : null,
+      order_id: row.order_id ?? null,
       customer_document: row.customer_id ? customers.get(row.customer_id)?.document ?? null : null,
       warehouse_id: row.warehouse_id ?? null,
       warehouse_name: warehouseName,
