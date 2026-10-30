@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { MapPin, Store, Printer } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,6 +8,8 @@ import { useSession } from "@/lib/session";
 import { brl } from "@/lib/format";
 import { cancelOrder } from "@/lib/order.functions";
 import { toast } from "sonner";
+import { getMyOrderReceipt } from "@/lib/sales-receipts.functions";
+import { ImmutableSaleReceipt } from "@/components/receipts/ImmutableSaleReceipt";
 
 export const Route = createFileRoute("/_authenticated/pedidos")({
   head: () => ({ meta: [{ title: "Meus pedidos · Norte Sul" }] }),
@@ -31,7 +34,8 @@ function pickupTone(order: any) {
 
 function Pedidos() {
   const { user } = useSession();
-  const [receiptOrderId, setReceiptOrderId] = useState<string | null>(null);
+  const [printReceiptData, setPrintReceiptData] = useState<any>(null);
+  const getReceiptFn = useServerFn(getMyOrderReceipt);
   const queryClient = useQueryClient();
   const cancelMutation = useMutation({
     mutationFn: (orderId: string) => cancelOrder({ data: { orderId } }),
@@ -55,11 +59,15 @@ function Pedidos() {
     },
   });
 
-  const receiptOrder = orders.find((order: any) => order.id === receiptOrderId);
-  const printOrder = (orderId: string) => {
-    setReceiptOrderId(orderId);
-    window.setTimeout(() => window.print(), 50);
-  };
+  const receiptPrint = useMutation({
+    mutationFn: (orderId:string) => getReceiptFn({ data:{ orderId } }),
+    onSuccess: (result:any) => {
+      setPrintReceiptData(result);
+      window.setTimeout(() => window.print(), 80);
+    },
+    onError: (error:Error) => toast.error(error.message),
+  });
+  const printOrder = (orderId: string) => receiptPrint.mutate(orderId);
 
   return (
     <div className="container-x py-6">
@@ -175,33 +183,11 @@ function Pedidos() {
           })}
         </div>
       )}
-      {receiptOrder && (
-        <div className="pdv-receipt" aria-label="Recibo não fiscal da Norte Sul">
-          <div className="pdv-receipt-center"><strong>NORTE SUL ACESSÓRIOS</strong></div>
-          <hr />
-          <div className="pdv-receipt-center"><strong>RECIBO NÃO FISCAL</strong></div>
-          <div>Pedido: {receiptOrder.id.toUpperCase()}</div>
-          <div>Data da compra: {new Date(receiptOrder.created_at).toLocaleString("pt-BR")}</div>
-          <div>Cliente: {receiptOrder.customer_name || "Consumidor"}</div>
-          <div>Pagamento: {receiptOrder.payment_method}</div>
-          <div>Estado: {receiptOrder.status}</div>
-          <hr />
-          {(receiptOrder.order_items ?? []).map((item: any, i: number) => (
-            <div key={i} className="pdv-receipt-item">
-              <div>{item.sku} · {item.name}</div>
-              <div className="pdv-receipt-row"><span>{item.quantity} × {brl(Number(item.unit_price))}</span><span>{brl(Number(item.total))}</span></div>
-            </div>
-          ))}
-          <hr />
-          <div className="pdv-receipt-row"><span>Subtotal</span><span>{brl(Number(receiptOrder.subtotal ?? 0))}</span></div>
-          <div className="pdv-receipt-row"><span>Desconto</span><span>{brl(Number(receiptOrder.discount ?? 0))}</span></div>
-          <div className="pdv-receipt-row"><span>Entrega</span><span>{brl(Number(receiptOrder.shipping ?? 0))}</span></div>
-          <div className="pdv-receipt-row"><strong>Total pago</strong><strong>{brl(Number(receiptOrder.total))}</strong></div>
-          <hr />
-          <div className="pdv-receipt-center">Comprovante comercial sem valor fiscal.</div>
-          <div className="pdv-receipt-center">Não substitui NF-e ou NFC-e quando obrigatória.</div>
-        </div>
-      )}
+      <ImmutableSaleReceipt
+        receipt={(printReceiptData?.receipt as any) ?? null}
+        company={(printReceiptData?.company as any) ?? null}
+      />
+
     </div>
   );
 }
