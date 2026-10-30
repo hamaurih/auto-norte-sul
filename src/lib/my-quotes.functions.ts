@@ -73,7 +73,9 @@ export const getMyQuotes = createServerFn({ method:"GET" })
         &&(!isOffer||review?.status==="offered"),
       can_request_review:quote.origin==="site"&&!isOffer&&!expired
         &&["rascunho","enviado","em_negociacao","aprovado"].includes(String(quote.status))
-        &&!["pending","offered","converted"].includes(String(review?.status)),
+        &&!["pending","converted"].includes(String(review?.status))
+        &&(review?.status!=="offered"||
+          (review?.offer_expires_at&&new Date(review.offer_expires_at).getTime()<now)),
       expired:expired||offerExpired,
     };
     });
