@@ -42,7 +42,7 @@ export const getMyQuotes = createServerFn({ method:"GET" })
     return (quotes??[]).map((quote:any)=>({
       ...quote,
       order_id:quote.converted_sales_order_id?orderBySalesOrder.get(quote.converted_sales_order_id)??null:null,
-      can_buy:["enviado","em_negociacao","aprovado"].includes(String(quote.status))
+      can_buy:["enviado","aprovado"].includes(String(quote.status))
         && (!quote.valid_until || new Date(quote.valid_until).getTime()>=now),
       expired:Boolean(quote.valid_until && new Date(quote.valid_until).getTime()<now),
     }));
