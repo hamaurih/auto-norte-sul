@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -8,6 +8,9 @@ import { useCart, cartStore } from "@/lib/cart-store";
 import { brl, installments } from "@/lib/format";
 import { useSession } from "@/lib/session";
 import { getMyB2BCommercialProfile, getMyB2BPrices } from "@/lib/b2b.functions";
+import { createMyQuoteFromCart } from "@/lib/my-quotes.functions";
+import { toast } from "sonner";
+import { useRef } from "react";
 import { createMyQuoteFromCart } from "@/lib/my-quotes.functions";
 
 export const Route = createFileRoute("/carrinho")({
@@ -48,6 +51,24 @@ function CartPage() {
   }
   const loadB2BPrices = useServerFn(getMyB2BPrices);
   const loadCommercialProfile = useServerFn(getMyB2BCommercialProfile);
+  const createQuoteFn = useServerFn(createMyQuoteFromCart);
+  const navigate = useNavigate();
+  const quoteRequestKey = useRef(crypto.randomUUID());
+  const quoteMutation = useMutation({
+    mutationFn: () => createQuoteFn({
+      data: {
+        items: items.map((item) => ({ product_id: item.productId, quantity: item.quantity })),
+        requestKey: quoteRequestKey.current,
+      },
+    }),
+    onSuccess: (result: any) => {
+      toast.success(`Orçamento #${result.number} criado.`);
+      cartStore.clear();
+      quoteRequestKey.current = crypto.randomUUID();
+      navigate({ to: "/orcamentos" });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
   const productIds = items.map((item) => item.productId);
   const { data: b2bPriceData } = useQuery({
     queryKey: ["cart-b2b-prices", productIds],
@@ -146,6 +167,25 @@ function CartPage() {
           >
             Ir para o checkout
           </Link>
+          {user ? (
+            <button
+              type="button"
+              disabled={quoteMutation.isPending}
+              onClick={() => quoteMutation.mutate()}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-primary px-4 py-3 text-sm font-bold uppercase text-primary disabled:opacity-50"
+            >
+              <FileText className="h-4 w-4" />
+              {quoteMutation.isPending ? "Gerando orçamento…" : "Gerar orçamento"}
+            </button>
+          ) : (
+            <Link
+              to="/auth"
+              search={{ next: "/carrinho" } as never}
+              className="mt-2 block rounded-xl border border-primary px-4 py-3 text-center text-sm font-bold uppercase text-primary"
+            >
+              Entrar para gerar orçamento
+            </Link>
+          )}
           <button
             type="button"
             disabled={savingQuote}
