@@ -158,14 +158,14 @@ async function withAvailableStock(rows: ProductRow[], tenantId: string): Promise
   const ids=[...new Set(rows.map((row)=>row.id))];
   const {data,error}=await supabase
     .from("v_product_stock_available")
-    .select("product_id,available_effective")
+    .select("product_id,available_multi")
     .eq("tenant_id",tenantId)
     .in("product_id",ids);
   if(error){
     console.error("Erro ao carregar estoque disponível da vitrine",error);
     return rows;
   }
-  const stock=new Map((data??[]).map((row:any)=>[row.product_id,Number(row.available_effective??0)]));
+  const stock=new Map((data??[]).map((row:any)=>[row.product_id,Number(row.available_multi??0)]));
   return rows.map((row)=>({...row,stock:stock.get(row.id)??0}));
 }
 
