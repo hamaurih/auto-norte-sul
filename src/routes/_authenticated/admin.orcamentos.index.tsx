@@ -115,11 +115,18 @@ function OrcamentosPage() {
             Criar → negociar → proposta → aprovar → fechar em pedido. Pagamento acontece depois do pedido.
           </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild size="lg">
+            <Link to="/admin/orcamentos/analises">
+              <FileCheck2 className="mr-2 h-4 w-4" /> Analisar orçamentos do site
+            </Link>
+          </Button>
         <Button asChild size="lg">
           <Link to="/admin/orcamentos/novo">
             <PlusCircle className="mr-2 h-4 w-4" /> Novo orçamento
           </Link>
         </Button>
+        </div>
       </header>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
