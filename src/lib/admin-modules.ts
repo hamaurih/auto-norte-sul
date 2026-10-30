@@ -123,7 +123,6 @@ export const adminModules: AdminModule[] = [
         label: "Análises comerciais",
         description: "Aprovar descontos e crédito de orçamentos",
         icon: FileText,
-        adminOnly: true,
       },
       { to: "/admin/clientes", label: "Clientes", description: "Base de clientes", icon: Users },
       {
