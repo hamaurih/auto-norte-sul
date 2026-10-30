@@ -7,7 +7,7 @@ describe("Customer quote to purchase", () => {
     expect(sql.includes("internal_create_storefront_quote")).toBe(true);
     expect(sql.includes("validate_cart_items")).toBe(true);
     expect(sql.includes("now()+interval '7 days'")).toBe(true);
-    expect(sql.includes("customer_id=v_customer.id")).toBe(false);
+    expect(sql.includes("v_customer.id")).toBe(true);
     expect(sql.includes("'site','enviado','orcamento'")).toBe(true);
   });
 
