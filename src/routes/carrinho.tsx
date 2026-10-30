@@ -1,11 +1,15 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CreditCard, ShieldCheck, Trash2, Truck } from "lucide-react";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
+import { CreditCard, FileText, ShieldCheck, Trash2, Truck } from "lucide-react";
 import { useCart, cartStore } from "@/lib/cart-store";
 import { brl, installments } from "@/lib/format";
 import { useSession } from "@/lib/session";
 import { getMyB2BCommercialProfile, getMyB2BPrices } from "@/lib/b2b.functions";
+import { createMyQuoteFromCart } from "@/lib/my-quotes.functions";
+
 
 export const Route = createFileRoute("/carrinho")({
   head: () => ({ meta: [{ title: "Carrinho · Norte Sul" }] }),
@@ -15,6 +19,34 @@ export const Route = createFileRoute("/carrinho")({
 function CartPage() {
   const { items, subtotal } = useCart();
   const { user, isB2BApproved } = useSession();
+  const navigate = useNavigate();
+  const saveQuote = useServerFn(createMyQuoteFromCart);
+  const [savingQuote, setSavingQuote] = useState(false);
+  const quoteAttempt = useRef<{ key: string; fingerprint: string } | null>(null);
+
+  async function generateQuote() {
+    if (!user) {
+      navigate({ to: "/orcamento" });
+      return;
+    }
+    if (!items.length || savingQuote) return;
+    setSavingQuote(true);
+    const productItems = items.map((item) => ({ product_id: item.productId, quantity: item.quantity }));
+    const fingerprint = JSON.stringify(productItems);
+    if (quoteAttempt.current?.fingerprint !== fingerprint) {
+      quoteAttempt.current = { key: crypto.randomUUID(), fingerprint };
+    }
+    try {
+      const result = await saveQuote({ data: { items: productItems, requestKey: quoteAttempt.current.key } });
+      quoteAttempt.current = null;
+      toast.success("Orçamento #" + result.number + " criado. Você já pode transformá-lo em compra.");
+      navigate({ to: "/orcamentos" });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível gerar o orçamento.");
+    } finally {
+      setSavingQuote(false);
+    }
+  }
   const loadB2BPrices = useServerFn(getMyB2BPrices);
   const loadCommercialProfile = useServerFn(getMyB2BCommercialProfile);
   const productIds = items.map((item) => item.productId);
@@ -115,6 +147,20 @@ function CartPage() {
           >
             Ir para o checkout
           </Link>
+          <button
+            type="button"
+            disabled={savingQuote}
+            onClick={generateQuote}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-primary px-4 py-3 text-sm font-bold text-primary hover:bg-primary/5 disabled:opacity-50"
+          >
+            <FileText className="h-4 w-4" />
+            {savingQuote ? "Gerando orçamento…" : user ? "Gerar orçamento sem aprovação" : "Visualizar orçamento"}
+          </button>
+          {user && (
+            <Link to="/orcamentos" className="mt-2 block text-center text-xs font-semibold text-primary">
+              Meus orçamentos
+            </Link>
+          )}
           <div className="mt-4 grid gap-2 border-t border-border pt-4 text-[11px] text-muted-foreground">
             <div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Preço e estoque validados no servidor</div>
             <div className="flex items-center gap-2"><CreditCard className="h-4 w-4 text-primary" /> PIX, cartão e boleto conforme seu cadastro</div>

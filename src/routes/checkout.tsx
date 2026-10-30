@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import {
   createStorefrontOrder,
+  updatePendingOrderCheckout,
   finalizeB2BInvoiceOrder,
   listStorefrontPickupLocations,
   type FulfillmentType,
@@ -85,6 +86,7 @@ function Checkout() {
   const loadB2BCommercialProfile = useServerFn(getMyB2BCommercialProfile);
   const loadB2BPrices = useServerFn(getMyB2BPrices);
   const finalizeInvoice = useServerFn(finalizeB2BInvoiceOrder);
+  const updatePendingCheckout = useServerFn(updatePendingOrderCheckout);
 
   const [saving, setSaving] = useState(false);
   const [fetchingCep, setFetchingCep] = useState(false);
@@ -417,6 +419,32 @@ function Checkout() {
       }
 
       const paymentMethod = parsed.data.payment_method;
+
+      if (pendingOrderId) {
+        await updatePendingCheckout({
+          data:{
+            orderId,
+            customer:{
+              name:parsed.data.customer_name,
+              email:parsed.data.customer_email,
+              phone:parsed.data.customer_phone,
+              document:parsed.data.customer_document,
+              shipping_zip:parsed.data.shipping_zip,
+              shipping_street:parsed.data.shipping_street,
+              shipping_number:parsed.data.shipping_number,
+              shipping_complement:parsed.data.shipping_complement,
+              shipping_neighborhood:parsed.data.shipping_neighborhood,
+              shipping_city:parsed.data.shipping_city,
+              shipping_state:parsed.data.shipping_state,
+            },
+            paymentMethod,
+            boletoDueDays:paymentMethod==="boleto"?parsed.data.boleto_due_days:undefined,
+            fulfillmentType,
+            pickupBranchId:fulfillmentType==="pickup"?pickupBranchId:undefined,
+          },
+        });
+      }
+
       if (paymentMethod === "pix" || paymentMethod === "cartao" || paymentMethod === "boleto") {
         try {
           const payment = await createPaymentIntent({
