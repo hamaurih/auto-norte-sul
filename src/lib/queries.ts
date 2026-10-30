@@ -153,6 +153,22 @@ const PRODUCT_LIST_SELECT = `
   images:product_images(url, is_primary, sort_order)
 `;
 
+async function withAvailableStock(rows: ProductRow[], tenantId: string): Promise<ProductRow[]> {
+  if (!rows.length) return rows;
+  const ids=[...new Set(rows.map((row)=>row.id))];
+  const {data,error}=await supabase
+    .from("v_product_stock_available")
+    .select("product_id,available_effective")
+    .eq("tenant_id",tenantId)
+    .in("product_id",ids);
+  if(error){
+    console.error("Erro ao carregar estoque disponível da vitrine",error);
+    return rows;
+  }
+  const stock=new Map((data??[]).map((row:any)=>[row.product_id,Number(row.available_effective??0)]));
+  return rows.map((row)=>({...row,stock:stock.get(row.id)??0}));
+}
+
 export async function fetchFeatured(): Promise<ProductRow[]> {
   const tenant = await tenantScope();
   if (!tenant) return [];
@@ -170,7 +186,7 @@ export async function fetchFeatured(): Promise<ProductRow[]> {
     .eq("featured", true)
     .limit(12);
   if (curated.error) console.error("Erro ao carregar produtos em destaque", curated.error);
-  if ((curated.data?.length ?? 0) > 0) return curated.data as unknown as ProductRow[];
+  if ((curated.data?.length ?? 0) > 0) return withAvailableStock(curated.data as unknown as ProductRow[], tenant);
   const { data, error } = await supabase
     .from("products")
     .select(PRODUCT_LIST_SELECT)
@@ -186,7 +202,7 @@ export async function fetchFeatured(): Promise<ProductRow[]> {
     console.error("Erro ao carregar vitrine de produtos", error);
     return [];
   }
-  return (data as unknown as ProductRow[]) ?? [];
+  return withAvailableStock((data as unknown as ProductRow[]) ?? [], tenant);
 }
 
 export async function fetchOffers(): Promise<ProductRow[]> {
@@ -209,7 +225,7 @@ export async function fetchOffers(): Promise<ProductRow[]> {
     return fetchBestSellers();
   }
   if ((data?.length ?? 0) === 0) return fetchBestSellers();
-  return (data as unknown as ProductRow[]) ?? [];
+  return withAvailableStock((data as unknown as ProductRow[]) ?? [], tenant);
 }
 
 export async function fetchNewArrivals(): Promise<ProductRow[]> {
@@ -232,7 +248,7 @@ export async function fetchNewArrivals(): Promise<ProductRow[]> {
     console.error("Erro ao carregar lanÃ§amentos", error);
     return fetchBestSellers();
   }
-  return (data as unknown as ProductRow[]) ?? [];
+  return withAvailableStock((data as unknown as ProductRow[]) ?? [], tenant);
 }
 
 export async function fetchBestSellers(): Promise<ProductRow[]> {
@@ -254,7 +270,7 @@ export async function fetchBestSellers(): Promise<ProductRow[]> {
     console.error("Erro ao carregar mais vendidos", error);
     return [];
   }
-  return (data as unknown as ProductRow[]) ?? [];
+  return withAvailableStock((data as unknown as ProductRow[]) ?? [], tenant);
 }
 
 export interface CatalogFilters {
@@ -385,7 +401,9 @@ export async function fetchProductBySlug(
     console.error("Erro ao carregar produto", error);
     return null;
   }
-  return (data as unknown as ProductRow) ?? null;
+  if (!data) return null;
+  const [row]=await withAvailableStock([data as unknown as ProductRow],tenant);
+  return row ?? null;
 }
 
 export async function fetchProductApplications(productId: string) {
@@ -419,7 +437,7 @@ export async function fetchRelated(
     if (cat) q = q.eq("category_id", cat.id);
   }
   const { data } = await q;
-  return (data as unknown as ProductRow[]) ?? [];
+  return withAvailableStock((data as unknown as ProductRow[]) ?? [], tenant);
 }
 
 export interface SearchSuggestion {
