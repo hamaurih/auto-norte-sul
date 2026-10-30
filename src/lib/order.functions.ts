@@ -80,6 +80,19 @@ const storefrontOrderSchema = z.object({
 });
 const orderIdInputSchema = z.object({ orderId: z.string().uuid() });
 
+const pendingOrderCheckoutSchema = z.object({
+  orderId:z.string().uuid(),
+  customer:storefrontOrderSchema.shape.customer,
+  paymentMethod:z.enum(["pix","cartao","boleto","faturado_b2b"]),
+  boletoDueDays:z.union([z.literal(3),z.literal(15),z.literal(30),z.literal(45),z.literal(60),z.literal(90),z.literal(120)]).optional(),
+  fulfillmentType:z.enum(["delivery","pickup"]).default("delivery"),
+  pickupBranchId:z.string().uuid().optional(),
+}).superRefine((data,ctx)=>{
+  if(data.fulfillmentType==="pickup"&&!data.pickupBranchId){
+    ctx.addIssue({code:z.ZodIssueCode.custom,path:["pickupBranchId"],message:"Selecione a loja para retirada."});
+  }
+});
+
 export const listStorefrontPickupLocations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -111,6 +124,62 @@ export const listStorefrontPickupLocations = createServerFn({ method: "GET" })
       pickup_instructions: branch.pickup_instructions,
       business_hours: profile?.business_hours ?? null,
     })) as PickupLocation[];
+  });
+
+export const updatePendingOrderCheckout = createServerFn({ method:"POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input)=>pendingOrderCheckoutSchema.parse(input))
+  .handler(async({data,context})=>{
+    const { supabaseAdmin }=await import("@/integrations/supabase/client.server");
+    const db=supabaseAdmin as any;
+    const { data:order,error:orderError }=await db.from("orders")
+      .select("id,status,user_id,tenant_id")
+      .eq("id",data.orderId)
+      .eq("tenant_id",context.tenantId)
+      .eq("user_id",context.userId)
+      .maybeSingle();
+    if(orderError) throw new Error(orderError.message);
+    if(!order||order.status!=="aguardando_pagamento") throw new Error("Pedido não está disponível para edição do checkout.");
+
+    let pickupBranchId:string|null=null;
+    if(data.fulfillmentType==="pickup"){
+      const { data:branch,error:branchError }=await db.from("branches")
+        .select("id")
+        .eq("id",data.pickupBranchId)
+        .eq("tenant_id",context.tenantId)
+        .eq("active",true)
+        .eq("available_for_pickup",true)
+        .maybeSingle();
+      if(branchError) throw new Error(branchError.message);
+      if(!branch) throw new Error("A loja selecionada não está disponível para retirada.");
+      pickupBranchId=branch.id;
+    }
+
+    const patch:any={
+      customer_name:data.customer.name.trim(),
+      customer_email:data.customer.email.trim(),
+      customer_phone:data.customer.phone.trim(),
+      customer_document:data.customer.document.replace(/\D/g,""),
+      shipping_zip:data.customer.shipping_zip.replace(/\D/g,""),
+      shipping_street:data.customer.shipping_street.trim(),
+      shipping_number:data.customer.shipping_number.trim(),
+      shipping_complement:data.customer.shipping_complement?.trim()||null,
+      shipping_neighborhood:data.customer.shipping_neighborhood.trim(),
+      shipping_city:data.customer.shipping_city.trim(),
+      shipping_state:data.customer.shipping_state.trim().toUpperCase(),
+      payment_method:data.paymentMethod,
+      payment_due_days:data.paymentMethod==="boleto"?(data.boletoDueDays??3):null,
+      fulfillment_type:data.fulfillmentType,
+      pickup_branch_id:pickupBranchId,
+      updated_at:new Date().toISOString(),
+    };
+    const { error }=await db.from("orders").update(patch)
+      .eq("id",data.orderId)
+      .eq("tenant_id",context.tenantId)
+      .eq("user_id",context.userId)
+      .eq("status","aguardando_pagamento");
+    if(error) throw new Error(error.message);
+    return {ok:true};
   });
 
 export const createStorefrontOrder = createServerFn({ method: "POST" })
