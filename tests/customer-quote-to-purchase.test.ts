@@ -12,7 +12,7 @@ describe("Orçamento autônomo e seguro da loja", () => {
 
   test("qualquer visitante visualiza prévia e cliente gera orçamento sem aprovação", () => {
     expect(preview).toContain('createFileRoute("/orcamento")');
-    expect(preview).toContain("subtotal estimado");
+    expect(preview).toContain("Subtotal estimado");
     expect(preview).toContain("window.print()");
     expect(cart).toContain("generateQuote");
     expect(cart).toContain("createMyQuoteFromCart");
