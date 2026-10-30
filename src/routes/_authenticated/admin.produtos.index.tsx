@@ -190,7 +190,9 @@ function ProductsList() {
     value: boolean,
   ) {
     try {
-      await toggle({ data: { id, field, value } });
+      const saved = await toggle({ data: { id, field, value } });
+      if (!saved.ok) throw new Error("Alteração não confirmada");
+      toast.success(field === "active" ? (value ? "Produto ativado" : "Produto desativado e ocultado da loja") : "Produto atualizado");
       await qc.invalidateQueries({ queryKey: ["admin-products-fast"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro");
