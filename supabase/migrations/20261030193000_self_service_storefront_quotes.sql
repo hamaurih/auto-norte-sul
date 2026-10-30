@@ -38,9 +38,6 @@ declare
   v_quote_id uuid;
   v_number bigint;
 begin
-  if coalesce(auth.role(),'')<>'service_role' then
-    raise exception 'SERVICE_ROLE_REQUIRED';
-  end if;
   if p_tenant_id is null or p_user_id is null or p_request_key is null then
     raise exception 'INVALID_QUOTE_REQUEST';
   end if;
@@ -435,7 +432,7 @@ begin
 end
 $$;
 
-revoke all on function public.convert_my_quote_to_storefront_order(uuid,text) from public,anon;
-grant execute on function public.convert_my_quote_to_storefront_order(uuid,text) to authenticated;
+revoke all on function public.convert_my_quote_to_storefront_order(uuid,text) from public,anon,authenticated;
+grant execute on function public.convert_my_quote_to_storefront_order(uuid,text) to service_role;
 
 commit;
