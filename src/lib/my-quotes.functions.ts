@@ -79,7 +79,8 @@ export const convertMyQuoteToPurchase = createServerFn({ method:"POST" })
     paymentMethod:paymentSchema,
   }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data:result,error }=await (context.supabase as any).rpc("convert_my_quote_to_storefront_order",{
+    const { data:result,error }=await (supabaseAdmin as any).rpc("internal_convert_my_quote_to_storefront_order",{
+      p_user_id:context.userId,
       p_quote_id:data.quoteId,
       p_payment_method:data.paymentMethod,
     });
