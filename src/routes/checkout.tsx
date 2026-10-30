@@ -96,6 +96,12 @@ function Checkout() {
   const [b2bPrices, setB2BPrices] = useState<Record<string, { effective: number; base: number }>>({});
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(resumeOrderId ?? null);
   const [resumeTotal, setResumeTotal] = useState<number | null>(null);
+  const [resumeSummary, setResumeSummary] = useState<{
+    subtotal: number;
+    discount: number;
+    shipping: number;
+    items: Array<{ id: string; name: string; quantity: number; unit_price: number; total: number }>;
+  } | null>(null);
   const [resumeLoading, setResumeLoading] = useState(Boolean(resumeOrderId));
   const [card, setCard] = useState<CardForm>({
     holderName: "",
@@ -222,7 +228,7 @@ function Checkout() {
     setResumeLoading(true);
     void (supabase as any)
       .from("orders")
-      .select("id,status,total,payment_method,customer_name,customer_email,customer_phone,customer_document,shipping_zip,shipping_street,shipping_number,shipping_complement,shipping_neighborhood,shipping_city,shipping_state,fulfillment_type,pickup_branch_id")
+      .select("id,status,subtotal,discount,shipping,total,payment_method,customer_name,customer_email,customer_phone,customer_document,shipping_zip,shipping_street,shipping_number,shipping_complement,shipping_neighborhood,shipping_city,shipping_state,fulfillment_type,pickup_branch_id,order_items(id,name,quantity,unit_price,total)")
       .eq("id", resumeOrderId)
       .maybeSingle()
       .then(({ data, error }: { data: any; error: any }) => {
@@ -238,6 +244,15 @@ function Checkout() {
         }
         setPendingOrderId(data.id);
         setResumeTotal(Number(data.total));
+        setResumeSummary({
+          subtotal: Number(data.subtotal ?? 0),
+          discount: Number(data.discount ?? 0),
+          shipping: Number(data.shipping ?? 0),
+          items: (data.order_items ?? []).map((item: any) => ({
+            id: String(item.id),name: String(item.name),
+            quantity: Number(item.quantity),unit_price: Number(item.unit_price),total: Number(item.total),
+          })),
+        });
         setFulfillmentType(data.fulfillment_type === "pickup" ? "pickup" : "delivery");
         setPickupBranchId(data.pickup_branch_id ?? "");
         setForm((current) => ({
@@ -963,11 +978,14 @@ function Checkout() {
         <aside className="h-fit rounded-lg border border-border bg-card p-4">
           <h3 className="mb-3 font-display text-lg font-bold uppercase">Seu pedido</h3>
           <ul className="mb-3 space-y-1 text-xs">
-            {items.map((item) => (
+            {resumeSummary ? resumeSummary.items.map((item) => (
+              <li key={item.id} className="flex justify-between gap-2">
+                <span className="line-clamp-1">{item.quantity}× {item.name}</span>
+                <span>{brl(item.total)}</span>
+              </li>
+            )) : items.map((item) => (
               <li key={item.productId} className="flex justify-between gap-2">
-                <span className="line-clamp-1">
-                  {item.quantity}× {item.name}
-                </span>
+                <span className="line-clamp-1">{item.quantity}× {item.name}</span>
                 <span>{brl((b2bPrices[item.productId]?.effective ?? item.unitPrice) * item.quantity)}</span>
               </li>
             ))}
@@ -975,15 +993,22 @@ function Checkout() {
           <div className="space-y-1 border-t border-border pt-3">
             <div className="flex justify-between text-sm">
               <span>Subtotal</span>
-              <span>{brl(effectiveSubtotal)}</span>
+              <span>{brl(resumeSummary?.subtotal ?? effectiveSubtotal)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span>{fulfillmentType === "pickup" ? "Retirada na loja" : "Entrega"}</span>
               <span className={fulfillmentType === "pickup" ? "font-semibold text-emerald-600" : ""}>
-                {fulfillmentType === "pickup" ? "Grátis" : "Calculado no pedido"}
+                {fulfillmentType === "pickup" ? "Grátis" :
+                  resumeSummary ? brl(resumeSummary.shipping) : "Calculado no pedido"}
               </span>
             </div>
 
+            {resumeSummary && resumeSummary.discount > 0 && (
+              <div className="flex justify-between text-sm text-emerald-700">
+                <span>Desconto comercial aprovado</span>
+                <span>-{brl(resumeSummary.discount)}</span>
+              </div>
+            )}
             <div className="mt-2 flex items-baseline justify-between border-t border-border pt-2">
               <span className="text-sm font-semibold">Total</span>
               <span className="price-tag text-2xl">{brl(total)}</span>
