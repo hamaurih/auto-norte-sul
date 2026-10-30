@@ -15,6 +15,7 @@ import {
   MapPin,
   PackageCheck,
   Phone,
+  Printer,
   ReceiptText,
   RefreshCcw,
   ScanLine,
@@ -51,6 +52,7 @@ import {
   getOrderReceipt,
   setReceiptFiscalDecision,
 } from "@/lib/sales-receipts.functions";
+import { ImmutableSaleReceipt } from "@/components/receipts/ImmutableSaleReceipt";
 
 export const Route = createFileRoute("/_authenticated/admin/pedidos/$id")({
   head: () => ({ meta: [{ title: "Detalhe do pedido · Admin" }] }),
@@ -535,6 +537,11 @@ function OrderDetailPage() {
         onIssue={(receiptId) => issueNfe.mutate(receiptId)}
         onRefresh={(receiptId) => refreshNfe.mutate(receiptId)}
         onDownload={(receiptId, format) => downloadNfe.mutate({ receiptId, format })}
+      />
+
+      <ImmutableSaleReceipt
+        receipt={(receiptQuery.data as any)?.receipt ?? null}
+        company={(receiptQuery.data as any)?.company ?? null}
       />
 
       <FiscalTraceCard
@@ -1150,6 +1157,13 @@ function ReceiptFiscalDecisionCard({
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-bold text-emerald-800"
+            >
+              <Printer className="h-4 w-4" /> Imprimir recibo não fiscal
+            </button>
             <button
               type="button"
               disabled={deciding || issuing || Boolean(activeDocument)}
