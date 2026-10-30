@@ -71,7 +71,12 @@ function Pedidos() {
 
   return (
     <div className="container-x py-6">
-      <h1 className="mb-4 font-display text-3xl font-bold uppercase">Meus pedidos</h1>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-display text-3xl font-bold uppercase">Meus pedidos</h1>
+        <Link to="/orcamentos" className="rounded-md border border-primary px-4 py-2 text-sm font-bold text-primary">
+          Meus orçamentos
+        </Link>
+      </div>
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando…</p>
       ) : orders.length === 0 ? (
