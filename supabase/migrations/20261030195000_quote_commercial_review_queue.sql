@@ -143,13 +143,18 @@ begin
   if p_decision not in ('offer','deny') then raise exception 'INVALID_DECISION'; end if;
   if length(coalesce(p_manager_note,''))>1000 then raise exception 'NOTE_TOO_LONG'; end if;
 
+  -- Ordem determinística de locks: orçamento, depois solicitação.
+  -- Evita deadlock com compra do cliente, que bloqueia o orçamento primeiro.
+  select * into v_review from public.quote_commercial_reviews
+    where id=p_review_id and tenant_id=p_tenant_id;
+  if not found then raise exception 'REVIEW_NOT_FOUND'; end if;
+  select * into v_quote from public.quotes
+    where id=v_review.quote_id and tenant_id=p_tenant_id and deleted_at is null for update;
+  if not found then raise exception 'QUOTE_NOT_FOUND'; end if;
   select * into v_review from public.quote_commercial_reviews
     where id=p_review_id and tenant_id=p_tenant_id for update;
   if not found then raise exception 'REVIEW_NOT_FOUND'; end if;
   if v_review.status<>'pending' then raise exception 'REVIEW_ALREADY_DECIDED'; end if;
-  select * into v_quote from public.quotes
-    where id=v_review.quote_id and tenant_id=p_tenant_id and deleted_at is null for update;
-  if not found then raise exception 'QUOTE_NOT_FOUND'; end if;
   if v_quote.status in ('convertido','recusado','expirado') or
     (v_quote.valid_until is not null and v_quote.valid_until<now()) then
     raise exception 'QUOTE_NOT_AVAILABLE';
