@@ -13,8 +13,8 @@ export const Route=createFileRoute("/_authenticated/orcamentos")({
 });
 
 const statusLabel:Record<string,string>={
-  rascunho:"Em preparação",enviado:"Disponível para compra",em_negociacao:"Em negociação",
-  aprovado:"Aprovado",convertido:"Transformado em compra",recusado:"Recusado",expirado:"Expirado",
+  rascunho:"Disponível para compra",enviado:"Disponível para compra",em_negociacao:"Disponível para compra",
+  aprovado:"Disponível para compra",convertido:"Transformado em compra",recusado:"Recusado",expirado:"Expirado",
 };
 
 function MyQuotesPage(){
@@ -48,13 +48,18 @@ function MyQuotesPage(){
         <p className="text-xs font-bold uppercase tracking-[.18em] text-primary">Área do cliente</p>
         <h1 className="mt-1 font-display text-3xl font-bold uppercase">Meus orçamentos</h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Orçamentos liberados podem ser transformados em compra sem refazer o carrinho.
-          O estoque é conferido novamente no momento da conversão.
+          Seus orçamentos válidos podem ser transformados em compra por você, sem aprovação da loja.
+          O estoque é conferido automaticamente no momento da conversão.
         </p>
       </div>
-      <Link to="/pedidos" className="rounded-md border px-4 py-2 text-sm font-bold">
-        Meus pedidos
-      </Link>
+      <div className="flex flex-wrap gap-2">
+        <Link to="/carrinho" className="rounded-md bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">
+          Criar orçamento
+        </Link>
+        <Link to="/pedidos" className="rounded-md border px-4 py-2 text-sm font-bold">
+          Meus pedidos
+        </Link>
+      </div>
     </div>
 
     {query.isLoading?<p className="text-sm text-muted-foreground">Carregando orçamentos…</p>:
@@ -63,7 +68,8 @@ function MyQuotesPage(){
      </div>:
      !rows.length?<div className="rounded-xl border border-dashed p-10 text-center">
        <FileText className="mx-auto h-8 w-8 text-muted-foreground"/>
-       <p className="mt-3 font-semibold">Você ainda não possui orçamentos vinculados à sua conta.</p>
+       <p className="mt-3 font-semibold">Você ainda não criou orçamentos.</p>
+       <Link to="/carrinho" className="mt-3 inline-block rounded-md bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Gerar pelo carrinho</Link>
      </div>:
      <div className="space-y-4">
        {rows.map((quote:any)=>{
@@ -140,7 +146,6 @@ function MyQuotesPage(){
                  type="button"
                  disabled={convert.isPending}
                  onClick={()=>{
-                   if(!window.confirm("Confirmar a transformação deste orçamento em pedido de compra? O estoque será reservado agora.")) return;
                    convert.mutate({quoteId:quote.id,paymentMethod:method});
                  }}
                  className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-md bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-50"
@@ -152,8 +157,8 @@ function MyQuotesPage(){
            ):(
              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                {quote.expired
-                 ?"Este orçamento venceu. Solicite uma atualização para concluir a compra."
-                 :"Este orçamento ainda não está liberado para compra."}
+                 ?"Este orçamento venceu. Monte um novo orçamento pelo carrinho para comprar com os preços atuais."
+                 :"Este orçamento não está mais disponível para compra."}
              </div>
            )}
          </article>;
