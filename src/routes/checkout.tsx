@@ -232,7 +232,7 @@ function Checkout() {
           return;
         }
         const paymentMethod = String(data.payment_method);
-        if (!["pix", "cartao", "boleto"].includes(paymentMethod)) {
+        if (!["pix", "cartao", "boleto", "faturado_b2b"].includes(paymentMethod)) {
           setPaymentError("A forma de pagamento deste pedido não pode ser retomada online.");
           return;
         }
@@ -995,9 +995,11 @@ function Checkout() {
           >
             {saving
               ? "Preparando pagamento…"
-              : pendingOrderId
-                ? "Tentar pagamento novamente"
-                : "Confirmar pedido"}
+              : pendingOrderId && form.payment_method === "faturado_b2b"
+                ? "Confirmar compra com crédito aprovado"
+                : pendingOrderId
+                  ? "Tentar pagamento novamente"
+                  : "Confirmar pedido"}
           </button>
           {saving && (
             <p className="mt-2 text-center text-xs font-medium text-primary">
