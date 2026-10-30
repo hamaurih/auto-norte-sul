@@ -46,7 +46,7 @@ begin
     end if;
   end if;
 
-  if q.status not in ('enviado','em_negociacao','aprovado') then
+  if q.status not in ('enviado','aprovado') then
     raise exception 'QUOTE_NOT_RELEASED';
   end if;
   if q.valid_until is not null and q.valid_until < now() then
