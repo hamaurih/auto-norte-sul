@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
 const file = (path: string) => readFileSync(path, "utf8");
+const has = (source: string, needle: string) => expect(source.includes(needle)).toBe(true);
 
 const queueSql = file("supabase/migrations/20261030195000_quote_commercial_review_queue.sql");
 const conversionSql = file("supabase/migrations/20261030195500_quote_review_conversion_guard.sql");
@@ -14,95 +15,95 @@ const order = file("src/lib/order.functions.ts");
 
 describe("Fila de análise comercial do orçamento", () => {
   test("duas escolhas visíveis, com compra direta preservada", () => {
-    expect(customerUi).toContain("Opção 1 — Transformar em compra");
-    expect(customerUi).toContain("Opção 2 — Enviar para análise");
-    expect(customerUi).toContain("Comprar agora");
-    expect(customerUi).toContain("Confirmar envio para análise");
-    expect(customerUi).toContain("requestQuoteCommercialReview");
-    expect(customerUi).toContain("convertMyQuoteToPurchase");
-    expect(customerUi).toContain("não cria cobrança nem reserva estoque");
+    has(customerUi, "Opção 1 — Transformar em compra");
+    has(customerUi, "Opção 2 — Enviar para análise");
+    has(customerUi, "Comprar agora");
+    has(customerUi, "Confirmar envio para análise");
+    has(customerUi, "requestQuoteCommercialReview");
+    has(customerUi, "convertMyQuoteToPurchase");
+    has(customerUi, "não cria cobrança nem reserva estoque");
   });
 
   test("somente cliente proprietário pode solicitar análise no tenant correto", () => {
-    expect(queueSql).toContain("v_quote.customer_id");
-    expect(queueSql).toContain("user_id=p_user_id and active");
-    expect(queueSql).toContain("QUOTE_NOT_OWNED_BY_USER");
-    expect(queueSql).toContain("v_quote.valid_until<now()");
-    expect(queueSql).toContain("where id=p_quote_id and tenant_id=p_tenant_id");
-    expect(queueSql).toContain("ONLY_STOREFRONT_QUOTES");
-    expect(managerFn).toContain("p_user_id: context.userId");
+    has(queueSql, "v_quote.customer_id");
+    has(queueSql, "user_id=p_user_id and active");
+    has(queueSql, "QUOTE_NOT_OWNED_BY_USER");
+    has(queueSql, "v_quote.valid_until<now()");
+    has(queueSql, "where id=p_quote_id and tenant_id=p_tenant_id");
+    has(queueSql, "ONLY_STOREFRONT_QUOTES");
+    has(managerFn, "p_user_id: context.userId");
   });
 
   test("vendas continuam livres de aprovação de análise", () => {
-    expect(conversionSql).toContain("p_payment_method not in ('pix','cartao','boleto','faturado_b2b')");
-    expect(conversionSql).toContain("q.status not in ('rascunho','enviado','em_negociacao','aprovado')");
-    expect(conversionSql).toContain("reserved=reserved+v_item.qty");
-    expect(conversionSql).toContain("for update of ps skip locked");
+    has(conversionSql, "p_payment_method not in ('pix','cartao','boleto','faturado_b2b')");
+    has(conversionSql, "q.status not in ('rascunho','enviado','em_negociacao','aprovado')");
+    has(conversionSql, "reserved=reserved+v_item.qty");
+    has(conversionSql, "for update of ps skip locked");
   });
 
   test("análise não confere automaticamente crédito nem desconto", () => {
-    expect(queueSql).toContain("status text not null default 'pending'");
-    expect(queueSql).toContain("status='offered'");
-    expect(queueSql).toContain("status='denied'");
-    expect(queueSql).toContain("v_quote.total-p_additional_discount");
-    expect(queueSql).toContain("quote_reviews_unique_source");
-    expect(queueSql).toContain("p_additional_discount");
-    expect(queueSql).toContain("MINIMUM_CHECKOUT_AMOUNT");
-    expect(managerUi).toContain("Aprovar e enviar proposta ao cliente");
-    expect(managerUi).toContain("Não conceder condições especiais");
+    has(queueSql, "status text not null default 'pending'");
+    has(queueSql, "status='offered'");
+    has(queueSql, "status='denied'");
+    has(queueSql, "v_quote.total-p_additional_discount");
+    has(queueSql, "quote_reviews_unique_source");
+    has(queueSql, "p_additional_discount");
+    has(queueSql, "MINIMUM_CHECKOUT_AMOUNT");
+    has(managerUi, "Aprovar e enviar proposta ao cliente");
+    has(managerUi, "Não conceder condições especiais");
   });
 
   test("somente gestor autoriza uma oferta, sem alterar original", () => {
-    expect(queueSql).toContain("m.role in ('owner','admin','manager')");
-    expect(queueSql).toContain("MANAGER_PERMISSION_REQUIRED");
-    expect(queueSql).toContain("parent_quote_id");
-    expect(queueSql).toContain("original_total");
-    expect(queueSql).toContain("now()+interval '48 hours'");
-    expect(queueSql).toContain("analise_aprovada");
-    expect(managerFn).toContain('["owner", "admin", "manager"]');
+    has(queueSql, "m.role in ('owner','admin','manager')");
+    has(queueSql, "MANAGER_PERMISSION_REQUIRED");
+    has(queueSql, "parent_quote_id");
+    has(queueSql, "original_total");
+    has(queueSql, "now()+interval '48 hours'");
+    has(queueSql, "analise_aprovada");
+    has(managerFn, '["owner", "admin", "manager"]');
   });
 
   test("crédito faturado restrito a B2B apto com condições ativas", () => {
-    expect(queueSql).toContain("v_customer.customer_group::text not in ('revendedor','oficina','distribuidor')");
-    expect(queueSql).toContain("v_customer.b2b_status::text<>'approved'");
-    expect(queueSql).toContain("and a.allow_invoice");
-    expect(queueSql).toContain("CUSTOMER_CREDIT_NOT_APPROVED");
-    expect(conversionSql).toContain("CREDIT_NOT_AUTHORIZED_FOR_QUOTE");
-    expect(conversionSql).toContain("CREDIT_TERMS_CHANGED");
-    expect(conversionSql).toContain("v_credit_days");
-    expect(managerUi).toContain("Crédito faturado B2B");
+    has(queueSql, "v_customer.customer_group::text not in ('revendedor','oficina','distribuidor')");
+    has(queueSql, "v_customer.b2b_status::text<>'approved'");
+    has(queueSql, "and a.allow_invoice");
+    has(queueSql, "CUSTOMER_CREDIT_NOT_APPROVED");
+    has(conversionSql, "CREDIT_NOT_AUTHORIZED_FOR_QUOTE");
+    has(conversionSql, "CREDIT_TERMS_CHANGED");
+    has(conversionSql, "v_credit_days");
+    has(managerUi, "Crédito faturado B2B");
   });
 
   test("não permite duas compras de versões de um mesmo orçamento", () => {
-    expect(conversionSql).toContain("QUOTE_FAMILY_ALREADY_CONVERTED");
-    expect(conversionSql).toContain("status='converted'");
-    expect(conversionSql).toContain("converted_order_id=v_order_id");
-    expect(conversionSql).toContain("QUOTE_OFFER_NOT_AVAILABLE");
-    expect(customerFn).toContain("familyConverted");
+    has(conversionSql, "QUOTE_FAMILY_ALREADY_CONVERTED");
+    has(conversionSql, "status='converted'");
+    has(conversionSql, "converted_order_id=v_order_id");
+    has(conversionSql, "QUOTE_OFFER_NOT_AVAILABLE");
+    has(customerFn, "familyConverted");
   });
 
   test("requisições sensíveis nunca ficam públicas", () => {
-    expect(queueSql).toContain("enable row level security");
-    expect(queueSql).toContain("revoke all on public.quote_commercial_reviews from public,anon,authenticated");
-    expect(queueSql).toContain("from public,anon,authenticated");
-    expect(queueSql).toContain("to service_role");
-    expect(conversionSql).toContain("from public,anon,authenticated");
-    expect(managerFn).toContain("requireTenantRole");
+    has(queueSql, "enable row level security");
+    has(queueSql, "revoke all on public.quote_commercial_reviews from public,anon,authenticated");
+    has(queueSql, "from public,anon,authenticated");
+    has(queueSql, "to service_role");
+    has(conversionSql, "from public,anon,authenticated");
+    has(managerFn, "requireTenantRole");
   });
 
   test("resposta do gestor aparece apenas na área do cliente certo", () => {
-    expect(customerFn).toContain('.in("customer_id",customerIds)');
-    expect(customerFn).toContain("is_commercial_offer");
-    expect(customerFn).toContain("can_request_review");
-    expect(customerUi).toContain("O gestor enviou uma nova proposta");
-    expect(customerUi).toContain("Condições comerciais liberadas pelo gestor");
+    has(customerFn, '.in("customer_id",customerIds)');
+    has(customerFn, "is_commercial_offer");
+    has(customerFn, "can_request_review");
+    has(customerUi, "O gestor enviou uma nova proposta");
+    has(customerUi, "Condições comerciais liberadas pelo gestor");
   });
 
   test("checkout reaproveita faturamento B2B sem elevar permissão", () => {
-    expect(checkout).toContain('["pix", "cartao", "boleto", "faturado_b2b"].includes(paymentMethod)');
-    expect(order).toContain("Crédito faturado somente para pedidos previamente autorizados.");
-    expect(order).toContain("Crédito faturado B2B não está mais autorizado.");
-    expect(order).toContain("invoiceDueDays");
-    expect(checkout).toContain("finalizeInvoice");
+    has(checkout, '["pix", "cartao", "boleto", "faturado_b2b"].includes(paymentMethod)');
+    has(order, "Crédito faturado somente para pedidos previamente autorizados.");
+    has(order, "Crédito faturado B2B não está mais autorizado.");
+    has(order, "invoiceDueDays");
+    has(checkout, "finalizeInvoice");
   });
 });
