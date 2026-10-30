@@ -34,6 +34,8 @@ import {
   type PosSaleDetail,
 } from "@/lib/pos-history.functions";
 import { PdvReceipt, paymentLabel, printReceipt } from "@/components/pdv/PdvReceipt";
+import { getOrderReceipt } from "@/lib/sales-receipts.functions";
+import { ImmutableSaleReceipt } from "@/components/receipts/ImmutableSaleReceipt";
 
 export const statusLabels: Record<string, string> = {
   completed: "Concluída",
@@ -66,6 +68,7 @@ export function PdvSaleDetailSheet({
   const detailFn = useServerFn(getPosSaleDetail);
   const companyFn = useServerFn(getPosCompanyHeader);
   const cancelFn = useServerFn(cancelPosSale);
+  const receiptFn = useServerFn(getOrderReceipt);
   const [reason, setReason] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -79,6 +82,12 @@ export function PdvSaleDetailSheet({
     queryKey: ["pdv-company-header"],
     queryFn: () => companyFn(),
     staleTime: 300_000,
+  });
+
+  const receiptQuery = useQuery({
+    queryKey: ["pdv-immutable-receipt", detailQuery.data?.order_id],
+    enabled: Boolean(detailQuery.data?.order_id),
+    queryFn: () => receiptFn({ data:{ orderId: detailQuery.data!.order_id as string } }),
   });
 
   const cancelMutation = useMutation({
@@ -280,7 +289,14 @@ export function PdvSaleDetailSheet({
         </AlertDialogContent>
       </AlertDialog>
 
-      <PdvReceipt sale={sale} company={(companyQuery.data as any) ?? null} />
+      {sale?.order_id && (receiptQuery.data as any)?.receipt ? (
+        <ImmutableSaleReceipt
+          receipt={(receiptQuery.data as any).receipt}
+          company={(receiptQuery.data as any).company ?? (companyQuery.data as any) ?? null}
+        />
+      ) : (
+        <PdvReceipt sale={sale} company={(companyQuery.data as any) ?? null} />
+      )}
     </>
   );
 }
