@@ -83,7 +83,7 @@ const orderIdInputSchema = z.object({ orderId: z.string().uuid() });
 const pendingOrderCheckoutSchema = z.object({
   orderId:z.string().uuid(),
   customer:storefrontOrderSchema.shape.customer,
-  paymentMethod:z.enum(["pix","cartao","boleto"]),
+  paymentMethod:z.enum(["pix","cartao","boleto","faturado_b2b"]),
   boletoDueDays:z.union([z.literal(3),z.literal(15),z.literal(30),z.literal(45),z.literal(60),z.literal(90),z.literal(120)]).optional(),
   fulfillmentType:z.enum(["delivery","pickup"]).default("delivery"),
   pickupBranchId:z.string().uuid().optional(),
@@ -133,7 +133,7 @@ export const updatePendingOrderCheckout = createServerFn({ method:"POST" })
     const { supabaseAdmin }=await import("@/integrations/supabase/client.server");
     const db=supabaseAdmin as any;
     const { data:order,error:orderError }=await db.from("orders")
-      .select("id,status,user_id,tenant_id,customer_id,subtotal,discount,shipping,total,is_b2b")
+      .select("id,status,user_id,tenant_id,customer_id,subtotal,discount,shipping,total,is_b2b,payment_method")
       .eq("id",data.orderId)
       .eq("tenant_id",context.tenantId)
       .eq("user_id",context.userId)
@@ -142,16 +142,27 @@ export const updatePendingOrderCheckout = createServerFn({ method:"POST" })
     if(!order||order.status!=="aguardando_pagamento") throw new Error("Pedido não está disponível para edição do checkout.");
 
     // Boleto usa condições comerciais reais, nunca prazo livre.
+    if(data.paymentMethod==="faturado_b2b"&&order.payment_method!=="faturado_b2b"){
+      throw new Error("Crédito faturado somente para pedidos previamente autorizados.");
+    }
+
     let allowedBoletoDays=[3];
+    let invoiceDueDays:number|null=null;
+    let invoiceEnabled=false;
     if(order.is_b2b&&order.customer_id){
       const {data:terms,error:termsError}=await db.from("b2b_customer_price_tables")
-        .select("allowed_boleto_days")
+        .select("allowed_boleto_days,allow_invoice,invoice_due_days")
         .eq("tenant_id",context.tenantId)
         .eq("customer_id",order.customer_id)
         .eq("active",true)
         .maybeSingle();
       if(termsError) throw new Error(termsError.message);
       allowedBoletoDays=terms?.allowed_boleto_days??[15];
+      invoiceEnabled=Boolean(terms?.allow_invoice);
+      invoiceDueDays=invoiceEnabled?Number(terms?.invoice_due_days??28):null;
+    }
+    if(data.paymentMethod==="faturado_b2b"&&(!order.is_b2b||!invoiceEnabled||!invoiceDueDays)){
+      throw new Error("Crédito faturado B2B não está mais autorizado.");
     }
     if(data.paymentMethod==="boleto"&&!allowedBoletoDays.includes(data.boletoDueDays??allowedBoletoDays[0])){
       throw new Error("O prazo de boleto não está liberado para este cliente.");
@@ -174,7 +185,7 @@ export const updatePendingOrderCheckout = createServerFn({ method:"POST" })
 
     const dueDays=data.paymentMethod==="boleto"
       ?(data.boletoDueDays??allowedBoletoDays[0])
-      :null;
+      :data.paymentMethod==="faturado_b2b"?invoiceDueDays:null;
 
     // Apenas pedidos provenientes de orçamento têm frete recalculado aqui.
     const {data:quoteSale,error:quoteSaleError}=await db.from("sales_orders")

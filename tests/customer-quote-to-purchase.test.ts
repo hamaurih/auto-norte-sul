@@ -42,10 +42,10 @@ describe("Customer quote to purchase", () => {
     const cart=readFileSync("src/routes/carrinho.tsx","utf8");
     const page=readFileSync("src/routes/_authenticated/orcamentos.tsx","utf8");
     expect(cart.includes("Gerar orçamento")).toBe(true);
-    expect(page.includes("Transformar orçamento em compra")).toBe(true);
-    expect(page.includes('"pix","PIX"')).toBe(true);
-    expect(page.includes('"cartao","Cartão"')).toBe(true);
-    expect(page.includes('"boleto","Boleto"')).toBe(true);
+    expect(page.includes("Opção 1 — Transformar em compra")).toBe(true);
+    expect(page.includes('id: "pix"') && page.includes('label: "PIX"')).toBe(true);
+    expect(page.includes('id: "cartao"') && page.includes('label: "Cartão"')).toBe(true);
+    expect(page.includes('id: "boleto"') && page.includes('label: "Boleto"')).toBe(true);
   });
 
   test("resumed checkout persists customer and payment data before charge", () => {

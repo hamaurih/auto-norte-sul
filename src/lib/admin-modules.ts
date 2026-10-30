@@ -118,6 +118,12 @@ export const adminModules: AdminModule[] = [
         description: "Propostas comerciais",
         icon: FileText,
       },
+      {
+        to: "/admin/orcamentos/analises",
+        label: "Análises comerciais",
+        description: "Aprovar descontos e crédito de orçamentos",
+        icon: FileText,
+      },
       { to: "/admin/clientes", label: "Clientes", description: "Base de clientes", icon: Users },
       {
         to: "/admin/cadastros-b2b",
