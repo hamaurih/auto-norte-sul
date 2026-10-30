@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
 describe("Customer quote to purchase", () => {
+  // Final regression marker: stock source must remain reservable multi-stock.
   test("customer can only buy released valid quote", () => {
     const sql=readFileSync("supabase/migrations/20261030182500_customer_quote_to_purchase.sql","utf8");
     expect(sql.includes("q.status not in ('enviado','aprovado')")).toBe(true);
