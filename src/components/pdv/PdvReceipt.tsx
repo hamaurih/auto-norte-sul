@@ -109,7 +109,9 @@ export function PdvReceipt({
         </>
       ) : null}
       <hr />
-      <div className="pdv-receipt-center">Documento sem valor fiscal · obrigado pela preferência</div>
+      <div className="pdv-receipt-center"><strong>DOCUMENTO NÃO FISCAL</strong></div>
+      <div className="pdv-receipt-center">Comprovante comercial da venda. Não substitui NF-e/NFC-e quando aplicável.</div>
+      <div className="pdv-receipt-center">A emissão fiscal é realizada separadamente por usuário autorizado.</div>
     </div>
   );
 }
