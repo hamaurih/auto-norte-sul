@@ -22,7 +22,6 @@ declare
   v_stock public.product_stock%rowtype;
   v_latest_order public.orders%rowtype;
   v_email text;
-  v_auth_email text;
   v_items_json jsonb:='[]'::jsonb;
   v_is_b2b boolean:=false;
 begin
@@ -53,76 +52,15 @@ begin
   if q.valid_until is not null and q.valid_until < now() then
     raise exception 'QUOTE_EXPIRED';
   end if;
-  select email into v_auth_email
-  from auth.users
-  where id=v_user;
+  if q.customer_id is null then raise exception 'QUOTE_CUSTOMER_REQUIRED'; end if;
 
-  if q.customer_id is not null then
-    select * into c
-    from public.customers
-    where id=q.customer_id
-      and tenant_id=q.tenant_id
-      and active
-      and (
-        user_id=v_user
-        or (
-          user_id is null
-          and v_auth_email is not null
-          and email is not null
-          and lower(email)=lower(v_auth_email)
-        )
-      );
-    if not found then raise exception 'QUOTE_NOT_OWNED_BY_USER'; end if;
-
-    if c.user_id is null then
-      update public.customers
-      set user_id=v_user,updated_at=now()
-      where id=c.id and tenant_id=q.tenant_id and user_id is null
-      returning * into c;
-    end if;
-  else
-    if v_auth_email is null
-       or q.customer_email is null
-       or lower(q.customer_email)<>lower(v_auth_email) then
-      raise exception 'QUOTE_NOT_OWNED_BY_USER';
-    end if;
-
-    select * into c
-    from public.customers
-    where tenant_id=q.tenant_id
-      and active
-      and (
-        user_id=v_user
-        or (
-          user_id is null
-          and email is not null
-          and lower(email)=lower(v_auth_email)
-        )
-      )
-    order by case when user_id=v_user then 0 else 1 end,created_at
-    limit 1
-    for update;
-
-    if found and c.user_id is null then
-      update public.customers
-      set user_id=v_user,updated_at=now()
-      where id=c.id and tenant_id=q.tenant_id and user_id is null
-      returning * into c;
-    elsif not found then
-      insert into public.customers(
-        tenant_id,user_id,name,email,phone,customer_group,b2b_status,active,source
-      ) values (
-        q.tenant_id,v_user,coalesce(nullif(q.customer_name,''),split_part(v_auth_email,'@',1)),
-        v_auth_email,q.customer_phone,'b2c','none',true,'quote'
-      )
-      returning * into c;
-    end if;
-
-    update public.quotes
-    set customer_id=c.id,updated_at=now()
-    where id=q.id and tenant_id=q.tenant_id and customer_id is null;
-    q.customer_id:=c.id;
-  end if;
+  select * into c
+  from public.customers
+  where id=q.customer_id
+    and tenant_id=q.tenant_id
+    and active
+    and user_id=v_user;
+  if not found then raise exception 'QUOTE_NOT_OWNED_BY_USER'; end if;
 
   select sr.id into v_rep_id
   from public.sales_reps sr
