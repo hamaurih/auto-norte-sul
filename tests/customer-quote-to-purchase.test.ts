@@ -45,6 +45,6 @@ describe("Customer quote to purchase", () => {
   test("storefront stock is hydrated from available stock view", () => {
     const source=readFileSync("src/lib/queries.ts","utf8");
     expect(source.includes("v_product_stock_available")).toBe(true);
-    expect(source.includes("available_effective")).toBe(true);
+    expect(source.includes("available_multi")).toBe(true);
   });
 });
