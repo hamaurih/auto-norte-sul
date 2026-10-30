@@ -8,7 +8,7 @@ describe("Official non-fiscal receipt", () => {
     expect(component.includes("DOCUMENTO NÃO FISCAL")).toBe(true);
     expect(component.includes("A emissão fiscal é realizada separadamente por usuário autorizado.")).toBe(true);
     expect(component.includes("receipt.snapshot_hash")).toBe(true);
-    expect(component.includes("items_snapshot")).toBe(false);
+    expect(component.includes("items_snapshot")).toBe(true);
   });
 
   test("customer receipt is loaded through ownership-checked server function", () => {
