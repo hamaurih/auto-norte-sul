@@ -7,6 +7,8 @@ describe("Customer quote to purchase", () => {
     expect(sql.includes("q.status not in ('enviado','aprovado')")).toBe(true);
     expect(sql.includes("QUOTE_EXPIRED")).toBe(true);
     expect(sql.includes("QUOTE_NOT_OWNED_BY_USER")).toBe(true);
+    const linkSql=readFileSync("supabase/migrations/20261030185500_quote_email_owner_link.sql","utf8");
+    expect(linkSql.includes("lower(q.customer_email)<>lower(v_auth_email)")).toBe(true);
   });
 
   test("conversion reserves stock atomically and preserves quote values", () => {
