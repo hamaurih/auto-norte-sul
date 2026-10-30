@@ -83,7 +83,15 @@ begin
 
   select * into v_review from public.quote_commercial_reviews
     where tenant_id=p_tenant_id and quote_id=v_quote.id for update;
-  if found and v_review.status in ('pending','offered') then
+  if found and v_review.status='converted' then
+    raise exception 'QUOTE_FAMILY_ALREADY_CONVERTED';
+  end if;
+  if found and v_review.status='offered'
+     and v_review.offer_expires_at is not null
+     and v_review.offer_expires_at<now() then
+    -- Ofertas vencidas podem ser renegociadas, mas nunca compradas novamente.
+    null;
+  elsif found and v_review.status in ('pending','offered') then
     return jsonb_build_object('ok',true,'reused',true,'id',v_review.id,'status',v_review.status);
   end if;
   if found then
