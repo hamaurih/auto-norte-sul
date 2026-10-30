@@ -16,18 +16,42 @@ export const getMyQuotes = createServerFn({ method:"GET" })
       .eq("active",true);
     if(customerError) throw new Error(customerError.message);
     const customerIds=(customers??[]).map((row:any)=>row.id);
-    if(!customerIds.length) return [];
+    const { data:authUser,error:authError }=await supabaseAdmin.auth.admin.getUserById(context.userId);
+    if(authError) throw new Error(authError.message);
+    const authEmail=authUser.user?.email?.trim().toLowerCase()??null;
 
-    const { data:quotes,error }=await db.from("quotes")
-      .select("id,number,title,status,document_type,version,subtotal,discount,shipping_amount,total,payment_terms,delivery_terms,valid_until,created_at,updated_at,converted_sales_order_id,quote_items(id,product_id,sku,name,qty,unit_price,discount,total)")
-      .eq("tenant_id",context.tenantId)
-      .in("customer_id",customerIds)
-      .is("deleted_at",null)
-      .order("created_at",{ascending:false})
-      .limit(100);
-    if(error) throw new Error(error.message);
+    const select="id,number,title,status,document_type,version,subtotal,discount,shipping_amount,total,payment_terms,delivery_terms,valid_until,created_at,updated_at,converted_sales_order_id,customer_id,customer_email,quote_items(id,product_id,sku,name,qty,unit_price,discount,total)";
+    const queries:Promise<any>[]=[];
+    if(customerIds.length){
+      queries.push(db.from("quotes")
+        .select(select)
+        .eq("tenant_id",context.tenantId)
+        .in("customer_id",customerIds)
+        .is("deleted_at",null)
+        .order("created_at",{ascending:false})
+        .limit(100));
+    }
+    if(authEmail){
+      queries.push(db.from("quotes")
+        .select(select)
+        .eq("tenant_id",context.tenantId)
+        .is("customer_id",null)
+        .ilike("customer_email",authEmail)
+        .is("deleted_at",null)
+        .order("created_at",{ascending:false})
+        .limit(100));
+    }
+    if(!queries.length) return [];
 
-    const salesOrderIds=(quotes??[]).map((q:any)=>q.converted_sales_order_id).filter(Boolean);
+    const results=await Promise.all(queries);
+    const byId=new Map<string,any>();
+    for(const result of results){
+      if(result.error) throw new Error(result.error.message);
+      for(const quote of result.data??[]) byId.set(quote.id,quote);
+    }
+    const quotes=[...byId.values()].sort((a:any,b:any)=>+new Date(b.created_at)-+new Date(a.created_at)).slice(0,100);
+
+    const salesOrderIds=quotes.map((q:any)=>q.converted_sales_order_id).filter(Boolean);
     const orderBySalesOrder=new Map<string,string>();
     if(salesOrderIds.length){
       const { data:salesOrders,error:salesError }=await db.from("sales_orders")
@@ -39,7 +63,7 @@ export const getMyQuotes = createServerFn({ method:"GET" })
     }
 
     const now=Date.now();
-    return (quotes??[]).map((quote:any)=>({
+    return quotes.map((quote:any)=>({
       ...quote,
       order_id:quote.converted_sales_order_id?orderBySalesOrder.get(quote.converted_sales_order_id)??null:null,
       can_buy:["enviado","aprovado"].includes(String(quote.status))
