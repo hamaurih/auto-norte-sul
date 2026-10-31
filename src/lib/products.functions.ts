@@ -191,9 +191,21 @@ export const productToggle = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const membership = await requireCatalogTenant(tdb(context.supabase), context.userId, context.tenantId);
     const patch: Record<string, boolean> = { [data.field]: data.value };
-    const { error } = await tdb(context.supabase).from("products").update(patch as never).eq("id", data.id).eq("tenant_id", membership.tenant_id).is("deleted_at", null);
+    const { data: updated, error } = await tdb(context.supabase)
+      .from("products")
+      .update(patch as never)
+      .eq("id", data.id)
+      .eq("tenant_id", membership.tenant_id)
+      .is("deleted_at", null)
+      .select("id, active, featured, is_new, is_bestseller, is_offer")
+      .maybeSingle();
+
     if (error) throw new Error(error.message);
-    return { ok: true };
+    if (!updated) throw new Error("Produto não foi alterado. Verifique sua permissão e tente novamente.");
+    if ((updated as any)[data.field] !== data.value) {
+      throw new Error("O status solicitado não foi persistido pelo banco de dados.");
+    }
+    return { ok: true, product: updated };
   });
 
 export const productDuplicate = createServerFn({ method: "POST" })
